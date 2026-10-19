@@ -102,6 +102,11 @@ body.portrait .rotate-hint{display:flex}
 .moves b{display:block;font-size:14px}
 .moves small{display:block;color:var(--mist);font-size:11px;line-height:1.5}
 .foot{font-size:11px;color:var(--mist)}
+.seg{display:flex;align-items:center;flex-wrap:wrap;gap:6px}
+.seg>span{font-size:12px;color:var(--mist);margin-right:4px}
+.seg button{min-height:36px;padding:0 14px;border-radius:10px;border:1px solid var(--line);background:transparent;color:var(--foam);font-weight:900}
+.seg button[aria-pressed="true"]{background:var(--p1);color:var(--ink);border-color:transparent}
+.seg small{font-size:11px;color:var(--mist);margin-left:4px}
 @media (orientation:portrait){
   #s-select{align-items:flex-end}
   .sel-panel{width:100%;max-height:64%}
@@ -290,7 +295,7 @@ body.portrait .pad.p2 .btns{bottom:calc(env(safe-area-inset-top,0px) + 76px)}
     <h1 class="logo"><span class="t1">大乱闘<em>3D</em></span><span class="t2">アンダーウォーター</span></h1>
     <p class="lede">海面下 2,000m。今日も変な者が集まっている。</p>
     <div class="menu">
-      <button class="cta primary" type="button" data-go="cpu"><b>CPUと対戦</b><small>深海CPUは、たまに考えすぎる</small></button>
+      <button class="cta primary" type="button" data-go="cpu"><b>CPUと対戦</b><small>深海CPU 1〜3体と乱闘。たまに考えすぎる</small></button>
       <button class="cta" type="button" data-go="local"><b>ふたりで対戦</b><small>1台を横に持って、左右半分ずつ操作</small></button>
       <button class="cta" type="button" data-go="online"><b>オンライン対戦</b><small>部屋コードで2〜4人がつながって乱闘</small></button>
     </div>
@@ -305,6 +310,7 @@ body.portrait .pad.p2 .btns{bottom:calc(env(safe-area-inset-top,0px) + 76px)}
     <div class="roster" id="roster"></div>
     <div class="detail" id="detail"></div>
     <p class="foot">ちく＝攻撃に混ざるちくちく成分。多いほど追加ダメージと毒が出やすい。</p>
+    <div class="seg" id="sel-count" role="group" aria-label="対戦人数"><span>人数</span><button type="button" data-n="2">2人</button><button type="button" data-n="3">3人</button><button type="button" data-n="4">4人</button><small id="sel-count-note"></small></div>
     <div class="row"><button class="ghost" id="sel-back" type="button">もどる</button><button class="go" id="sel-ok" type="button">この潜水者で</button></div>
   </div>
 </section>
@@ -2777,8 +2783,17 @@ function detailHTML(c) {
     '<li><span class="k">ジャンプ</span><span><b>みんな跳べる</b><small>地面を走る衝撃波や、飛んでくる物をかわせる</small></span></li>' +
     '</ul>';
 }
+/* CPU対戦: total fighters 2-4 (you + 1-3 CPUs), remembered on this device */
+G.cpuN = clamp(parseInt(lsGet('uw3d-cpun'), 10) || 2, 2, MAXP);
+$('#sel-count').addEventListener('click', e => {
+  const b = e.target.closest('button[data-n]'); if (!b) return;
+  G.cpuN = clamp(+b.dataset.n, 2, MAXP); lsSet('uw3d-cpun', String(G.cpuN)); renderSelect(); audio.tick();
+});
 function renderSelect() {
   const c = ROSTER[G.selIdx];
+  $('#sel-count').hidden = G.type !== 'cpu';
+  $$('#sel-count button').forEach(b => b.setAttribute('aria-pressed', String(+b.dataset.n === G.cpuN)));
+  $('#sel-count-note').textContent = 'CPU ' + (G.cpuN - 1) + '体と乱闘';
   $('#sel-who').textContent = G.type === 'cpu' ? 'あなたの潜水者' : (G.picker === 0 ? '1P がえらぶ' : '2P がえらぶ');
   $('#sel-who').style.color = G.picker === 1 ? 'var(--p2)' : 'var(--p1)';
   $$('#roster .tile').forEach((b, i) => b.setAttribute('aria-pressed', String(i === G.selIdx)));
@@ -2798,8 +2813,12 @@ $('#roster').addEventListener('click', e => {
 $('#sel-ok').addEventListener('click', () => {
   G.picks[G.picker] = G.selIdx;
   if (G.type === 'local' && G.picker === 0) { G.picker = 1; G.selIdx = G.picks[1] | 0; renderSelect(); layoutShowcase('select', G.selIdx); return; }
-  if (G.type === 'cpu') { let c; do { c = rnd(0, ROSTER.length - 1); } while (c === G.picks[0]); G.picks[1] = c; }
-  startMatch([ROSTER[G.picks[0]], ROSTER[G.picks[1]]], ['human', G.type === 'cpu' ? 'cpu' : 'human']);
+  if (G.type === 'cpu') {
+    const pool = ROSTER.map((_, i) => i).filter(i => i !== G.picks[0]).sort(() => Math.random() - 0.5), cpus = pool.slice(0, G.cpuN - 1);
+    startMatch([G.picks[0], ...cpus].map(i => ROSTER[i]), ['human', ...cpus.map(() => 'cpu')]);
+    return;
+  }
+  startMatch([ROSTER[G.picks[0]], ROSTER[G.picks[1]]], ['human', 'human']);
 });
 $('#sel-back').addEventListener('click', () => {
   if (G.picker === 1) { G.picker = 0; G.selIdx = G.picks[0]; renderSelect(); layoutShowcase('select', G.selIdx); }
@@ -2815,7 +2834,7 @@ function clearMatch() {
 }
 function hideFightUI() { $('#hud').hidden = true; $('#hud2').hidden = true; $('#pads').hidden = true; clearInputs(); }
 function tagFor(f) {
-  if (G.type === 'cpu') return f.ctrl === 'cpu' ? 'CPU' : 'あなた';
+  if (G.type === 'cpu') return f.ctrl === 'cpu' ? (G.fighters.length > 2 ? 'CPU' + f.idx : 'CPU') : 'あなた';
   if (G.type === 'online') return f === G.me ? 'あなた' : 'P' + (f.idx + 1);
   return f.idx === 0 ? '1P' : '2P';
 }
@@ -2841,7 +2860,9 @@ function startMatch(chars, ctrls, ids, nms) {
     G.me = F[Net.myIdx]; G.me.input = pads[0].input; pads[0].f = G.me; pads[1].f = null;
   } else {
     G.me = F[0]; F[0].input = pads[0].input; pads[0].f = F[0];
-    if (ctrls[1] === 'cpu') { G.cpu = newBrain(); pads[1].f = null; } else { F[1].input = pads[1].input; pads[1].f = F[1]; }
+    if (ctrls[1] === 'human') { F[1].input = pads[1].input; pads[1].f = F[1]; } else pads[1].f = null;
+    for (const f of F) if (f.ctrl === 'cpu') f.brain = newBrain();
+    G.cpu = (F.find(f => f.brain) || {}).brain || null;
   }
   G.time = MATCH_SEC; G.hitstop = 0; G.intrT = 10 + Math.random() * 5; G.shake = 0; G.endT = 0; G.bubT = 5;
   G.camYaw = G.me ? G.me.face : 0;
@@ -3099,7 +3120,7 @@ function stepGame(rdt) {
   if (G.phase === 'end') { dt *= 0.45; G.endT -= rdt; if (G.endT <= 0) { showResult(); return; } }
   if (dt <= 0) return;
   if (G.phase === 'fight') {
-    if (G.cpu) cpuThink(F[1], nearest(F[1]), dt, G.cpu);
+    for (const f of F) if (f.brain) cpuThink(f, nearest(f), dt, f.brain);
     if (G.cpuA) { const a = G.type === 'online' ? G.me : F[0]; if (a) cpuThink(a, nearest(a), dt, G.cpuA); }
   }
   for (const f of F) { if (f.ctrl === 'remote') updateRemote(f, nearest(f), dt); else updateFighter(f, nearest(f), dt); }
@@ -3167,9 +3188,9 @@ function updateTags() {
   for (let i = G.fighters.length; i < tagEls.length; i++) tagEls[i].hidden = true;
 }
 function updateThink() {
-  const el = $('#think'), cpu = G.cpu && G.fighters[1];
-  if (cpu && G.cpu.think > 0 && G.phase === 'fight' && !G.paused) {
-    if (el.hidden) { el.hidden = false; el.textContent = '💭 ' + cpu.ch.think; }
+  const el = $('#think'), cpu = G.phase === 'fight' && !G.paused ? G.fighters.find(f => f.brain && f.brain.think > 0 && !f.ko) : null;
+  if (cpu) {
+    if (el.hidden || el.dataset.who !== String(cpu.idx)) { el.hidden = false; el.dataset.who = String(cpu.idx); el.textContent = '💭 ' + cpu.ch.think; }
     const p = project(cpu.x, 3.1, cpu.z);
     el.style.transform = 'translate(' + p.x.toFixed(1) + 'px,' + p.y.toFixed(1) + 'px) translate(-50%,-100%)';
   } else if (!el.hidden) el.hidden = true;
