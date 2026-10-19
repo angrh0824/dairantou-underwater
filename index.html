@@ -232,6 +232,16 @@ body:not(.portrait) #voice.up{bottom:calc(env(safe-area-inset-bottom,0px) + 72px
 #v-text{flex:1 1 auto;min-width:0;height:36px;border-radius:10px;border:1px solid var(--line);background:rgba(0,0,0,.25);color:var(--foam);font:inherit;font-weight:700;font-size:16px;padding:0 10px;-webkit-user-select:text;user-select:text;touch-action:manipulation}
 #vsay{position:fixed;left:0;top:0;z-index:14;pointer-events:none;font-weight:900;font-size:13px;padding:5px 11px;border-radius:14px;background:var(--pc,var(--p1));color:var(--ink);white-space:nowrap;max-width:60vw;overflow:hidden;text-overflow:ellipsis}
 @media (prefers-reduced-motion:reduce){#voice[data-st="on"] .v-mic i{animation:none}}
+
+/* チュートリアル: one order at a time, in a card under the HUD */
+#tut{position:fixed;z-index:17;left:50%;transform:translateX(-50%);top:calc(env(safe-area-inset-top,0px) + 70px);width:min(440px,calc(100vw - 32px));display:flex;flex-direction:column;gap:4px;padding:12px 14px;border-radius:16px;background:rgba(3,18,31,.86);border:1px solid var(--lamp);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px)}
+#tut.ok{border-color:var(--heal);box-shadow:0 0 24px -6px var(--heal)}
+#tut-n{font-family:var(--display);font-size:11px;letter-spacing:.12em;color:var(--lamp)}
+#tut.ok #tut-n{color:var(--heal)}
+#tut-say{font-family:var(--display);font-size:18px;line-height:1.3;text-wrap:balance}
+#tut-ex{font-weight:900;font-size:15px;color:var(--p1);overflow-wrap:anywhere}
+#tut-hint{font-size:12px;color:var(--mist);line-height:1.6}
+#tut .row{margin-top:4px}
 #banner{position:fixed;z-index:18;left:50%;top:calc(env(safe-area-inset-top,0px) + 64px);transform:translateX(-50%);width:max-content;max-width:min(540px,calc(100% - 32px));padding:9px 16px 9px 12px;border-radius:14px;background:rgba(5,30,50,.9);border:1px solid var(--lamp);display:flex;gap:10px;align-items:center;pointer-events:none;animation:bannerin .25s ease-out}
 #banner .e{font-size:28px;font-family:system-ui,sans-serif}
 #banner b{display:block;font-family:var(--display);font-weight:400;font-size:14px;color:var(--lamp);line-height:1.35}
@@ -311,6 +321,13 @@ body:not(.portrait) #voice.up{bottom:calc(env(safe-area-inset-bottom,0px) + 72px
   <form id="v-form" autocomplete="off"><input id="v-text" maxlength="40" placeholder="文字でも指示できます（例: 必殺）" enterkeyhint="send" aria-label="文字で指示"><button type="submit" class="ghost sm">送る</button></form>
 </div>
 <div id="vsay" hidden></div>
+<div id="tut" hidden role="status" aria-live="polite">
+  <p id="tut-n"></p>
+  <p id="tut-say"></p>
+  <p id="tut-ex"></p>
+  <p id="tut-hint"></p>
+  <div class="row"><button class="ghost sm" id="tut-skip" type="button">とばす</button><button class="ghost sm" id="tut-quit" type="button">やめる</button><button class="go" id="tut-cpu" type="button" hidden>CPUと対戦へ</button></div>
+</div>
 
 <div id="vs" hidden></div>
 <div id="count" hidden></div>
@@ -327,6 +344,7 @@ body:not(.portrait) #voice.up{bottom:calc(env(safe-area-inset-bottom,0px) + 72px
     <div class="menu">
       <button class="cta primary" type="button" data-go="cpu"><b>CPUと対戦</b><small>深海CPU 1〜3体と乱闘。CPUも同じく指示で動く。たまに考えすぎる</small></button>
       <button class="cta" type="button" data-go="online"><b>オンライン対戦</b><small>部屋コードで2〜4人がつながって乱闘</small></button>
+      <button class="cta" type="button" data-go="tut"><b>あそびかた</b><small>もう一度、指示の出し方を練習する</small></button>
     </div>
     <p class="rules"><span>🎤 声だけで指示して戦う</span><span>90秒・体力100</span><span>場外に落ちたら負け</span><span>？の泡でおまかせ</span><span>おじゃま乱入あり</span></p>
     <p class="rotate-hint"><i></i>スマホを横向きにすると遊びやすくなります</p>
@@ -1769,6 +1787,7 @@ function applyHit(t, h, a) {
 }
 function koFighter(f, why) {
   if (f.ko || (G.phase !== 'fight' && G.phase !== 'end')) return;
+  if (G.type === 'tutorial') { tutRevive(f); return; }
   f.ko = why; endMove(f); f.hitstun = 0; f.guarding = false; f.poison = 0;
   if (why === 'ring') { f.state = 'fall'; f.vy = 0.8; showBanner('🌊', '場外！', pname(f) + ' が深海へ落ちていく…', 'sys'); }
   else { f.state = 'ko'; f.vy = 6.5; }
@@ -2431,6 +2450,7 @@ function bubbleTick(dt) {
 }
 function awardBub(b, f) {
   popBub(b);
+  if (tut && f === G.me) tut.gotBub = true;
   if (G.type === 'online') { Net.bw = Net.bw.concat([[b.i, f.id]]).slice(-6); Net.set({ bw: Net.bw }); }
   if (f.ctrl !== 'remote') fireOmakase(f);
 }
@@ -2693,6 +2713,7 @@ function dirFor(k) {
 /* the order itself, without the panel and the reply bubble (CPUs give orders this way too) */
 function applyOrder(f, v, o) {
   const inp = f.input;
+  v.n = (v.n || 0) + 1;
   if (o.target) v.target = o.target;
   if (STANCES.has(o.act)) { v.stance = o.act; v.act = null; }
   else v.act = { k: o.act, t: o.act === 'special' ? Math.max(ACT_T.special, f.spCd + 2) : ACT_T[o.act] || 2, n: o.act === 'combo' ? 5 : 2, jumped: false, dir: dirFor(o.act), ph: 0 };
@@ -3444,7 +3465,7 @@ const Voice = {
   /* ask for the microphone while the player is still tapping a menu button */
   prime() { if (!micReady() || this.live) return; try { if (!this.rec) this.rec = this.make(); this.rec.start(); } catch (e) {} },
 };
-function showHeard(t, interim) { const el = $('#v-heard'); el.textContent = '「' + String(t).trim().slice(0, 60) + '」'; el.classList.toggle('interim', !!interim); }
+function showHeard(t, interim) { if (tut) tut.heard = true; const el = $('#v-heard'); el.textContent = '「' + String(t).trim().slice(0, 60) + '」'; el.classList.toggle('interim', !!interim); }
 function setPlan(t) { $('#v-plan').textContent = t; }
 let vsayT = 0;
 function sayLine(f, text) { const el = $('#vsay'); el.textContent = text; el.style.setProperty('--pc', PCOL[f.idx]); el.hidden = false; vsayT = 2.4; }
@@ -3480,6 +3501,88 @@ function voiceNotes() {
   for (const id of ['#sel-voice', '#on-voice']) { const el = $(id); el.hidden = false; el.textContent = msg; }
 }
 voiceNotes();
+
+/* ================= チュートリアル: practise each kind of order on a 練習相手 that never fights back =================
+   A step clears when its order has really happened (after something new was said), not just when words were heard. */
+let tut = null;
+function tutSteps(me, dummy) {
+  const mv = me.ch.mv, call = (VALIAS[dummy.ch.id] || [dummy.ch.name])[0], v = () => G.voice;
+  return [
+    { t: 'まずは話しかけてみよう', ex: '「こんにちは」', free: 1,
+      hint: micReady() ? 'マイクが声を聞き取れるかの確認です。聞き取った言葉が右下に出ます。うまくいかないときは、右下の欄に打ち込んでも進めます' : 'このページではマイクが使えないので、右下の欄に打ち込んで指示します',
+      ok: () => tut.heard },
+    { t: '「攻めろ」で戦いはじめる', ex: '「攻めろ」', hint: '一度言えば、自分で近づいて攻め続けます。何も言わないと、その場で待っています', ok: () => v().stance === 'fight' },
+    { t: '「待て」で止める', ex: '「待て」「ストップ」', hint: '止まっている間も、攻撃が来たら身を守ります', ok: () => v().stance === 'wait' && !v().act },
+    { t: '「ジャンプ」でかわす', ex: '「ジャンプ」「よけて」', hint: '床を走る攻撃や、飛んでくる物をかわせます', ok: () => me.y > 0.4 },
+    { t: '「防御」で身を守る', ex: '「防御」「ガード」', hint: mv.def + '：' + DEFK[me.ch.def].desc, ok: () => me.guarding },
+    { t: '自分の攻撃の技名を叫ぶ', ex: '「' + mv.atk + '」', hint: '「攻撃」「たたけ」でも出ます。' + ATKK[me.ch.atk].desc, ok: () => me.move && me.move.kind === 'atk' },
+    { t: '「必殺」でとっておきを出す', ex: '「必殺」「' + mv.sp + '」', hint: '一度使うと、しばらく溜まるまで出せません', setup: () => { me.spCd = 0; }, ok: () => me.move && me.move.kind === 'sp' },
+    { t: '「空中攻撃」で飛びかかる', ex: '「空中攻撃」「飛びかかれ」', hint: mv.air + '：' + AIR_DESC[me.ch.air], ok: () => me.move && me.move.kind === 'air' },
+    { t: '名前を呼んで狙う', ex: '「' + call + 'を狙え」', hint: '乱闘では狙う相手を選べます。「弱ってるやつ」「近いやつ」も使えます', ok: () => v().target === dummy },
+    { t: '「泡」で？の泡を取りに行く', ex: '「泡」「おまかせ」', bub: 1, hint: '泡に触れると、18種類のおまかせ技のどれかが出ます', setup: () => { tut.gotBub = false; tutBubble(); }, ok: () => tut.gotBub },
+    { t: '「真ん中」で場外から戻る', ex: '「真ん中」', hint: 'リングの外に落ちると負けです。端に追い込まれたら呼び戻しましょう',
+      setup: () => { applyOrder(me, v(), { act: 'wait' }); tutPlace(me, R - 1.4, 0); tutPlace(dummy, -(R - 3), 0); }, ok: () => hyp(me.x, me.z) < 2 },
+    { t: '「逃げろ」で距離をとる', ex: '「逃げろ」「離れて」', hint: '体力が少ないときに。もう一度「攻めろ」と言えば戦いに戻ります', ok: () => v().stance === 'flee' },
+  ];
+}
+function tutPlace(f, x, z) { f.x = x; f.z = z; f.vx = f.vz = 0; }
+function tutBubble() { clearBubs(); addBub(++G.bubSeq, 3, -2, false); }
+function tutRevive(f) {
+  endMove(f); burst(f.x, 1, f.z, 0xdff6ff, 10, 4);
+  f.hp = 100; f.poison = 0; f.hitstun = 0; f.vx = f.vz = f.vy = 0; f.y = 0;
+  tutPlace(f, 0, f === G.me ? -2.5 : 2.5);
+}
+function startTutorial() {
+  G.type = 'tutorial';
+  const mine = ROSTER[G.picks[0] | 0], other = ROSTER.find(c => c.id === (mine.id === 'sea-cucumber-ceo' ? 'crab-meeting' : 'sea-cucumber-ceo'));
+  startMatch([mine, other], ['human', 'cpu']);
+  const d = G.fighters[1]; d.brain = null;
+  tut = { i: -1, steps: tutSteps(G.me, d), dummy: d, heard: false, gotBub: false, okT: 0, n0: 0, done: false };
+  G.bubT = 1e9; G.intrT = 1e9;
+}
+function tutGo(i) {
+  const s = tut.steps[i], el = $('#tut');
+  tut.i = i; tut.okT = 0; tut.heard = false;
+  if (s.setup) s.setup();
+  tut.n0 = G.voice ? G.voice.n || 0 : 0;
+  el.hidden = false; el.classList.remove('ok');
+  $('#tut-n').textContent = 'チュートリアル ' + (i + 1) + ' / ' + tut.steps.length;
+  $('#tut-say').textContent = s.t;
+  $('#tut-ex').textContent = s.ex + ' と' + (micReady() ? '言ってみよう' : '打ち込んでみよう');
+  $('#tut-hint').textContent = s.hint || '';
+  $('#tut-skip').hidden = false; $('#tut-cpu').hidden = true;
+}
+function tutTick(dt) {
+  if (!tut || tut.done || !G.me || !G.voice) return;
+  const d = tut.dummy; d.hp = 100; d.poison = 0;
+  if (tut.i < 0) { tutGo(0); return; }
+  if (tut.okT > 0) { tut.okT -= dt; if (tut.okT <= 0) { if (tut.i + 1 < tut.steps.length) tutGo(tut.i + 1); else tutEnd(); } return; }
+  const s = tut.steps[tut.i];
+  if (s.bub && !tut.gotBub && !bubs.length) tutBubble();
+  if ((s.free || (G.voice.n || 0) > tut.n0) && s.ok()) {
+    tut.okT = 1.1; $('#tut').classList.add('ok'); $('#tut-n').textContent = 'できた！'; audio.tick();
+  }
+}
+function tutEnd() {
+  tut.done = true; lsSet('uw3d-tut', '1'); syncTitleMenu();
+  $('#tut').classList.remove('ok');
+  $('#tut-n').textContent = 'おつかれさま！';
+  $('#tut-say').textContent = 'これで準備OK。あとは乱闘で試してみよう';
+  $('#tut-ex').textContent = '';
+  $('#tut-hint').textContent = 'このまま練習を続けてもかまいません。「やめる」でタイトルにもどります';
+  $('#tut-skip').hidden = true; $('#tut-cpu').hidden = false;
+}
+$('#tut-skip').addEventListener('click', () => { if (!tut || tut.done || tut.okT > 0) return; audio.tick(); if (tut.i + 1 < tut.steps.length) tutGo(tut.i + 1); else tutEnd(); });
+$('#tut-quit').addEventListener('click', () => { audio.tick(); goTitle(); });
+$('#tut-cpu').addEventListener('click', () => { audio.tick(); openSelect('cpu'); });
+/* first visit: the tutorial is the first and main button on the title */
+function syncTitleMenu() {
+  const done = lsGet('uw3d-tut') === '1', menu = $('.menu'), t = $('[data-go="tut"]'), c = $('[data-go="cpu"]');
+  t.classList.toggle('primary', !done); c.classList.toggle('primary', done);
+  if (done) menu.append(t); else menu.prepend(t);
+  $('small', t).textContent = done ? 'もう一度、指示の出し方を練習する' : 'はじめての人はここから。指示の出し方を2分で練習';
+}
+syncTitleMenu();
 
 /* ================= screens & flow ================= */
 function show(id) { $$('.screen').forEach(s => { s.hidden = s.id !== id; }); $('#top-actions').hidden = !(id === 's-title' || id === 's-select' || id === 's-online' || id === 's-room'); }
@@ -3559,13 +3662,14 @@ $('#sel-back').addEventListener('click', () => {
 function clearMatch() {
   for (const f of G.fighters) { disposeModel(f.model); if (f.callF) f.callF.t = f.callF.dur; }
   G.fighters = []; G.me = G.opp = null; G.cpu = null; G.voice = null;
-  Voice.stop(); voicePanel(false);
+  Voice.stop(); voicePanel(false); tut = null; $('#tut').hidden = true;
   clearShots(); clearBubs();
   clearFloaters(); $('#banner').hidden = true; bannerT = 0; $('#think').hidden = true; $('#vs').hidden = true; $('#count').hidden = true;
   G.paused = false;
 }
 function hideFightUI() { $('#hud').hidden = true; $('#hud2').hidden = true; $('#pads').hidden = true; clearInputs(); }
 function tagFor(f) {
+  if (G.type === 'tutorial') return f === G.me ? 'あなた' : '練習相手';
   if (G.type === 'cpu') return f.ctrl === 'cpu' ? (G.fighters.length > 2 ? 'CPU' + f.idx : 'CPU') : 'あなた';
   if (G.type === 'online') return f === G.me ? 'あなた' : 'P' + (f.idx + 1);
   return f.idx === 0 ? '1P' : '2P';
@@ -3699,6 +3803,7 @@ document.addEventListener('visibilitychange', () => { if (document.hidden && G.t
 $$('[data-go]').forEach(b => b.addEventListener('click', () => {
   audio.init(); Voice.prime(); const go = b.dataset.go;
   if (go === 'online') { G.type = 'online'; G.phase = 'online'; $('#on-status').textContent = ''; show('s-online'); voiceNotes(); Lobby.start(); renderLobby(); }
+  else if (go === 'tut') startTutorial();
   else openSelect(go);
 }));
 /* name: saved on this device; a random 潜水者 number until the player picks one */
@@ -3878,7 +3983,8 @@ function stepGame(rdt) {
   updateShots(dt);
   updateZones(dt);
   bubbleTick(dt);
-  if (G.phase === 'fight') {
+  if (G.phase === 'fight' && G.type === 'tutorial') tutTick(dt);
+  else if (G.phase === 'fight') {
     G.time -= dt;
     if (G.time <= 0) { G.time = 0; showBanner('⏱️', '時間切れ', '水圧判定に入ります', 'sys'); beginEnd(); }
     else intruderTick(dt);
@@ -3924,7 +4030,7 @@ function updateHUD() {
     h.tox.hidden = !(f.poison > 0); h.root.classList.toggle('low', hp <= 30 && !f.ko); h.root.classList.toggle('out', !!f.ko);
     h.slw.hidden = !(f.slowT > 0); if (f.slowT > 0) h.slw.textContent = f.slowK === 0 ? 'ねばねば' : 'のろのろ';
   });
-  $('#timer').textContent = Math.ceil(G.time);
+  $('#timer').textContent = G.type === 'tutorial' ? '練習' : Math.ceil(G.time);
   for (const p of pads) {
     if (!p.f) continue;
     p.btn.sp.style.setProperty('--cd', (p.f.spCd / SPCD).toFixed(3));
