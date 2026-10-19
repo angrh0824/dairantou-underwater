@@ -164,7 +164,7 @@ body.portrait #hud2{bottom:auto;top:calc(env(safe-area-inset-top,0px) + 66px);le
 .pad .base{position:absolute;left:104px;top:70%;width:112px;height:112px;margin:-56px 0 0 -56px;border-radius:50%;border:2px solid rgba(234,248,255,.28);background:radial-gradient(circle,rgba(127,226,255,.12),rgba(127,226,255,.02) 70%);pointer-events:none;opacity:.5;transition:opacity .15s}
 .pad .base.on{opacity:1}
 .pad .knob{position:absolute;left:50%;top:50%;width:50px;height:50px;margin:-25px;border-radius:50%;background:rgba(234,248,255,.88);box-shadow:0 0 18px var(--pc)}
-.pad .btns{position:absolute;right:calc(max(16px, env(safe-area-inset-right,0px)) + 2px);bottom:calc(env(safe-area-inset-bottom,0px) + 12px);width:246px;height:186px;pointer-events:none;transform-origin:100% 100%}
+.pad .btns{position:absolute;right:calc(max(16px, env(safe-area-inset-right,0px)) + 2px);bottom:calc(env(safe-area-inset-bottom,0px) + 12px);width:196px;height:186px;pointer-events:none;transform-origin:100% 100%}
 .btn{position:absolute;pointer-events:auto;touch-action:none;border-radius:50%;border:2px solid rgba(234,248,255,.35);background:rgba(5,30,50,.6);color:var(--foam);font-family:var(--display);display:grid;place-items:center;overflow:hidden;-webkit-backdrop-filter:blur(3px);backdrop-filter:blur(3px);padding:0}
 .btn span{position:relative;z-index:1;line-height:1.1}
 .btn::after{content:"";position:absolute;inset:0;border-radius:50%;background:conic-gradient(rgba(2,10,18,.74) calc(var(--cd,0) * 360deg),transparent 0);pointer-events:none}
@@ -172,8 +172,8 @@ body.portrait #hud2{bottom:auto;top:calc(env(safe-area-inset-top,0px) + 66px);le
 .btn.atk{width:88px;height:88px;right:0;bottom:6px;font-size:17px;border-color:var(--pc)}
 .btn.def{width:72px;height:72px;right:98px;bottom:0;font-size:14px}
 .btn.sp{width:72px;height:72px;right:8px;bottom:104px;font-size:15px;border-color:var(--lamp);color:var(--lamp)}
-.btn.rnd{width:60px;height:60px;right:96px;bottom:86px;font-size:11px}
-.btn.jmp{width:64px;height:64px;right:180px;bottom:40px;font-size:12px;border-color:#9fe8ff;color:#bff0ff}
+.btn.jmp{width:68px;height:68px;right:94px;bottom:82px;font-size:12px;border-color:#9fe8ff;color:#bff0ff}
+.btn.atk.air{background:rgba(127,226,255,.28);font-size:15px}
 /* 2P: landscape splits left/right; portrait splits bottom/top (top rotated for the player across the table) */
 body:not(.portrait) .pad.p1{right:50%}
 body:not(.portrait) .pad.p2{left:50%}
@@ -286,7 +286,7 @@ body.portrait .pad.p2 .btns{bottom:calc(env(safe-area-inset-top,0px) + 76px)}
       <button class="cta" type="button" data-go="local"><b>ふたりで対戦</b><small>1台を横に持って、左右半分ずつ操作</small></button>
       <button class="cta" type="button" data-go="online"><b>オンライン対戦</b><small>部屋コードで2〜4人がつながって乱闘</small></button>
     </div>
-    <p class="rules"><span>左で泳ぐ・右で技とジャンプ</span><span>90秒・体力100</span><span>場外に落ちたら負け</span><span>おじゃま乱入あり</span></p>
+    <p class="rules"><span>左で泳ぐ・右で技とジャンプ</span><span>90秒・体力100</span><span>場外に落ちたら負け</span><span>？の泡でおまかせ</span><span>おじゃま乱入あり</span></p>
     <p class="rotate-hint"><i></i>スマホを横向きにすると遊びやすくなります</p>
   </div>
 </section>
@@ -305,8 +305,9 @@ body.portrait .pad.p2 .btns{bottom:calc(env(safe-area-inset-top,0px) + 76px)}
   <div class="sheet">
     <p class="eyebrow">ONLINE</p>
     <h2>オンライン対戦</h2>
-    <p class="note">同じ部屋コードで入った2〜4人で乱闘します。最後まで場内に残った人の勝ち。ほかの人にもこのページを開いてもらい、部屋コードを伝えてください。</p>
-    <button class="go" id="on-create" type="button">部屋をつくる</button>
+    <p class="note">2〜4人で乱闘して、最後まで場内に残った人の勝ち。ランダムマッチなら、空いている部屋を自動でさがして入ります。友だちと遊ぶときは部屋をつくって、部屋コードを伝えてください。</p>
+    <button class="go" id="on-random" type="button">ランダムマッチ</button>
+    <button class="ghost" id="on-create" type="button">部屋をつくる（友だちと）</button>
     <div class="join">
       <label for="on-code">相手の部屋に入る</label>
       <input id="on-code" inputmode="numeric" maxlength="4" autocomplete="off" placeholder="4桁">
@@ -423,6 +424,24 @@ const ROSTER = [
     st:{atk:15,def:23,rec:4,pri:23}, mv:{atk:'稟議書ぬるり', def:'決裁を寝かせる', sp:'臓器の大規模再編'},
     sp:'glue', spDesc:'ねばねばの糸を飛ばして、相手をその場に貼り付ける', atkReach:1.35, atkKb:2.6, lunge:2, think:'決裁を寝かせている…' },
 ];
+/* 空中攻撃: pressing 攻撃 while airborne. [name, kind] — stomp / dive / kick / spin / shot */
+const AIR = {
+  'whale-man': ['ブリーチング出社', 'stomp'], 'star-person': ['流れ星の土下座', 'dive'], 'mantis-count': ['頭上から会釈', 'kick'],
+  'jelly-principal': ['ふわふわ朝礼', 'spin'], 'shark-lost': ['上の空バイト', 'kick'], 'ink-pianist': ['フォルテッシモ落下', 'stomp'],
+  'seahorse-manager': ['天下り', 'dive'], 'puffer-gatekeeper': ['まんまる落石注意', 'stomp'], 'manta-house': ['屋根から失礼', 'spin'],
+  'slug-fossil': ['地層ごと落下', 'stomp'], 'octopus-snail': ['八方ふさがり', 'spin'], 'crab-meeting': ['上から目線の議事録', 'kick'],
+  'angler-note': ['天からの速達', 'shot'], 'otter-robot': ['自由落下アルゴリズム', 'stomp'], 'garden-tower': ['屋上から一本', 'dive'],
+  'coelacanth-dream': ['落ちる夢', 'stomp'], 'turtle-printer': ['上から重ね刷り', 'stomp'], 'shrimp-cadet': ['パン粉ダイブ', 'dive'],
+  'clione-guard': ['上空から職質', 'kick'], 'sea-cucumber-ceo': ['トップダウン決裁', 'stomp'],
+};
+const AIR_DESC = {
+  stomp: '真下へ急降下。着地の衝撃でまわりを吹き飛ばす',
+  dive: '斜めに急降下して体当たり',
+  kick: '空中で前に鋭い一撃。空中の相手にも当たる',
+  spin: '空中でくるりと回って、まわりをまとめて叩く',
+  shot: '空中から手紙を投げ下ろす。着いたところで爆発',
+};
+ROSTER.forEach(c => { const a = AIR[c.id]; c.mv.air = a[0]; c.air = a[1]; });
 const EVENTS = [
   ['海神のくしゃみ','🤧',{healMe:13}],
   ['深海のファックス','📠',{dmgOpp:15}],
@@ -1049,7 +1068,7 @@ function disposeModel(md) {
     if (o.material && !(o.material.userData && o.material.userData.shared)) o.material.dispose();
   });
 }
-const IDLE = { moving: false, guard: false, atkP: 0, spP: 0, shake: 0, flash: 0, ko: false, spin: 0, shield: 0, puff: 0, charge: 0, raise: 0, squash: 0, away: false, fade: 0, air: false };
+const IDLE = { moving: false, guard: false, atkP: 0, spP: 0, shake: 0, flash: 0, ko: false, spin: 0, shield: 0, puff: 0, charge: 0, raise: 0, squash: 0, away: false, fade: 0, air: false, airK: '', airP: 0 };
 function animModel(md, s, time) {
   const P = md.P, inn = md.inner;
   inn.position.y = md.lift + Math.sin(time * 2.3 + md.phase) * (md.lift ? 0.12 : 0.05);
@@ -1177,6 +1196,8 @@ function animModel(md, s, time) {
       P.stamp.rotation.z = s.guard ? 1.4 : 0; P.stamp.position.y = s.guard ? 0.1 : 0; break;
     }
   }
+  if (s.airK === 'stomp' || s.airK === 'dive') inn.rotation.x += 0.6;
+  else if (s.airK === 'spin') inn.rotation.y += s.airP * Math.PI * 4;
   if (s.fade > 0) inn.scale.multiplyScalar(Math.max(0.001, 1 - s.fade));
   const fl = s.flash || 0;
   if (fl > 0 || md.flashing) {
@@ -1281,6 +1302,35 @@ function eelsMesh() {
   }
   g.visible = false; return g;
 }
+/* おまかせ props, built from shared boxes/spheres: [geo, color, x, y, z, sx, sy, sz] */
+const PROP_BOX = new THREE.BoxGeometry(1, 1, 1), PROP_BALL = new THREE.SphereGeometry(0.5, 14, 10), PROP_CYL = new THREE.CylinderGeometry(0.5, 0.5, 1, 12);
+const propMats = new Map();
+const propMat = c => { if (!propMats.has(c)) propMats.set(c, new THREE.MeshStandardMaterial({ color: c, roughness: 0.6, flatShading: true })); return propMats.get(c); };
+function propMesh(parts) {
+  const g = new THREE.Group();
+  for (const [geo, c, x, y, z, sx, sy, sz] of parts) { const o = new THREE.Mesh(geo, propMat(c)); o.position.set(x, y, z); o.scale.set(sx, sy, sz); g.add(o); }
+  return g;
+}
+const PROPS = {
+  fax: () => propMesh([[PROP_BOX, 0xffffff, 0, 0, 0, 0.62, 0.03, 0.46], [PROP_BOX, 0x2a3140, 0, 0.02, -0.08, 0.4, 0.01, 0.04], [PROP_BOX, 0x2a3140, 0, 0.02, 0.04, 0.46, 0.01, 0.04]]),
+  scroll: () => { const g = propMesh([[PROP_CYL, 0xfaf3df, 0, 0, 0, 0.2, 0.7, 0.2], [PROP_CYL, 0xc8323c, 0, 0, 0, 0.22, 0.08, 0.22]]); g.rotation.z = Math.PI / 2; return g; },
+  clipboard: () => propMesh([[PROP_BOX, 0x8a5a33, 0, 0, 0, 0.5, 0.05, 0.66], [PROP_BOX, 0xffffff, 0, 0.04, 0.03, 0.42, 0.02, 0.52], [PROP_BOX, 0xb7bcc4, 0, 0.06, -0.3, 0.2, 0.05, 0.08]]),
+  gift: () => propMesh([[PROP_BOX, 0xff9cc2, 0, 0, 0, 0.45, 0.4, 0.45], [PROP_BOX, 0xffd86e, 0, 0, 0, 0.47, 0.42, 0.1], [PROP_BOX, 0xffd86e, 0, 0, 0, 0.1, 0.42, 0.47], [PROP_BALL, 0xffd86e, 0, 0.26, 0, 0.22, 0.14, 0.22]]),
+  eraser: () => propMesh([[PROP_BOX, 0xff9cc2, 0, 0, 0, 1.8, 0.8, 1.05], [PROP_BOX, 0x3d7fd6, 0.45, 0, 0, 0.9, 0.84, 1.09], [PROP_BOX, 0xffffff, 0.45, 0.43, 0, 0.5, 0.02, 0.6]]),
+  onigiri: () => { const g = propMesh([[PROP_BALL, 0xfafafa, 0, 0.55, 0, 1.25, 1.1, 0.9], [PROP_BOX, 0x15201b, 0, 0.25, 0, 0.75, 0.5, 0.95]]); g.visible = false; return g; },
+};
+/* 「？」bubble */
+const QB_GEO = new THREE.SphereGeometry(0.55, 20, 14), QB_MAT = new THREE.MeshStandardMaterial({ color: 0xdff6ff, emissive: 0x7fe2ff, emissiveIntensity: 0.7, transparent: true, opacity: 0.5, roughness: 0.1, depthWrite: false });
+const Q_MAT = new THREE.MeshBasicMaterial({ color: 0xffd86e });
+const Q_ARC = new THREE.TorusGeometry(0.13, 0.04, 6, 14, Math.PI * 1.45), Q_STEM = new THREE.CylinderGeometry(0.04, 0.04, 0.12, 6), Q_DOT = new THREE.SphereGeometry(0.05, 6, 5);
+function bubbleMesh() {
+  const g = new THREE.Group(); g.add(new THREE.Mesh(QB_GEO, QB_MAT));
+  const q = new THREE.Group(); q.scale.setScalar(1.6); g.add(q);
+  const a = new THREE.Mesh(Q_ARC, Q_MAT); a.position.y = 0.1; a.rotation.z = -Math.PI / 2; q.add(a);
+  const s = new THREE.Mesh(Q_STEM, Q_MAT); s.position.y = -0.09; q.add(s);
+  const d = new THREE.Mesh(Q_DOT, Q_MAT); d.position.y = -0.24; q.add(d);
+  g.userData.q = q; return g;
+}
 function markMesh(x, z, color, r) {
   const mk = new THREE.Mesh(MARK_GEO, new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.5, depthWrite: false, side: THREE.DoubleSide }));
   mk.rotation.x = -Math.PI / 2; mk.position.set(x, 0.05, z); mk.scale.setScalar(r); scene.add(mk); return mk;
@@ -1345,15 +1395,53 @@ const SHOT = {
     burst(p.x, p.y, p.z, 0xffe28c, 5, 3);
     return true;
   },
+  /* lobbed object landing on (tx, tz): letters, gifts. p.mk(t, n) gives the hit; p.soft = heal-type, no blast */
   letter(p, dt, t) {
-    const k = Math.min(1, p.t / p.dur);
-    p.x = p.sx + (p.tx - p.sx) * k; p.z = p.sz + (p.tz - p.sz) * k; p.y = p.sy * (1 - k) + Math.sin(k * Math.PI) * 3.2 + 0.15;
+    const k = Math.min(1, p.t / p.dur), col = p.color || 0xf5e78f;
+    p.x = p.sx + (p.tx - p.sx) * k; p.z = p.sz + (p.tz - p.sz) * k; p.y = p.sy * (1 - k) + Math.sin(k * Math.PI) * (p.arc === undefined ? 3.2 : p.arc) + 0.15;
     p.mesh.rotation.x += dt * 9;
     p.mark.material.opacity = 0.4 + Math.sin(p.t * 20) * 0.2;
     if (k < 1) return false;
-    ring(p.tx, 0.3, p.tz, 0xf5e78f, 2.4, 0.4); burst(p.tx, 0.6, p.tz, 0xf5e78f, 18, 7); audio.noise(0.3, 0.16, 420); G.shake = Math.max(G.shake, 0.3);
-    for (const v of foes(p.owner)) if (canHit(p.owner, v) && hyp(v.x - p.tx, v.z - p.tz) < 2.3 && v.y < 1.3) { const n = unit(v.x - p.tx, v.z - p.tz); dealHit(p.owner, v, { d: p.owner.d.spDmg + rnd(0, 3), kx: n.x * 9, kz: n.z * 9, ky: 3, big: 1 }); }
+    ring(p.tx, 0.3, p.tz, col, (p.r || 2.3) + 0.1, 0.4); burst(p.tx, 0.6, p.tz, col, 18, p.soft ? 3 : 7);
+    if (!p.soft) { audio.noise(0.3, 0.16, 420); G.shake = Math.max(G.shake, 0.3); }
+    for (const v of foes(p.owner)) {
+      if (!canHit(p.owner, v) || hyp(v.x - p.tx, v.z - p.tz) >= (p.r || 2.3) || v.y >= 1.3) continue;
+      const n = unit(v.x - p.tx, v.z - p.tz), h = p.mk ? p.mk(v, n) : { d: (p.dmg || p.owner.d.spDmg) + rnd(0, 3), kx: n.x * 9, kz: n.z * 9, ky: 3, big: 1 };
+      if (p.soft) giveFx(p.owner, v, h); else dealHit(p.owner, v, h);
+    }
     return true;
+  },
+  /* straight thrown object (fax, diploma, clipboard) */
+  item(p, dt, t) {
+    p.x += p.vx * dt; p.z += p.vz * dt; p.mesh.rotation.y += dt * 9;
+    if (!touching(p, t, 1.05)) return p.t > 1.3;
+    if (canHit(p.owner, t)) dealHit(p.owner, t, p.mk(t, unit(p.vx, p.vz)));
+    burst(p.x, p.y, p.z, 0xffffff, 6, 3);
+    return true;
+  },
+  /* something big falls on the marked spot after a short warning (giant eraser) */
+  drop(p, dt) {
+    const dl = p.delay || 0.7;
+    if (p.t < dl) { p.y = 9; p.mark.material.opacity = 0.35 + Math.sin(p.t * 22) * 0.2; return false; }
+    if (!p.hit) {
+      p.vy -= 45 * dt; p.y += p.vy * dt;
+      if (p.y > 0.4) return false;
+      p.y = 0.4; p.hit = p.t; p.mark.visible = false;
+      ring(p.x, 0.3, p.z, 0xff9cc2, (p.r || 1.9) + 0.4, 0.4); burst(p.x, 0.5, p.z, 0xffffff, 18, 7); audio.hit(true); G.shake = Math.max(G.shake, 0.4);
+      for (const v of foes(p.owner)) if (canHit(p.owner, v) && hyp(v.x - p.x, v.z - p.z) < (p.r || 1.9) && v.y < 1.6) dealHit(p.owner, v, p.mk(v, unit(v.x - p.x, v.z - p.z)));
+    }
+    return p.t - p.hit > 0.4;
+  },
+  /* something pops out of the floor under the marked spot (rice ball) */
+  pop(p, dt) {
+    if (p.t < 0.5) { if (Math.random() < 0.5) burst(p.x + (Math.random() - 0.5) * 1.2, 0.1, p.z + (Math.random() - 0.5) * 1.2, 0xffffff, 1, 2); p.mark.material.opacity = 0.35 + Math.sin(p.t * 24) * 0.2; return false; }
+    if (!p.hit) {
+      p.hit = 1; p.mesh.visible = true; p.mark.visible = false; burst(p.x, 0.4, p.z, 0xffffff, 12, 6); audio.noise(0.2, 0.12, 800);
+      for (const v of foes(p.owner)) if (canHit(p.owner, v) && hyp(v.x - p.x, v.z - p.z) < (p.r || 1.5) && v.y < 1.3) dealHit(p.owner, v, p.mk(v, unit(v.x - p.x, v.z - p.z)));
+    }
+    const k = (p.t - 0.5) / 0.6;
+    p.mesh.position.set(p.x, k < 0.25 ? -1 + k / 0.25 * 1.6 : k > 0.7 ? 0.6 - (k - 0.7) / 0.3 * 1.6 : 0.6, p.z);
+    return p.t > 1.1;
   },
   eels(p, dt, t) {
     if (p.t < 0.4) {
@@ -1456,6 +1544,7 @@ const G = {
   phase: 'title', type: null, fighters: [], me: null, opp: null, cpu: null, cpuA: null,
   time: MATCH_SEC, hitstop: 0, endT: 0, intrT: 12, shake: 0, paused: false, animCounter: 0,
   picks: [0, 1], picker: 0, selIdx: 0, ctrls: ['human', 'cpu'], chars: null, roomPick: 0, roomSig: '', roomMsg: '', orbit: 0, countHide: 0,
+  bubT: 5, bubSeq: 0, camYaw: 0, pubAt: 0, autoBack: 0,
 };
 function blankInput() { return { sx: 0, sz: 0, kx: 0, kz: 0, guardT: false, guardK: false, atkBuf: 0, spBuf: 0, rndBuf: 0, jumpBuf: 0 }; }
 function derive(c) {
@@ -1511,10 +1600,20 @@ function dealHit(a, t, h) {
   G.hitstop = Math.max(G.hitstop, h.big ? 0.085 : 0.04);
   if (h.big) G.shake = Math.max(G.shake, 0.35);
   if (t.ctrl === 'remote') {
-    Net.sendHit({ d: h.d | 0, kx: r2(h.kx || 0), kz: r2(h.kz || 0), ky: r2(h.ky || 0), po: h.po || 0, st: r2(h.st || 0), sl: r2(h.sl || 0), sk: h.sk === undefined ? 0.5 : h.sk, pl: h.pull ? 1 : 0 }, t.id);
+    Net.sendHit({ d: h.d | 0, kx: r2(h.kx || 0), kz: r2(h.kz || 0), ky: r2(h.ky || 0), po: h.po || 0, st: r2(h.st || 0), sl: r2(h.sl || 0), sk: h.sk === undefined ? 0.5 : h.sk, pl: h.pull ? 1 : 0, he: h.he | 0, sh: h.sh | 0 }, t.id);
     t.flash = 1; return;
   }
+  if (h.he) heal(t, h.he);
+  if (h.sh) addShield(t, h.sh);
   applyHit(t, h);
+}
+/* non-damage effects (heals, shields, unavoidable event damage) without hit sparks */
+function giveFx(a, t, h) {
+  if (!t || t.ko) return;
+  if (t.ctrl === 'remote') { if (a.ctrl !== 'remote') Net.sendHit({ d: h.d | 0, he: h.he | 0, sh: h.sh | 0, ev: 1 }, t.id); return; }
+  if (h.he) heal(t, h.he);
+  if (h.sh) addShield(t, h.sh);
+  if (h.d) applyHit(t, { d: h.d, kx: h.kx, kz: h.kz, ev: 1 });
 }
 function applyHit(t, h) {
   if (t.ko) return;
@@ -1527,7 +1626,7 @@ function applyHit(t, h) {
   if (kx || kz || ky) {
     const s = h.pull ? 1 : 1 + (100 - t.hp) / 65, k = armor ? 0.25 : 1;
     t.vx = kx * s * k; t.vz = kz * s * k;
-    if (ky && !armor) t.vy = Math.max(t.vy, ky);
+    if (ky && !armor) t.vy = ky > 0 ? Math.max(t.vy, ky) : Math.min(t.vy, ky);
     if (!armor) { t.hitstun = t.guarding ? 0.1 : 0.12 + hyp(kx, kz) * s * 0.032; endMove(t); }
   }
   if (h.st && !armor && !t.guarding) { t.hitstun = Math.max(t.hitstun, h.st); endMove(t); }
@@ -1585,9 +1684,69 @@ function startSpecial(f, o) {
   f.shield -= abs; f.hp = Math.max(1, f.hp - (rec - abs));
   callout(f, f.ch.mv.sp, true); audio.sp(); f.squash = 0.6;
 }
+const AIRDUR = { stomp: 1.4, dive: 1.2, kick: 0.32, spin: 0.5, shot: 0.4 };
+function startAir(f, o) {
+  f.atkCd = f.d.atkCd; f.airUsed = true; aimAt(f, o, 6.5);
+  f.move = { kind: 'air', t: 0, dur: AIRDUR[f.ch.air], hits: {} };
+  f.animSeq = ++G.animCounter; f.animKind = 'air';
+  callout(f, f.ch.mv.air, false); audio.swing();
+}
+const airDmg = f => Math.round(f.ch.st.atk * 0.42) + rnd(1, 3);
+const airPo = f => (f.ch.st.pri >= 15 ? 3 : 0);
+/* hit each foe at most once per move, judged around (x, z) and within a height band */
+function airHit(f, m, key, x, z, r, ylo, yhi, mk) {
+  for (const t of foes(f)) {
+    if (m.hits[key + t.idx] || !canHit(f, t) || hyp(t.x - x, t.z - z) >= r || t.y < f.y + ylo || t.y > f.y + yhi) continue;
+    m.hits[key + t.idx] = 1; dealHit(f, t, mk(t, unit(t.x - x, t.z - z)));
+  }
+}
+const AIRMOVE = {
+  stomp(f, m, dt) {
+    const mine = f.ctrl !== 'remote';
+    if (m.t < 0.14) { if (mine) { f.vy = Math.max(f.vy, 0.6); f.vx *= 0.8; f.vz *= 0.8; } return; }
+    if (m.land) return;
+    if (mine) { f.vy = -17; f.vx *= 0.9; f.vz *= 0.9; }
+    if (Math.random() < 0.6) bubbles(f.x, f.y + 1.6, f.z, 1);
+    airHit(f, m, 'a', f.x, f.z, 1.4, -1.8, 0.6, (t, n) => ({ d: airDmg(f), kx: n.x * 3, kz: n.z * 3, ky: -10, po: airPo(f) }));
+    if (m.t > 0.16 && f.y <= 0.02) {
+      m.land = 1; m.dur = m.t + 0.2;
+      ring(f.x, 0.4, f.z, f.ch.glow ? parseInt(f.ch.glow.slice(1), 16) : 0xffffff, 2.4, 0.4); burst(f.x, 0.3, f.z, 0xdff6ff, 14, 6); audio.hit(true); G.shake = Math.max(G.shake, 0.3);
+      airHit(f, m, 'a', f.x, f.z, 2.4, -0.5, 1.3, (t, n) => ({ d: airDmg(f), kx: n.x * 7.5, kz: n.z * 7.5, ky: 3, po: airPo(f), big: 1 }));
+    }
+  },
+  dive(f, m, dt, fx, fz) {
+    if (m.t < 0.08 || m.land) return;
+    if (f.ctrl !== 'remote') { f.vx = fx * 10; f.vz = fz * 10; f.vy = Math.min(f.vy, -9); }
+    if (Math.random() < 0.6) bubbles(f.x - fx, f.y + 1, f.z - fz, 1);
+    airHit(f, m, 'a', f.x + fx * 0.6, f.z + fz * 0.6, 1.6, -1.4, 1.4, (t, n) => ({ d: airDmg(f), kx: fx * 7.5, kz: fz * 7.5, ky: 2, po: airPo(f), big: 1 }));
+    if (m.t > 0.1 && f.y <= 0.02) { m.land = 1; m.dur = m.t + 0.2; f.vx *= 0.3; f.vz *= 0.3; burst(f.x, 0.3, f.z, 0xdff6ff, 8, 4); }
+  },
+  kick(f, m, dt, fx, fz) {
+    if (f.ctrl !== 'remote' && m.t < 0.05) { f.vx += fx * 2; f.vz += fz * 2; }
+    if (!m.fx && m.t > 0.08) { m.fx = 1; burst(f.x + fx * 1.5, f.y + 1.1, f.z + fz * 1.5, 0xdff6ff, 6, 4); }
+    if (m.t > 0.06 && m.t < 0.2) airHit(f, m, 'a', f.x + fx * 1.5, f.z + fz * 1.5, 1.3, -1.5, 1.5, () => ({ d: airDmg(f), kx: fx * 8, kz: fz * 8, ky: 2.5, po: airPo(f), big: 1 }));
+  },
+  spin(f, m) {
+    if (f.ctrl !== 'remote') f.vy = Math.max(f.vy, -2);
+    for (const [k, tt, last] of [['a', 0.08, 0], ['b', 0.3, 1]]) {
+      if (m.hits[k] || m.t < tt) continue;
+      m.hits[k] = 1; ring(f.x, f.y + 0.9, f.z, 0xdff6ff, 2.0, 0.25); audio.swing();
+      airHit(f, m, k, f.x, f.z, 2.0, -1.5, 1.5, (t, n) => ({ d: Math.round(airDmg(f) * 0.6), kx: n.x * (last ? 7 : 2.5), kz: n.z * (last ? 7 : 2.5), ky: last ? 3 : 1, po: airPo(f), big: last }));
+    }
+  },
+  shot(f, m, dt, fx, fz) {
+    if (m.hits.a || m.t < 0.1) return;
+    m.hits.a = 1;
+    let tx = f.x + fx * 3.5, tz = f.z + fz * 3.5;
+    const o = nearest(f); if (o && hyp(o.x - f.x, o.z - f.z) < 8) { tx = o.x; tz = o.z; }
+    const d = hyp(tx, tz); if (d > R - 0.3) { tx *= (R - 0.3) / d; tz *= (R - 0.3) / d; }
+    shoot(f, 'letter', letterMesh(), { sx: f.x, sz: f.z, sy: f.y + 1.0, tx, tz, dur: 0.45, arc: 0.6, r: 2.0, dmg: airDmg(f), mark: markMesh(tx, tz, 0xf5e78f, 2.0) });
+  },
+};
 function remoteAnim(f, kind) {
   if (f.ko) return;
   if (kind === 'atk') { f.move = { kind: 'atk', t: 0, dur: 0.34, hits: {}, fx: false }; callout(f, f.ch.mv.atk, false); audio.swing(); }
+  else if (kind === 'air') { f.move = { kind: 'air', t: 0, dur: AIRDUR[f.ch.air], hits: {} }; callout(f, f.ch.mv.air, false); audio.swing(); }
   else if (kind === 'sp') { f.move = { kind: 'sp', t: 0, dur: SPDUR[f.ch.sp], hits: {} }; callout(f, f.ch.mv.sp, true); audio.sp(); f.squash = 0.6; }
 }
 const SPECIAL = {
@@ -1803,39 +1962,124 @@ function runMove(f, o, dt) {
         dealHit(f, t, { d: r.d, kx: n.x * f.ch.atkKb, kz: n.z * f.ch.atkKb, po: r.po });
       }
     }
-  } else SPECIAL[f.ch.sp](f, o, m, dt, fx, fz);
+  } else if (m.kind === 'air') AIRMOVE[f.ch.air](f, m, dt, fx, fz);
+  else SPECIAL[f.ch.sp](f, o, m, dt, fx, fz);
   if (f.move === m && m.t >= m.dur) endMove(f);
 }
 
 /* ---------- おまかせ & おじゃま乱入 ---------- */
-function fxText(ev, me, opp) {
-  const fx = ev.fx, out = [];
-  if (fx.dmgMe && fx.dmgOpp && fx.dmgMe === fx.dmgOpp) out.push('二人とも' + fx.dmgMe + 'ダメージ');
-  else { if (fx.dmgOpp) out.push(opp.ch.name + 'に' + fx.dmgOpp + 'ダメージ'); if (fx.dmgMe) out.push(me.ch.name + 'に' + fx.dmgMe + 'ダメージ'); }
-  if (fx.healMe) out.push(me.ch.name + 'が' + fx.healMe + '回復');
-  if (fx.healOpp) out.push(opp.ch.name + 'が' + fx.healOpp + '回復');
-  if (fx.shMe) out.push(me.ch.name + 'の泡の盾 +' + fx.shMe);
-  if (fx.shOpp) out.push(opp.ch.name + 'の泡の盾 ' + fx.shOpp);
-  return (ev.note ? ev.note + ' ' : '') + out.join('、');
-}
 function dropEmoji(e, f) { floater(e, f.x, 4.8, f.z, 'drop', 0.75, 0, -4.2); }
-function doOmakase(f, o) {
-  if (!o) return;
-  f.rndCd = RNDCD; const k = rnd(0, EVENTS.length - 1);
+/* The 18 おまかせ from the original game, as moves that physically happen in the arena (same order as EVENTS).
+   apply = this device owns the outcome; everyone else only sees it. Thrown and falling things can be dodged. */
+const towards = (f, o) => (o ? unit(o.x - f.x, o.z - f.z) : { x: Math.sin(f.face), z: Math.cos(f.face) });
+function throwItem(f, o, prop, mk) { const n = towards(f, o); shoot(f, 'item', PROPS[prop](), { x: f.x + n.x * 0.9, z: f.z + n.z * 0.9, y: f.y + 1.2, vx: n.x * 13, vz: n.z * 13, mk }); }
+function targetSpot(f, o, ahead) {
+  let tx = o ? o.x : f.x + Math.sin(f.face) * ahead, tz = o ? o.z : f.z + Math.cos(f.face) * ahead;
+  const d = hyp(tx, tz); if (d > R - 0.5) { tx *= (R - 0.5) / d; tz *= (R - 0.5) / d; }
+  return { tx, tz };
+}
+function everyone(f, d) { for (const t of G.fighters) if (!t.ko) giveFx(f, t, { d }); }
+const OMAKASE = [
+  { d: '大きなくしゃみで前を吹き飛ばし、すっきりして体力 +13', act(f, o, ap) {
+    if (ap) heal(f, 13);
+    const n = towards(f, o); burst(f.x + n.x * 1.5, f.y + 1.2, f.z + n.z * 1.5, 0xdff6ff, 20, 9); audio.noise(0.4, 0.18, 1600);
+    for (const t of foes(f)) {
+      if (!canHit(f, t) || !level(f, t)) continue;
+      const dx = t.x - f.x, dz = t.z - f.z, d = hyp(dx, dz) || 1;
+      if (d < 4.5 && (dx * n.x + dz * n.z) / d > 0.45) dealHit(f, t, { d: 0, kx: dx / d * 8, kz: dz / d * 8 });
+    } } },
+  { d: 'ファックスが相手めがけて飛んでいく（当たると15ダメージ）', act(f, o) { throwItem(f, o, 'fax', (t, n) => ({ d: 15, kx: n.x * 4, kz: n.z * 4, big: 1 })); } },
+  { d: '泡の盾 +20。気まずさで、まわりを押しのける', act(f, o, ap) { if (ap) addShield(f, 20); ring(f.x, 0.5, f.z, 0x7fe2ff, 3.5, 0.5); hitAround(f, f.x, f.z, 3.5, 0, (t, n) => ({ d: 0, kx: n.x * 5.5, kz: n.z * 5.5 })); } },
+  { d: '全員に6ダメージ。閉館です', act(f, o, ap) { ring(0, 1.5, 0, 0xffd86e, R, 0.9); if (ap) everyone(f, 6); } },
+  { d: 'ここでは何も起きない。', act(f) { floater('🏃', -R - 3, 1.2, f.z, 'swim', 2.4, (2 * R + 6) / 2.4, 0); } },
+  { d: '「それ、君のだよ」落とし物が相手のもとへ（拾った相手が9回復）', act(f, o) {
+    const s = targetSpot(f, o, 4);
+    shoot(f, 'letter', PROPS.gift(), { sx: f.x, sz: f.z, sy: f.y + 1.4, tx: s.tx, tz: s.tz, dur: 0.8, arc: 2.6, r: 2.0, soft: 1, color: 0xff9cc2, mk: () => ({ he: 9 }), mark: markMesh(s.tx, s.tz, 0xff9cc2, 2.0) }); } },
+  { d: '遠くで鳴った。誰も確かめなかった。', act() { audio.tone(1200, 1200, 0.5, 'sine', 0.08, 0.2); } },
+  { d: '泡の盾 +7。卒業証書を投げつける（当たると11ダメージ）', act(f, o, ap) { if (ap) addShield(f, 7); throwItem(f, o, 'scroll', (t, n) => ({ d: 11, kx: n.x * 4, kz: n.z * 4 })); } },
+  { d: '回覧板を投げる。当たった相手の泡の盾が24しぼむ', act(f, o) { throwItem(f, o, 'clipboard', (t, n) => ({ d: 0, sh: -24, kx: n.x * 2.5, kz: n.z * 2.5 })); } },
+  { d: '自分と相手が、それぞれ7回復', act(f, o, ap) { bubbles(f.x, 1.2, f.z, 6); if (o) bubbles(o.x, 1.2, o.z, 6); if (ap) { heal(f, 7); if (o) giveFx(f, o, { he: 7 }); } } },
+  { d: '自分に10ダメージ。しかも後ろへ流される', act(f, o, ap) { if (ap) { const n = towards(f, o); applyHit(f, { d: 10, kx: -n.x * 5, kz: -n.z * 5, ev: 1 }); } } },
+  { d: '泡の盾 +14。体操の波がまわりに7ダメージ（跳べばかわせる）', act(f, o, ap) { if (ap) addShield(f, 14); ring(f.x, 0.4, f.z, 0xb9ef8d, 3.5, 0.5); hitAround(f, f.x, f.z, 3.5, 1.2, (t, n) => ({ d: 7, kx: n.x * 4, kz: n.z * 4 })); } },
+  { d: '相手の頭上に巨大消しゴムが落ちてくる（19ダメージ）', act(f, o) {
+    const s = targetSpot(f, o, 4);
+    shoot(f, 'drop', PROPS.eraser(), { x: s.tx, z: s.tz, y: 9, r: 1.9, mark: markMesh(s.tx, s.tz, 0xff9cc2, 1.9), mk: (t, n) => ({ d: 19, kx: n.x * 6, kz: n.z * 6, big: 1 }) }); } },
+  { d: '体力 +18', act(f, o, ap) { bubbles(f.x, 1.5, f.z, 6); if (ap) heal(f, 18); } },
+  { d: '自分に4ダメージ。踊りの輪がまわりに14ダメージ（跳べばかわせる）', act(f, o, ap) {
+    if (ap) applyHit(f, { d: 4, ev: 1 });
+    ring(f.x, 0.5, f.z, 0xffb35c, 3.2, 0.5); ring(f.x, 0.9, f.z, 0xff6f6f, 2.6, 0.4);
+    hitAround(f, f.x, f.z, 3.2, 1.2, (t, n) => ({ d: 14, kx: n.x * 6, kz: n.z * 6, big: 1 })); } },
+  { d: '泡の盾 +30', act(f, o, ap) { audio.alarm(); bubbles(f.x, 1, f.z, 10); if (ap) addShield(f, 30); } },
+  { d: '体力 +5。相手の足元からおにぎりが浮上（8ダメージ）', act(f, o, ap) {
+    if (ap) heal(f, 5);
+    const s = targetSpot(f, o, 3);
+    shoot(f, 'pop', PROPS.onigiri(), { x: s.tx, y: 0, z: s.tz, r: 1.5, manual: true, mark: markMesh(s.tx, s.tz, 0xffffff, 1.5), mk: (t, n) => ({ d: 8, kx: n.x * 2, kz: n.z * 2, ky: 7, big: 1 }) }); } },
+  { d: '全員に5ダメージ', act(f, o, ap) { ring(f.x, 1.2, f.z, 0xdff6ff, R, 0.7); if (ap) everyone(f, 5); } },
+];
+function fireOmakase(f, k) {
+  const o = nearest(f); if (o) aimAt(f, o, 14);
+  if (k === undefined) k = rnd(0, EVENTS.length - 1);
   runEvent(f, o, k, true);
-  if (G.type === 'online' && f === G.me) Net.set({ ev: { s: ++Net.evSeq, k, to: o.id } });
+  if (G.type === 'online' && f === G.me) Net.set({ ev: { s: ++Net.evSeq, k, to: o ? o.id : '' } });
 }
 function runEvent(f, o, k, apply) {
-  const ev = EVENTS[k], fx = ev.fx;
-  showBanner(ev.e, f.ch.name + 'のおまかせ「' + ev.t + '」', fxText(ev, f, o), 'ev');
-  dropEmoji(ev.e, (fx.dmgOpp || fx.healOpp || fx.shOpp) ? o : f);
-  audio.ding();
-  if (!apply) return;
-  if (fx.healMe) heal(f, fx.healMe);
-  if (fx.shMe) addShield(f, fx.shMe);
-  if (fx.dmgMe) applyHit(f, { d: fx.dmgMe, ev: 1 });
-  if (o.ctrl === 'remote') { if (fx.dmgOpp || fx.healOpp || fx.shOpp) Net.sendHit({ d: fx.dmgOpp || 0, he: fx.healOpp || 0, sh: fx.shOpp || 0, ev: 1 }, o.id); }
-  else { if (fx.healOpp) heal(o, fx.healOpp); if (fx.shOpp) addShield(o, fx.shOpp); if (fx.dmgOpp) applyHit(o, { d: fx.dmgOpp, ev: 1 }); }
+  const ev = EVENTS[k];
+  showBanner(ev.e, f.ch.name + 'のおまかせ「' + ev.t + '」', OMAKASE[k].d, 'ev');
+  dropEmoji(ev.e, f); audio.ding();
+  OMAKASE[k].act(f, o, apply);
+}
+
+/* ---------- おまかせの泡: 「？」bubbles float in the arena; touching one fires a random おまかせ ---------- */
+const bubs = [];
+function addBub(i, x, z, hi) {
+  const mesh = bubbleMesh(), y = hi ? 2.5 : 1.0;
+  mesh.position.set(x, y, z); mesh.scale.setScalar(0.01); scene.add(mesh);
+  bubs.push({ i, x, z, y, hi, mesh, t: 0, ph: Math.random() * 6, pend: false });
+}
+function popBub(b, quiet) {
+  const k = bubs.indexOf(b); if (k < 0) return;
+  scene.remove(b.mesh); bubs.splice(k, 1);
+  if (!quiet) { bubbles(b.x, b.y, b.z, 8); burst(b.x, b.y, b.z, 0xffd86e, 10, 4); audio.tone(700, 1400, 0.12, 'sine', 0.07); }
+}
+function clearBubs() { while (bubs.length) popBub(bubs[0], true); }
+function spawnBub() {
+  const a = Math.random() * Math.PI * 2, r = Math.sqrt(Math.random()) * (R - 2.2);
+  addBub(++G.bubSeq, r2(Math.sin(a) * r), r2(Math.cos(a) * r), Math.random() < 0.45);
+}
+const bubTouch = (f, b) => !f.ko && hyp(f.x - b.x, f.z - b.z) < 1.15 && Math.abs(f.y + 0.9 - b.y) < 0.95;
+/* local play and the online host spawn bubbles and decide who got one; online guests claim theirs through the host */
+function bubbleTick(dt) {
+  for (const b of bubs) {
+    b.t += dt;
+    b.mesh.position.y = b.y + Math.sin(b.t * 2.2 + b.ph) * 0.12; b.mesh.scale.setScalar(Math.min(1, 0.01 + b.t * 3));
+    b.mesh.userData.q.rotation.y = b.t * 2;
+  }
+  if (G.phase !== 'fight') return;
+  if (G.type !== 'online' || Net.host) {
+    G.bubT -= dt;
+    if (G.bubT <= 0) { G.bubT = 8 + Math.random() * 4; if (bubs.length < 2) spawnBub(); }
+    for (let j = bubs.length - 1; j >= 0; j--) if (bubs[j].t > 12) popBub(bubs[j]);
+    for (const f of G.fighters) { if (f.ctrl === 'remote') continue; const b = bubs.find(x => !x.pend && bubTouch(f, x)); if (b) awardBub(b, f); }
+  } else if (G.me) {
+    const b = bubs.find(x => !x.pend && bubTouch(G.me, x));
+    if (b) { b.pend = true; b.mesh.visible = false; Net.set({ cl: [b.i] }); }
+  }
+}
+function awardBub(b, f) {
+  popBub(b);
+  if (G.type === 'online') { Net.bw = Net.bw.concat([[b.i, f.id]]).slice(-6); Net.set({ bw: Net.bw }); }
+  if (f.ctrl !== 'remote') fireOmakase(f);
+}
+/* guests mirror the host's bubble list */
+function syncBubs(bb) {
+  if (!Array.isArray(bb)) return;
+  const ids = new Set();
+  for (const r of bb) {
+    if (!Array.isArray(r)) continue;
+    const i = r[0] | 0; ids.add(i);
+    if (!bubs.some(b => b.i === i)) addBub(i, clamp(+r[1] || 0, -R, R), clamp(+r[2] || 0, -R, R), !!r[3]);
+  }
+  for (let j = bubs.length - 1; j >= 0; j--) if (!ids.has(bubs[j].i)) popBub(bubs[j], bubs[j].pend);
 }
 function spawnIntruder(k, nIdx, rIdx) {
   const it = INTR[k], n = G.fighters[nIdx]; if (!it || !n) return;
@@ -1904,8 +2148,7 @@ function updateFighter(f, o, dt) {
     if (live && !f.guarding) {
       if (inp.jumpBuf > 0 && !air && slow > 0) { inp.jumpBuf = 0; f.vy = JUMP_V; f.squash = 0.35; bubbles(f.x, 0.2, f.z, 4); audio.jump(); }
       if (inp.spBuf > 0 && f.spCd <= 0) { inp.spBuf = 0; startSpecial(f, o); }
-      else if (inp.atkBuf > 0 && f.atkCd <= 0) { inp.atkBuf = 0; startAttack(f, o); }
-      else if (inp.rndBuf > 0 && f.rndCd <= 0) { inp.rndBuf = 0; doOmakase(f, o); }
+      else if (inp.atkBuf > 0 && f.atkCd <= 0 && (!air || (f.y > 0.25 && !f.airUsed))) { inp.atkBuf = 0; if (air) startAir(f, o); else startAttack(f, o); }
     }
   }
   decayBuf(inp, dt);
@@ -1913,7 +2156,7 @@ function updateFighter(f, o, dt) {
   f.x += f.vx * dt; f.z += f.vz * dt;
   if (f.y > 0 || f.vy !== 0) {
     f.vy -= GRAV * dt; f.y += f.vy * dt;
-    if (f.y <= 0) { if (f.vy < -5) { f.squash = Math.max(f.squash, 0.45); bubbles(f.x, 0.15, f.z, 3); } f.y = 0; f.vy = 0; }
+    if (f.y <= 0) { if (f.vy < -5) { f.squash = Math.max(f.squash, 0.45); bubbles(f.x, 0.15, f.z, 3); } f.y = 0; f.vy = 0; f.airUsed = false; }
   }
   const dist = hyp(f.x, f.z);
   if (f.hitstun > 0) { if (dist > R + 0.25) koFighter(f, 'ring'); }
@@ -1968,13 +2211,20 @@ function cpuThink(f, o, dt, b) {
     const r = SP_RANGE[f.ch.sp] || [0, 3];
     if (d >= r[0] && d < r[1] && Math.random() < 0.55) inp.spBuf = 0.2;
   }
-  if (f.rndCd <= 0 && Math.random() < 0.06) inp.rndBuf = 0.2;
+  if (f.y > 0.5 && !f.airUsed && f.atkCd <= 0 && d < 3.2 && Math.random() < 0.6) inp.atkBuf = 0.2;
+  else if (f.y === 0 && d > 2 && d < 4.2 && Math.random() < 0.05) inp.jumpBuf = 0.2;
   let mx = nx, mz = nz;
   if (d < f.ch.atkReach + 0.6) {
     if (f.atkCd <= 0 && Math.random() < 0.85) inp.atkBuf = 0.2;
     if (Math.random() < 0.1) b.strafe *= -1;
     mx = -nz * b.strafe * 0.6 + nx * 0.1; mz = nx * b.strafe * 0.6 + nz * 0.1;
   } else if (RANGED.has(f.ch.sp) && d < 5 && f.spCd < 1.5) { mx = -nx; mz = -nz; }
+  let bub = null, bd = 6;
+  for (const b of bubs) { const dd = hyp(b.x - f.x, b.z - f.z); if (!b.pend && dd < bd) { bd = dd; bub = b; } }
+  if (bub && d > f.ch.atkReach + 0.8) {
+    mx = (bub.x - f.x) / (bd || 1); mz = (bub.z - f.z) / (bd || 1);
+    if (bub.hi && bd < 1.8 && f.y === 0) inp.jumpBuf = 0.2;
+  }
   if (edgeD > R - 2.2) { mx = mx * 0.4 - f.x / edgeD * 0.9; mz = mz * 0.4 - f.z / edgeD * 0.9; }
   const m = hyp(mx, mz) || 1; inp.sx = mx / m; inp.sz = mz / m;
 }
@@ -2014,7 +2264,7 @@ async function roomBackend(room, code) {
   return api;
 }
 /* PeerJS: the room creator is the host and relays everyone's presence to everyone (star). */
-function peerBackend(code, create) {
+function peerBackend(code, create, opts) {
   return loadPeerLib().then(Peer => new Promise((resolve, reject) => {
     const st = { peer: null, conns: new Map(), host: null, list: [], settled: false, full: false, fresh: false, relay: false, closed: false };
     let timer = 0;
@@ -2070,7 +2320,7 @@ function peerBackend(code, create) {
       const conn = st.host = peer.connect(PEER_PREFIX + code, { reliable: true, serialization: 'json' });
       conn.on('data', d => {
         if (!d || typeof d !== 'object') return;
-        if (d.t === 'full') { st.full = true; return; }
+        if (d.t === 'full' || d.t === 'busy') { st.full = d.t; return; }
         if (d.t === 'all' && Array.isArray(d.ps)) {
           const now = Date.now();
           st.list = d.ps.filter(r => Array.isArray(r) && typeof r[0] === 'string' && r[1] && typeof r[1] === 'object').slice(0, MAXP)
@@ -2082,8 +2332,9 @@ function peerBackend(code, create) {
       conn.on('error', () => {});
     });
     if (create) peer.on('connection', conn => {
-      if (st.conns.size >= MAXP - 1) {
-        conn.on('open', () => { try { conn.send({ t: 'full' }); } catch (e) {} setTimeout(() => { try { conn.close(); } catch (e) {} }, 400); });
+      const why = st.conns.size >= MAXP - 1 ? 'full' : opts && opts.busy && opts.busy() ? 'busy' : '';
+      if (why) {
+        conn.on('open', () => { try { conn.send({ t: why }); } catch (e) {} setTimeout(() => { try { conn.close(); } catch (e) {} }, 400); });
         return;
       }
       attachGuest(conn);
@@ -2094,6 +2345,7 @@ function peerBackend(code, create) {
 const Net = {
   roomP: null, backend: null, code: '', me: { v: 2 }, dirty: false, last: 0,
   hitSeq: 0, evSeq: 0, ixSeq: 0, goSeq: 0, goSeen: '', hits: [], seen: {}, live: {}, lost: {}, host: true, myIdx: 0,
+  bw: [], bwSeen: new Set(), pub: false, searching: false,
   getRoom() {
     if (!this.roomP) {
       const c = window.claude;
@@ -2101,11 +2353,13 @@ const Net = {
     }
     return this.roomP;
   },
-  async join(code, create) {
+  /* pub = a ランダムマッチ room: everyone is ready on arrival, and the host turns newcomers away mid-match */
+  async join(code, create, pub) {
     await this.leave();
     const room = await this.getRoom();
-    this.backend = room ? await roomBackend(room, code) : await peerBackend(code, create);
-    this.code = code; this.hits = []; this.goSeen = ''; this.me = { v: 2, ph: 'lobby', ch: G.roomPick, rdy: false }; this.dirty = true; this.push(true);
+    this.pub = !!pub;
+    this.backend = room ? await roomBackend(room, code) : await peerBackend(code, create, { busy: () => this.pub && ['vs', 'count', 'fight', 'end'].includes(G.phase) });
+    this.code = code; this.hits = []; this.goSeen = ''; this.me = { v: 2, ph: 'lobby', ch: G.roomPick, rdy: !!pub }; this.dirty = true; this.push(true);
   },
   async leave() { const b = this.backend; this.backend = null; this.code = ''; if (b) { try { await b.leave(); } catch (e) {} } },
   set(p) { Object.assign(this.me, p); this.dirty = true; },
@@ -2134,7 +2388,7 @@ const maxSeq = a => (Array.isArray(a) ? a.reduce((m, h) => Math.max(m, (h && h.s
 function applyIncoming(t, h) {
   if (!t || t.ko || (G.phase !== 'fight' && G.phase !== 'end')) return;
   const d = clamp(h.d | 0, 0, 45), he = clamp(h.he | 0, 0, 20), sh = clamp(h.sh | 0, -30, 30);
-  const kx = clamp(+h.kx || 0, -16, 16), kz = clamp(+h.kz || 0, -16, 16), ky = clamp(+h.ky || 0, 0, 12), po = clamp(h.po | 0, 0, 6);
+  const kx = clamp(+h.kx || 0, -16, 16), kz = clamp(+h.kz || 0, -16, 16), ky = clamp(+h.ky || 0, -14, 12), po = clamp(h.po | 0, 0, 6);
   const st = clamp(+h.st || 0, 0, 1.2), sl = clamp(+h.sl || 0, 0, 3), sk = h.sk === undefined ? 0.5 : clamp(+h.sk || 0, 0, 1);
   if (he) heal(t, he);
   if (sh) addShield(t, sh);
@@ -2149,7 +2403,15 @@ function ingestRemote(f, op) {
   if ((op.a | 0) > sn.a) { sn.a = op.a | 0; remoteAnim(f, op.an); }
   if (Array.isArray(op.hits)) for (const h of op.hits) if (h && (h.s | 0) > sn.h) { sn.h = h.s | 0; if (h.to === Net.id()) applyIncoming(G.me, h); }
   if (op.ev && (op.ev.s | 0) > sn.e) { sn.e = op.ev.s | 0; const k = op.ev.k | 0; if (EVENTS[k]) runEvent(f, fighterById(op.ev.to) || nearest(f) || G.me, k, false); }
-  if (f.id === Net.hostId() && op.ix && (op.ix.s | 0) > sn.i) { sn.i = op.ix.s | 0; const k = op.ix.k | 0; if (INTR[k]) spawnIntruder(k, op.ix.n | 0, op.ix.r | 0); }
+  if (f.id === Net.hostId()) {
+    if (op.ix && (op.ix.s | 0) > sn.i) { sn.i = op.ix.s | 0; const k = op.ix.k | 0; if (INTR[k]) spawnIntruder(k, op.ix.n | 0, op.ix.r | 0); }
+    syncBubs(op.bb);
+    if (Array.isArray(op.bw)) for (const w of op.bw) {
+      if (!Array.isArray(w) || w[1] !== Net.id() || Net.bwSeen.has(w[0] | 0)) continue;
+      Net.bwSeen.add(w[0] | 0);
+      if (G.me && !G.me.ko && G.phase === 'fight') fireOmakase(G.me);
+    }
+  }
   if (op.ko && !f.ko && (G.phase === 'fight' || G.phase === 'end')) {
     f.ko = op.ko === 'ring' ? 'ring' : 'ko'; endMove(f); f.hp = f.ko === 'ko' ? 0 : f.hp;
     if (f.ko === 'ring') { f.state = 'fall'; f.vy = 0.8; showBanner('🌊', '場外！', f.ch.name + ' が深海へ落ちていく…', 'sys'); } else { f.state = 'ko'; f.vy = 6.5; }
@@ -2157,9 +2419,12 @@ function ingestRemote(f, op) {
   }
 }
 function netFrame(dt) {
-  if (G.type !== 'online' || !Net.backend) return;
+  if (G.type !== 'online' || !Net.backend || Net.searching) return;
   const b = Net.backend;
-  if (b.closed()) { netGone(b.full() ? 'この部屋はもう4人そろっています。別の部屋コードで遊んでください。' : 'ホストとの接続が切れました。もう一度部屋をつくるか、入り直してください。'); return; }
+  if (b.closed()) {
+    netGone(b.full() === 'busy' ? 'その部屋は試合中でした。もう一度さがしてください。' : b.full() ? 'この部屋はもう4人そろっています。別の部屋コードで遊んでください。' : 'ホストとの接続が切れました。もう一度部屋をつくるか、入り直してください。');
+    return;
+  }
   const list = Net.list();
   if (G.phase === 'room') {
     renderRoom(list);
@@ -2170,17 +2435,34 @@ function netFrame(dt) {
       const o = list.find(e => e.id === f.id), op = o && o.presence;
       const gone = !op || (o.updatedAt && Date.now() - o.updatedAt > 6000) || (Net.live[f.id] && op.ph !== 'fight');
       if (gone) { Net.lost[f.id] = (Net.lost[f.id] || 0) + dt; if (Net.lost[f.id] > 3) playerLeft(f); }
-      else { Net.lost[f.id] = 0; ingestRemote(f, op); }
+      else {
+        Net.lost[f.id] = 0; ingestRemote(f, op);
+        if (Net.host && Array.isArray(op.cl)) for (const i of op.cl) { const b = bubs.find(x => x.i === (i | 0)); if (b && G.phase === 'fight') awardBub(b, f); }
+      }
     }
     const m = G.me;
     if (m) Net.set({ ph: 'fight', hb: Math.floor(performance.now() / 1000), x: r2(m.x), z: r2(m.z), y: r2(m.y), f: r2(m.face), hp: Math.round(m.hp), sh: Math.round(m.shield), g: m.guarding ? 1 : 0, st: m.state, a: m.animSeq, an: m.animKind, ko: m.ko || 0 });
+    if (m && Net.host) Net.set({ bb: bubs.map(b => [b.i, b.x, b.z, b.hi ? 1 : 0]) });
+  } else if (G.phase === 'result' && Net.pub) {
+    G.autoBack -= dt;
+    if (G.autoBack <= 0) { Net.set({ ph: 'lobby', rdy: true }); clearMatch(); toRoom(); }
   }
   Net.push(false);
 }
 /* the host starts a match once 2-4 players are in the lobby and everyone is ready */
+const PUB_N = 12, PUB_WAIT = 8000;
 function hostTryStart(list) {
-  if (!Net.me.rdy || Net.me.ph !== 'lobby' || !list.length) return;
-  if (!list.every(e => e.presence.ph === 'lobby' && e.presence.rdy)) return;
+  if (!Net.me.rdy || Net.me.ph !== 'lobby' || !list.length) { G.pubAt = 0; if (Net.me.cd) Net.set({ cd: 0 }); return; }
+  if (Net.pub) {
+    /* ランダムマッチ: count down once a second player arrives; start early when the room is full */
+    list = list.filter(e => e.presence.ph === 'lobby');
+    if (!list.length) { G.pubAt = 0; if (Net.me.cd) Net.set({ cd: 0 }); return; }
+    const now = performance.now(); if (!G.pubAt) G.pubAt = now + PUB_WAIT;
+    const left = Math.max(0, Math.ceil((G.pubAt - now) / 1000));
+    if (Net.me.cd !== left) Net.set({ cd: left });
+    if (left > 0 && list.length + 1 < MAXP) return;
+    G.pubAt = 0; Net.set({ cd: 0 });
+  } else if (!list.every(e => e.presence.ph === 'lobby' && e.presence.rdy)) return;
   const ids = Net.order(list).slice(0, MAXP);
   const chs = ids.map(id => ((id === Net.id() ? Net.me : list.find(e => e.id === id).presence).ch | 0));
   const go = { s: ++Net.goSeq, ids, chs };
@@ -2196,7 +2478,8 @@ function beginOnline(go, hostId) {
   Net.goSeen = hostId + ':' + (go.s | 0);
   const ids = go.ids.slice(0, MAXP).map(String), chs = ids.map((_, i) => go.chs[i] | 0);
   Net.host = Net.isHost(); Net.myIdx = Math.max(0, ids.indexOf(Net.id()));
-  Net.seen = {}; Net.live = {}; Net.lost = {};
+  Net.seen = {}; Net.live = {}; Net.lost = {}; Net.bw = []; Net.bwSeen = new Set();
+  Net.set({ cl: [], bw: [], bb: [] });
   for (const e of Net.list()) { const p = e.presence; Net.seen[e.id] = { a: p.a | 0, h: maxSeq(p.hits), e: p.ev ? p.ev.s | 0 : 0, i: p.ix ? p.ix.s | 0 : 0 }; }
   Net.set({ ph: 'fight', rdy: false, ko: 0 }); Net.push(true);
   startMatch(chs.map(c => ROSTER[c] || ROSTER[0]), ids.map(id => (id === Net.id() ? 'human' : 'remote')), ids);
@@ -2217,7 +2500,6 @@ function netGone(msg) {
 function padHTML() {
   return '<div class="zone"></div><div class="base"><div class="knob"></div></div><div class="btns">' +
     '<button type="button" class="btn jmp" data-act="jump" aria-label="ジャンプ"><span>ジャンプ</span></button>' +
-    '<button type="button" class="btn rnd" data-act="rnd" aria-label="おまかせ"><span>おまかせ</span></button>' +
     '<button type="button" class="btn sp" data-act="sp" aria-label="必殺"><span>必殺</span></button>' +
     '<button type="button" class="btn def" data-act="def" aria-label="防御"><span>防御</span></button>' +
     '<button type="button" class="btn atk" data-act="atk" aria-label="攻撃"><span>攻撃</span></button></div>';
@@ -2287,12 +2569,10 @@ addEventListener('keydown', e => {
   const two = G.type === 'local', i0 = pads[0].input, i1 = pads[1].input;
   if (e.code === 'KeyJ') i0.atkBuf = 0.2;
   if (e.code === 'KeyL') i0.spBuf = 0.2;
-  if (e.code === 'KeyU') i0.rndBuf = 0.2;
   if (e.code === 'Space') i0.jumpBuf = 0.2;
   if (two) {
     if (e.code === 'Numpad1' || e.code === 'Digit1') i1.atkBuf = 0.2;
     if (e.code === 'Numpad3' || e.code === 'Digit3') i1.spBuf = 0.2;
-    if (e.code === 'Numpad0' || e.code === 'Digit0') i1.rndBuf = 0.2;
     if (e.code === 'Numpad5' || e.code === 'Digit5') i1.jumpBuf = 0.2;
   }
 });
@@ -2336,7 +2616,8 @@ function detailHTML(c) {
     '<li><span class="k">攻撃</span><span><b>' + c.mv.atk + '</b></span></li>' +
     '<li><span class="k">防御</span><span><b>' + c.mv.def + '</b><small>押している間、泡の盾がたまる（最大42）</small></span></li>' +
     '<li><span class="k">必殺</span><span><b>' + c.mv.sp + '</b><small>' + c.spDesc + '。使うと反動で自分も少し削れる</small></span></li>' +
-    '<li><span class="k">おまかせ</span><span><b>海の常識では測れない何か</b><small>17種類のどれかがランダムに起きる</small></span></li>' +
+    '<li><span class="k">空中</span><span><b>' + c.mv.air + '</b><small>ジャンプ中に攻撃。' + AIR_DESC[c.air] + '</small></span></li>' +
+    '<li><span class="k">おまかせ</span><span><b>？の泡に触れると発動</b><small>ときどき浮かぶ泡に触れると、18種類のおまかせ技のどれかが出る。高い泡はジャンプで取る</small></span></li>' +
     '<li><span class="k">ジャンプ</span><span><b>みんな跳べる</b><small>地面を走る衝撃波や、飛んでくる物をかわせる</small></span></li>' +
     '</ul>';
 }
@@ -2372,7 +2653,7 @@ $('#sel-back').addEventListener('click', () => {
 function clearMatch() {
   for (const f of G.fighters) { disposeModel(f.model); if (f.callF) f.callF.t = f.callF.dur; }
   G.fighters = []; G.me = G.opp = null; G.cpu = null;
-  clearShots();
+  clearShots(); clearBubs();
   clearFloaters(); $('#banner').hidden = true; bannerT = 0; $('#think').hidden = true; $('#vs').hidden = true; $('#count').hidden = true;
   G.paused = false;
 }
@@ -2406,7 +2687,7 @@ function startMatch(chars, ctrls, ids) {
     G.me = F[0]; F[0].input = pads[0].input; pads[0].f = F[0];
     if (ctrls[1] === 'cpu') { G.cpu = newBrain(); pads[1].f = null; } else { F[1].input = pads[1].input; pads[1].f = F[1]; }
   }
-  G.time = MATCH_SEC; G.hitstop = 0; G.intrT = 10 + Math.random() * 5; G.shake = 0; G.endT = 0;
+  G.time = MATCH_SEC; G.hitstop = 0; G.intrT = 10 + Math.random() * 5; G.shake = 0; G.endT = 0; G.bubT = 5;
   G.camYaw = G.me ? G.me.face : 0;
   layoutShowcase('none'); layoutPads(); setupHUD();
   show(null); $('#hud').hidden = false; $('#hud2').hidden = F.length <= 2; $('#pads').hidden = false;
@@ -2453,9 +2734,9 @@ function showResult() {
   else if (r.w && r.l) log = '時間切れ。水圧判定で ' + r.w.ch.name + ' の勝ち（体力 ' + Math.round(r.w.hp) + ' 対 ' + Math.round(r.l.hp) + '）。';
   else log = r.w ? '時間切れ。水圧判定で、いちばん体力が残っていた ' + r.w.ch.name + ' の勝ち（体力 ' + Math.round(r.w.hp) + '）。' : '時間切れ。海は決めなかった。引き分け。';
   $('#res-log').textContent = log;
-  $('#res-again').textContent = G.type === 'online' ? 'もう一度（準備OKで待つ）' : 'もう一度';
-  $('#res-select').textContent = G.type === 'online' ? '部屋にもどる' : 'キャラ選択';
-  if (G.type === 'online') Net.set({ ph: 'result', rdy: false });
+  $('#res-again').textContent = G.type === 'online' ? (Net.pub ? 'もう一度（同じ部屋）' : 'もう一度（準備OKで待つ）') : 'もう一度';
+  $('#res-select').textContent = G.type === 'online' ? (Net.pub ? 'ほかの相手をさがす' : '部屋にもどる') : 'キャラ選択';
+  if (G.type === 'online') { Net.set({ ph: 'result', rdy: false }); G.autoBack = 8; }
   show('s-result');
 }
 $('#res-again').addEventListener('click', () => {
@@ -2463,6 +2744,7 @@ $('#res-again').addEventListener('click', () => {
   startMatch(G.chars, G.ctrls);
 });
 $('#res-select').addEventListener('click', () => {
+  if (G.type === 'online' && Net.pub) { clearMatch(); hideFightUI(); show('s-online'); layoutShowcase('title'); Net.leave().then(randomMatch); return; }
   if (G.type === 'online') { Net.set({ ph: 'lobby', rdy: false }); clearMatch(); toRoom(); return; }
   openSelect(G.type);
 });
@@ -2535,19 +2817,48 @@ async function enterRoom(code, create) {
   G.type = 'online'; G.roomMsg = ''; setOnStatus('');
   toRoom();
 }
+/* ランダムマッチ: walk the public rooms in order — host the first free one, or join one that is open, not full and not mid-match */
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+async function randomMatch() {
+  const btns = [$('#on-random'), $('#on-create'), $('#on-join')]; btns.forEach(b => { b.disabled = true; });
+  G.type = 'online'; G.phase = 'online'; Net.searching = true;
+  try {
+    for (let k = 0; k < PUB_N; k++) {
+      setOnStatus('相手をさがしています…');
+      const code = 'p' + k;
+      try { await Net.join(code, true, true); G.roomMsg = ''; setOnStatus(''); toRoom(); return; }
+      catch (e) { if (!e || e.code !== 'taken') throw e; }
+      try { await Net.join(code, false, true); }
+      catch (e) { if (e && (e.code === 'noroom' || e.code === 'timeout')) continue; throw e; }
+      await sleep(1200);
+      if (Net.backend && !Net.backend.closed() && !Net.backend.full()) { G.roomMsg = ''; setOnStatus(''); toRoom(); return; }
+      await Net.leave();
+    }
+    setOnStatus('いまは空いている部屋が見つかりませんでした。少し待ってから、もう一度試してください。');
+  } catch (e) {
+    await Net.leave(); setOnStatus(onlineError(e));
+  } finally { Net.searching = false; btns.forEach(b => { b.disabled = false; }); }
+}
+$('#on-random').addEventListener('click', () => { audio.init(); randomMatch(); });
 function toRoom() {
-  hideFightUI(); G.phase = 'room'; G.roomSig = ''; layoutShowcase('title'); show('s-room');
+  hideFightUI(); G.phase = 'room'; G.roomSig = ''; G.pubAt = 0; layoutShowcase('title'); show('s-room');
+  $('#room-copy').hidden = Net.pub; $('#room-ready').hidden = Net.pub;
+  $('#room-leave').textContent = Net.pub ? 'やめる' : '退出';
 }
 const roomSlots = $('#room-slots');
 roomSlots.innerHTML = PCOL.map((c, i) => '<div class="slot" style="--pc:' + c + '"><span class="who">P' + (i + 1) + '</span><b></b><small></small></div>').join('');
 function renderRoom(list) {
   const myId = Net.id(), hostId = Net.hostId(), ids = Net.order(list);
-  const sig = JSON.stringify([Net.code, myId, Net.me.ch, Net.me.rdy, ids, list.map(e => [e.id, e.presence.ch, e.presence.rdy, e.presence.ph]), G.roomMsg]);
+  const hostP = Net.isHost() ? Net.me : (list.find(e => e.id === hostId) || {}).presence, cd = hostP ? hostP.cd | 0 : 0;
+  const sig = JSON.stringify([Net.code, Net.pub, cd, myId, Net.me.ch, Net.me.rdy, ids, list.map(e => [e.id, e.presence.ch, e.presence.rdy, e.presence.ph]), G.roomMsg]);
   if (sig === G.roomSig) return; G.roomSig = sig;
   if (list.length) G.roomMsg = '';
-  $('#room-code').textContent = Net.code;
+  $('#room-code').textContent = Net.pub ? 'ランダム' : Net.code;
   const others = list.map(e => e.presence), n = ids.length;
   let st = G.roomMsg;
+  if (!st && Net.pub) st = !others.length ? 'ほかの人が来るのを待っています…（2〜4人で始まります）'
+    : others.some(p => p.ph === 'fight') ? '試合中の人がいます。終わったら一緒に遊べます。'
+    : cd > 0 ? 'あと ' + cd + ' 秒で始まります（' + n + '人・最大4人）。キャラはいまのうちに選べます。' : 'まもなく始まります…';
   if (!st) st = !others.length ? '仲間を待っています。2〜4人で遊べます。このページを開いてもらい、上の部屋コードを入力してもらってください。'
     : others.some(p => p.ph === 'fight') ? '試合中の人がいます。終わったら、次の試合から一緒に遊べます。'
     : others.some(p => p.ph === 'result') ? 'リザルト画面を見ている人がいます。全員が部屋にもどると始められます。'
@@ -2561,7 +2872,7 @@ function renderRoom(list) {
     $('small', el).textContent = !p ? '—' : p.ph === 'fight' ? '試合中' : p.ph === 'result' ? 'リザルト中' : p.rdy ? '準備OK' : '選択中';
     el.classList.toggle('ready', !!(p && p.rdy)); el.classList.toggle('empty', !p);
   });
-  $$('#room-roster .tile').forEach((b, i) => { b.setAttribute('aria-pressed', String(i === (Net.me.ch | 0))); b.disabled = !!Net.me.rdy; });
+  $$('#room-roster .tile').forEach((b, i) => { b.setAttribute('aria-pressed', String(i === (Net.me.ch | 0))); b.disabled = !!Net.me.rdy && !Net.pub; });
   $('#room-ready').textContent = Net.me.rdy ? '準備OKを取り消す' : '準備OK';
 }
 $('#on-create').addEventListener('click', () => enterRoom(String(rnd(1000, 9999)), true));
@@ -2573,8 +2884,8 @@ $('#on-join').addEventListener('click', () => {
 $('#on-code').addEventListener('keydown', e => { if (e.key === 'Enter') $('#on-join').click(); });
 $('#on-back').addEventListener('click', goTitle);
 $('#room-roster').addEventListener('click', e => {
-  const b = e.target.closest('.tile'); if (!b || Net.me.rdy) return;
-  G.roomPick = +b.dataset.i; Net.set({ ch: G.roomPick }); audio.tick();
+  const b = e.target.closest('.tile'); if (!b || (Net.me.rdy && !Net.pub)) return;
+  G.roomPick = +b.dataset.i; Net.set({ ch: G.roomPick }); G.roomSig = ''; audio.tick();
 });
 $('#room-ready').addEventListener('click', () => { Net.set({ rdy: !Net.me.rdy, ph: 'lobby' }); audio.tick(); });
 $('#room-leave').addEventListener('click', goTitle);
@@ -2617,6 +2928,7 @@ function stepGame(rdt) {
   for (let i = 0; i < F.length; i++) for (let j = i + 1; j < F.length; j++) separate(F[i], F[j]);
   updateShots(dt);
   updateZones(dt);
+  bubbleTick(dt);
   if (G.phase === 'fight') {
     G.time -= dt;
     if (G.time <= 0) { G.time = 0; showBanner('⏱️', '時間切れ', '水圧判定に入ります', 'sys'); beginEnd(); }
@@ -2628,7 +2940,8 @@ function renderFighter(f, time, dt) {
   md.root.position.set(f.x, f.y, f.z); md.root.rotation.y = f.face;
   md.shadow.position.y = 0.02 - f.y; md.shadow.visible = f.state !== 'fall'; md.shadow.scale.setScalar(Math.max(0.45, 1 - Math.max(0, f.y) * 0.18));
   if (md.ring) { md.ring.position.y = 0.035 - f.y; md.ring.visible = !f.ko; }
-  s.atkP = m && m.kind === 'atk' ? m.t / m.dur : 0; s.spP = m && m.kind === 'sp' ? m.t / m.dur : 0;
+  s.atkP = m && (m.kind === 'atk' || (m.kind === 'air' && f.ch.air === 'kick')) ? m.t / m.dur : 0; s.spP = m && m.kind === 'sp' ? m.t / m.dur : 0;
+  s.airK = m && m.kind === 'air' ? f.ch.air : ''; s.airP = m && m.kind === 'air' ? m.t / m.dur : 0;
   s.moving = f.state === 'move'; s.guard = f.guarding && !f.ko; s.shake = f.hitstun > 0 ? Math.min(1, f.hitstun * 3) : (f.ctrl === 'remote' && f.state === 'hit' ? 0.5 : 0);
   s.flash = f.flash; s.ko = !!f.ko; s.spin = f.spin; s.shield = f.shield; s.puff = f.puff; s.charge = f.charge; s.raise = f.raise; s.squash = f.squash;
   s.away = !!f.away; s.fade = f.fade; s.air = f.y > 0.05 && !f.ko;
@@ -2654,7 +2967,8 @@ function updateHUD() {
   for (const p of pads) {
     if (!p.f) continue;
     p.btn.sp.style.setProperty('--cd', (p.f.spCd / SPCD).toFixed(3));
-    p.btn.rnd.style.setProperty('--cd', (p.f.rndCd / RNDCD).toFixed(3));
+    const air = p.f.y > 0.25 && !p.f.airUsed && !p.f.ko;
+    if (air !== p.btn.atk.classList.contains('air')) { p.btn.atk.classList.toggle('air', air); p.btn.atk.firstChild.textContent = air ? '空中' : '攻撃'; }
   }
 }
 function updateThink() {
