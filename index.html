@@ -211,6 +211,28 @@ body.portrait .pad.p2 .btns{bottom:calc(env(safe-area-inset-top,0px) + 76px)}
 .fl.drop{font-size:46px;font-family:system-ui,sans-serif;text-shadow:0 6px 12px rgba(0,0,0,.4)}
 .fl.swim{font-size:42px;font-family:system-ui,sans-serif}
 #think{position:fixed;left:0;top:0;z-index:14;pointer-events:none;font-weight:900;font-size:12px;padding:5px 10px;border-radius:14px;background:rgba(234,248,255,.92);color:var(--ink);white-space:nowrap}
+
+/* 声で操作: mic panel (bottom right) and the monster's reply over its head */
+#voice-btn[aria-pressed="true"]{background:var(--p1);color:var(--ink);border-color:transparent}
+.vnote{font-size:12px;line-height:1.6;color:var(--lamp)}
+#voice{position:fixed;z-index:16;right:max(12px, env(safe-area-inset-right,0px));bottom:calc(env(safe-area-inset-bottom,0px) + 12px);width:min(340px,calc(100vw - 24px));display:flex;flex-direction:column;gap:8px;padding:10px 12px;border-radius:16px;background:rgba(3,18,31,.8);border:1px solid var(--line);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px)}
+body:not(.portrait) #voice.up{bottom:calc(env(safe-area-inset-bottom,0px) + 72px)}
+.v-top{display:flex;gap:10px;align-items:center}
+.v-mic{flex:none;width:44px;height:44px;border-radius:50%;border:2px solid var(--line);background:rgba(127,226,255,.1);display:grid;place-items:center;padding:0}
+.v-mic i{display:block;width:12px;height:20px;border-radius:6px;background:var(--mist)}
+#voice[data-st="on"] .v-mic{border-color:var(--p1)}
+#voice[data-st="on"] .v-mic i{background:var(--p1);animation:vpulse 1.4s ease-out infinite}
+#voice[data-st="denied"] .v-mic,#voice[data-st="nomic"] .v-mic{border-color:var(--hurt)}
+@keyframes vpulse{from{box-shadow:0 0 0 0 rgba(127,226,255,.55)}to{box-shadow:0 0 0 14px rgba(127,226,255,0)}}
+.v-txt{min-width:0;flex:1 1 auto;display:flex;flex-direction:column;gap:2px}
+#v-state{font-size:11px;color:var(--mist)}
+#v-heard{font-weight:900;font-size:15px;line-height:1.35;overflow-wrap:anywhere;min-height:1.35em}
+#v-heard.interim{color:var(--mist)}
+#v-plan{font-size:12px;color:var(--lamp);min-height:1.4em}
+#v-form{display:flex;gap:6px}
+#v-text{flex:1 1 auto;min-width:0;height:36px;border-radius:10px;border:1px solid var(--line);background:rgba(0,0,0,.25);color:var(--foam);font:inherit;font-weight:700;font-size:16px;padding:0 10px;-webkit-user-select:text;user-select:text;touch-action:manipulation}
+#vsay{position:fixed;left:0;top:0;z-index:14;pointer-events:none;font-weight:900;font-size:13px;padding:5px 11px;border-radius:14px;background:var(--pc,var(--p1));color:var(--ink);white-space:nowrap;max-width:60vw;overflow:hidden;text-overflow:ellipsis}
+@media (prefers-reduced-motion:reduce){#voice[data-st="on"] .v-mic i{animation:none}}
 #banner{position:fixed;z-index:18;left:50%;top:calc(env(safe-area-inset-top,0px) + 64px);transform:translateX(-50%);width:max-content;max-width:min(540px,calc(100% - 32px));padding:9px 16px 9px 12px;border-radius:14px;background:rgba(5,30,50,.9);border:1px solid var(--lamp);display:flex;gap:10px;align-items:center;pointer-events:none;animation:bannerin .25s ease-out}
 #banner .e{font-size:28px;font-family:system-ui,sans-serif}
 #banner b{display:block;font-family:var(--display);font-weight:400;font-size:14px;color:var(--lamp);line-height:1.35}
@@ -282,10 +304,20 @@ body.portrait .pad.p2 .btns{bottom:calc(env(safe-area-inset-top,0px) + 76px)}
   <div class="pad p2" id="pad1" hidden></div>
 </div>
 
+<div id="voice" hidden data-st="off">
+  <div class="v-top">
+    <button type="button" class="v-mic" id="v-mic" aria-label="マイクの開始・停止"><i></i></button>
+    <div class="v-txt"><p id="v-state"></p><p id="v-heard" aria-live="polite"></p><p id="v-plan"></p></div>
+  </div>
+  <form id="v-form" autocomplete="off"><input id="v-text" maxlength="40" placeholder="文字でも指示できます（例: 必殺）" enterkeyhint="send" aria-label="文字で指示"><button type="submit" class="ghost sm">送る</button></form>
+</div>
+<div id="vsay" hidden></div>
+
 <div id="vs" hidden></div>
 <div id="count" hidden></div>
 
 <div class="top-actions" id="top-actions">
+  <button class="icon-btn" id="voice-btn" type="button" aria-pressed="false" aria-label="声で操作">🎤 声 OFF</button>
   <button class="icon-btn" id="mute" type="button" aria-label="音のオンオフ">音 ON</button>
 </div>
 
@@ -311,6 +343,7 @@ body.portrait .pad.p2 .btns{bottom:calc(env(safe-area-inset-top,0px) + 76px)}
     <div class="detail" id="detail"></div>
     <p class="foot">ちく＝攻撃に混ざるちくちく成分。多いほど追加ダメージと毒が出やすい。</p>
     <div class="seg" id="sel-count" role="group" aria-label="対戦人数"><span>人数</span><button type="button" data-n="2">2人</button><button type="button" data-n="3">3人</button><button type="button" data-n="4">4人</button><small id="sel-count-note"></small></div>
+    <p class="vnote" id="sel-voice" hidden></p>
     <div class="row"><button class="ghost" id="sel-back" type="button">もどる</button><button class="go" id="sel-ok" type="button">この潜水者で</button></div>
   </div>
 </section>
@@ -322,6 +355,7 @@ body.portrait .pad.p2 .btns{bottom:calc(env(safe-area-inset-top,0px) + 76px)}
     <p class="count" id="on-count" role="status"></p>
     <div class="namebox"><label for="on-name">なまえ</label><input id="on-name" maxlength="10" autocomplete="off" enterkeyhint="done" placeholder="10文字まで"></div>
     <p class="note">2〜4人で乱闘して、最後まで場内に残った人の勝ち。ランダムマッチなら、空いている部屋を自動でさがして入ります。友だちと遊ぶときは部屋をつくって、部屋コードを伝えてください。</p>
+    <p class="vnote" id="on-voice" hidden></p>
     <button class="go" id="on-random" type="button">ランダムマッチ</button>
     <button class="ghost" id="on-create" type="button">部屋をつくる（友だちと）</button>
     <div class="join">
@@ -1601,6 +1635,8 @@ function nearestTo(f, x, z) {
   return best;
 }
 const nearest = f => nearestTo(f, f.x, f.z);
+/* who a fighter swings at: the foe named by voice (f.aim) while it is still standing, else the nearest */
+const aimOf = f => (f.aim && !f.aim.ko && !f.aim.left && G.fighters.includes(f.aim) ? f.aim : nearest(f));
 const fighterById = id => G.fighters.find(f => f.id && f.id === id) || null;
 const canHit = (a, t) => G.phase === 'fight' && a && a.ctrl !== 'remote' && t && !t.ko;
 /* hit every foe standing within r of (x, z) at roughly the attacker's height */
@@ -2220,7 +2256,7 @@ function cpuThink(f, o, dt, b) {
   if (b.guardT > 0) { b.guardT -= dt; inp.guardT = b.guardT > 0; }
   b.t -= dt; if (b.t > 0) return;
   b.t = 0.12 + Math.random() * 0.16;
-  if (Math.random() < 0.012) { b.think = 0.9 + Math.random() * 1.1; inp.sx = inp.sz = 0; inp.guardT = false; return; }
+  if (!b.calm && Math.random() < 0.012) { b.think = 0.9 + Math.random() * 1.1; inp.sx = inp.sz = 0; inp.guardT = false; return; }
   const dx = o.x - f.x, dz = o.z - f.z, d = hyp(dx, dz) || 1, nx = dx / d, nz = dz / d, edgeD = hyp(f.x, f.z);
   const threat = o.move && (o.move.kind === 'sp' || o.move.t < 0.15);
   const incoming = shots.some(p => p.owner !== f && hyp(p.x - f.x, p.z - f.z) < 3.2);
@@ -2229,7 +2265,7 @@ function cpuThink(f, o, dt, b) {
   else if (f.y === 0 && Math.random() < 0.012) inp.jumpBuf = 0.2;
   if (f.shield < 12 && d > 6 && G.time < MATCH_SEC - 4 && Math.random() < 0.15) { b.guardT = 0.8 + Math.random() * 0.6; inp.guardT = true; return; }
   if (b.guardT > 0) return;
-  if (f.spCd <= 0 && !o.ko) {
+  if (!b.noSp && f.spCd <= 0 && !o.ko) {
     const r = SP_RANGE[f.ch.sp] || [0, 3];
     if (d >= r[0] && d < r[1] && Math.random() < 0.55) inp.spBuf = 0.2;
   }
@@ -2243,12 +2279,231 @@ function cpuThink(f, o, dt, b) {
   } else if (RANGED.has(f.ch.sp) && d < 5 && f.spCd < 1.5) { mx = -nx; mz = -nz; }
   let bub = null, bd = 6;
   for (const b of bubs) { const dd = hyp(b.x - f.x, b.z - f.z); if (!b.pend && dd < bd) { bd = dd; bub = b; } }
-  if (bub && d > f.ch.atkReach + 0.8) {
+  if (bub && !b.noBub && d > f.ch.atkReach + 0.8) {
     mx = (bub.x - f.x) / (bd || 1); mz = (bub.z - f.z) / (bd || 1);
     if (bub.hi && bd < 1.8 && f.y === 0) inp.jumpBuf = 0.2;
   }
   if (edgeD > R - 2.2) { mx = mx * 0.4 - f.x / edgeD * 0.9; mz = mz * 0.4 - f.z / edgeD * 0.9; }
   const m = hyp(mx, mz) || 1; inp.sx = mx / m; inp.sz = mz / m;
+}
+
+/* ---------- 声で操作: spoken orders become the same inputs a pad would give ----------
+   The browser turns speech into text (Web Speech API). Short orders are matched here;
+   anything else goes to the voice relay (a Cloudflare Worker that asks an AI) when VOICE_AI is set. */
+const VOICE_AI = '';
+const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition || null;
+const kata2hira = s => s.replace(/[ァ-ヶ]/g, c => String.fromCharCode(c.charCodeAt(0) - 0x60));
+const vnorm = s => kata2hira(String(s || '').normalize('NFKC').toLowerCase()).replace(/[\s、。,.!?・ー〜~「」『』()]/g, '');
+/* checked top to bottom; the first family with a hit wins */
+const VKEYS = [
+  ['wait', ['やめ', '止め', '待て', '待って', 'まて', 'まって', '止まれ', '止まって', 'とまれ', 'とまって', 'ストップ', 'じっと', '休め', 'やすめ', 'ステイ', '様子見', 'ようすみ']],
+  ['special', ['必殺', 'ひっさつ', '奥義', 'おうぎ', 'スペシャル', '大技', 'おおわざ', 'とっておき', '決めろ', 'きめろ']],
+  ['air', ['空中', 'くうちゅう', '飛びかか', 'とびかか', '飛びつ', 'とびつ', '飛び蹴り', 'とびげり', '上から', 'うえから', 'ダイブ', 'のしかか', '踏みつ', 'ふみつ']],
+  ['jump', ['ジャンプ', '飛べ', 'とべ', '跳べ', '飛んで', 'とんで', '跳んで', '跳ね', 'はねろ', 'よけ', '避け', 'かわせ', 'かわして']],
+  ['guard', ['防御', 'ぼうぎょ', 'ガード', '守れ', 'まもれ', '守って', 'まもって', '盾', 'バリア', '防げ', 'ふせげ', '防いで', 'ふせいで', '耐え', 'たえろ']],
+  ['flee', ['逃げ', 'にげ', '離れ', 'はなれ', '下がれ', 'さがれ', '下がって', 'さがって', '撤退', 'てったい', '距離をと']],
+  ['center', ['真ん中', 'まんなか', '中央', 'ちゅうおう', '中心', 'ちゅうしん']],
+  ['bubble', ['泡', 'あわ', 'おまかせ', 'お任せ', 'はてな']],
+  ['dance', ['踊', 'おど', '回れ', 'まわれ', '回って', 'まわって', 'ダンス', 'くるくる']],
+  ['combo', ['連打', 'れんだ', '連続', 'れんぞく', 'ラッシュ', 'ボコボコ', 'めった']],
+  ['attack', ['攻撃', 'こうげき', '殴', 'なぐ', '叩', 'パンチ', 'キック', '蹴', '噛', 'かみつ', 'かじ', 'やっつけ', 'ぶつか', '体当たり', 'たいあたり', 'アタック', '突け', 'つつけ', 'ぶっ飛ば', 'ぶっとば', '倒せ', 'たおせ']],
+  ['fight', ['攻め', 'せめろ', 'せめて', '戦', 'たたか', '行け', 'いけ', 'やれ', 'かかれ', '突っ込', 'つっこ', '全力', 'ぜんりょく', '頑張', 'がんば', 'ファイト', 'ゴー', '狙', 'ねら', 'ターゲット']],
+  ['approach', ['近づ', 'ちかづ', '寄れ', '寄って', '来い', '追え', '追いかけ', 'おいかけ', '前へ', '前に', '前進']],
+  ['left', ['左', 'ひだり']],
+  ['right', ['右', 'みぎ']],
+].map(([k, ws]) => [k, ws.map(vnorm)]);
+/* how to call each 潜水者 by voice: katakana/kanji forms are matched as heard, longer ones also in hiragana */
+const VALIAS = {
+  'whale-man': ['クジラ', '鯨'], 'star-person': ['ヒトデ', '海星'], 'mantis-count': ['シャコ', '伯爵'], 'jelly-principal': ['クラゲ', '校長'],
+  'shark-lost': ['サメ', '鮫', '忘れ物'], 'ink-pianist': ['イカ', 'ピアニスト', 'ピアノ'], 'seahorse-manager': ['タツノオトシゴ', 'オトシゴ', '課長'],
+  'puffer-gatekeeper': ['フグ', '門番'], 'manta-house': ['マンタ'], 'slug-fossil': ['ウミウシ', '化石'], 'octopus-snail': ['タコ', '蛸', 'カタツムリ'],
+  'crab-meeting': ['カニ', '蟹', '反省会'], 'angler-note': ['アンコウ', '置き手紙'], 'otter-robot': ['ラッコ', 'ロボ'], 'garden-tower': ['チンアナゴ', 'アナゴ'],
+  'coelacanth-dream': ['シーラカンス'], 'turtle-printer': ['カメ', '亀', 'プリンター'], 'shrimp-cadet': ['エビ', '海老'], 'clione-guard': ['クリオネ', '警備員'],
+  'sea-cucumber-ceo': ['ナマコ', '社長'],
+};
+const STANCES = new Set(['fight', 'flee', 'wait']), QUICK = new Set(['jump', 'special', 'guard', 'attack', 'air', 'combo', 'flee', 'wait', 'left', 'right']);
+const ACT_T = { attack: 2.5, combo: 3.5, special: 3, air: 2.2, jump: 0.7, guard: 1.8, center: 3, bubble: 5, dance: 2.2, left: 0.7, right: 0.7, approach: 2.5 };
+const ACT_LABEL = { attack: '攻撃', combo: '連打', special: '必殺', air: '空中攻撃', jump: 'ジャンプ', guard: '防御', flee: '逃げる', wait: '待機', center: '真ん中へ', bubble: '泡を取りに行く', dance: '踊る', left: '左へよける', right: '右へよける', approach: '近づく', fight: '攻め続ける' };
+const pickOne = a => a[Math.floor(Math.random() * a.length)];
+const cleanSay = s => [...String(s || '')].filter(nameOk).join('').trim().slice(0, 24);
+function moveSaid(n, name) {
+  const m = vnorm(name); if (!m) return false;
+  if (n.includes(m)) return true;
+  if (m.length < 6) return false;
+  for (let i = 0; i + 4 <= m.length; i++) if (n.includes(m.slice(i, i + 4))) return true;
+  return false;
+}
+function targetSaid(raw, n, f) {
+  const fs = foes(f);
+  for (const t of fs) {
+    const names = [t.ch.name, ...(VALIAS[t.ch.id] || [])];
+    if (t.nm && [...t.nm].length >= 2) names.unshift(t.nm);
+    for (const w of names) { if (raw.includes(w) || ([...w].length >= 3 && n.includes(vnorm(w)))) return t; }
+  }
+  if (fs.length > 1) {
+    const byHp = fs.slice().sort((a, b) => a.hp - b.hp), byD = fs.slice().sort((a, b) => hyp(a.x - f.x, a.z - f.z) - hyp(b.x - f.x, b.z - f.z));
+    if (/弱|よわ|瀕死|ひんし|ぼろぼろ/.test(n)) return byHp[0];
+    if (/強い|つよい|元気|げんき/.test(n)) return byHp[byHp.length - 1];
+    if (/遠い|とおい/.test(n)) return byD[byD.length - 1];
+    if (/近い|ちかい|そば/.test(n)) return byD[0];
+  }
+  return null;
+}
+/* text → { act, target } or null when nothing is recognised */
+function parseOrder(text, f) {
+  const raw = String(text || '').normalize('NFKC'), n = vnorm(raw);
+  if (!n) return null;
+  const mv = f.ch.mv;
+  let act = moveSaid(n, mv.sp) ? 'special' : moveSaid(n, mv.air) ? 'air' : moveSaid(n, mv.def) ? 'guard' : moveSaid(n, mv.atk) ? 'attack' : null;
+  if (!act) for (const [k, ws] of VKEYS) if (ws.some(w => n.includes(w))) { act = k; break; }
+  if (act === 'jump' && /よけ|避け|かわ/.test(n)) act = /左|ひだり/.test(n) ? 'left' : /右|みぎ/.test(n) ? 'right' : act;
+  if (act &&/(しないで|するな|ないで|るな)$/.test(n)) act = act === 'flee' || act === 'wait' || act === 'guard' ? 'fight' : 'wait';
+  const target = targetSaid(raw, n, f);
+  if (!act && target) act = 'fight';
+  return act ? { act, target } : null;
+}
+function newVoice() { return { stance: 'wait', act: null, target: null, ask: 0, cpu: Object.assign(newBrain(), { calm: true, noSp: true, noBub: true }) }; }
+function replyFor(f, act, t) {
+  const mv = f.ch.mv;
+  if (t && (act === 'fight' || act === 'approach')) return pickOne([pname(t) + 'だな！', pname(t) + 'に行く！']);
+  return pickOne({
+    attack: ['えいっ！', 'いくよ！', mv.atk + '！'], combo: ['うおおお！', 'ラッシュだ！'], special: [mv.sp + '！'], air: [mv.air + '！'],
+    guard: [mv.def + '！', 'まもる！'], jump: ['ぴょん！', 'よっ！'], flee: ['にげる〜！', 'ひぃ〜！'], wait: ['待機します', 'はい…'],
+    center: ['まんなか！'], bubble: ['泡、取ってくる！'], dance: ['♪〜', 'くるくる〜'], left: ['ひだり！'], right: ['みぎ！'],
+    approach: ['いま行く！'], fight: ['いくぞ〜！', 'まかせて！'],
+  }[act] || ['了解！']);
+}
+function dirFor(k) {
+  if (k !== 'left' && k !== 'right') return null;
+  const yaw = chaseOn() ? G.camYaw : Math.PI, s = k === 'right' ? 1 : -1;
+  return [-Math.cos(yaw) * s, Math.sin(yaw) * s];
+}
+function giveOrder(f, v, o, say, via) {
+  const inp = f.input;
+  if (o.target) v.target = o.target;
+  let line = say || '';
+  if (o.act === 'special' && f.spCd > 1.2 && !line) line = 'まだ溜まってない！';
+  if (STANCES.has(o.act)) { v.stance = o.act; v.act = null; }
+  else v.act = { k: o.act, t: o.act === 'special' ? Math.max(ACT_T.special, f.spCd + 2) : ACT_T[o.act] || 2, n: o.act === 'combo' ? 5 : 2, jumped: false, dir: dirFor(o.act), ph: 0 };
+  inp.sx = inp.sz = 0; inp.guardT = false; v.cpu.t = 0; v.cpu.guardT = 0;
+  sayLine(f, line || replyFor(f, o.act, o.target));
+  setPlan('→ ' + (ACT_LABEL[o.act] || o.act) + (v.target ? '　🎯' + pname(v.target) : '') + (via === 'ai' ? '　(AI)' : ''));
+}
+function confused(f, v, say) {
+  sayLine(f, say || pickOne(['え、なんて？', '？？？', 'もう一回言って！', f.ch.think]));
+  setPlan('→ ？ よくわからなかった');
+  if (Math.random() < 0.35) v.act = { k: Math.random() < 0.5 ? 'dance' : 'jump', t: 1.2, n: 0, jumped: false, dir: null, ph: 0 };
+}
+/* final words (and typed orders): local match first, then the AI relay */
+function hearOrder(alts) {
+  const v = G.voice, f = G.me, list = alts.map(t => String(t || '').trim()).filter(Boolean);
+  if (!list.length) return;
+  showHeard(list[0], false);
+  if (!v || !f || f.ko || !['vs', 'count', 'fight'].includes(G.phase)) return;
+  for (const t of list) { const o = parseOrder(t, f); if (o) { v.ask++; giveOrder(f, v, o); return; } }
+  askAI(list[0], f, v);
+}
+/* words still being spoken: act early only on short, clear orders */
+function quickOrder(t) {
+  const v = G.voice, f = G.me;
+  showHeard(t, true);
+  if (!v || !f || f.ko || G.phase !== 'fight' || vnorm(t).length > 8) return false;
+  const o = parseOrder(t, f);
+  if (!o || !QUICK.has(o.act) || o.target) return false;
+  v.ask++; giveOrder(f, v, o); return true;
+}
+async function askAI(text, f, v) {
+  if (!VOICE_AI) { confused(f, v); return; }
+  const seq = ++v.ask; setPlan('🤔 考え中…');
+  const body = { text: text.slice(0, 60), me: f.ch.name, moves: [f.ch.mv.atk, f.ch.mv.def, f.ch.mv.sp, f.ch.mv.air], foes: foes(f).slice(0, 3).map(pname) };
+  let r = null;
+  const ctl = new AbortController(), tm = setTimeout(() => ctl.abort(), 5000);
+  try {
+    const res = await fetch(VOICE_AI, { method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify(body), signal: ctl.signal });
+    if (res.ok) r = await res.json();
+  } catch (e) { r = null; }
+  clearTimeout(tm);
+  if (seq !== v.ask || G.voice !== v || f.ko) return;
+  if (!r || !r.act || r.act === 'unknown' || !(Number(r.conf) >= 0.35)) { confused(f, v, r && cleanSay(r.say)); return; }
+  const t = r.target ? foes(f).find(x => pname(x) === r.target) || null : null;
+  giveOrder(f, v, { act: r.act, target: t }, cleanSay(r.say), 'ai');
+}
+function steer(inp, x, z) { const m = hyp(x, z); if (m < 1e-3) { inp.sx = inp.sz = 0; return; } inp.sx = x / m; inp.sz = z / m; }
+function voiceThink(f, dt, v) {
+  const inp = f.input;
+  if (f.ko) { inp.sx = inp.sz = 0; inp.guardT = false; return; }
+  if (v.target && (v.target.ko || v.target.left || !G.fighters.includes(v.target))) v.target = null;
+  f.aim = v.target;
+  const o = v.target || nearest(f), a = v.act;
+  if (a) {
+    a.t -= dt;
+    const dx = o ? o.x - f.x : 0, dz = o ? o.z - f.z : 0, d = o ? hyp(dx, dz) : 99;
+    let done = a.t <= 0;
+    switch (a.k) {
+      case 'attack': case 'combo':
+        if (!o) { done = true; break; }
+        if (d < f.ch.atkReach + 0.5) { inp.sx = inp.sz = 0; if (f.atkCd <= 0 && !f.move && inp.atkBuf <= 0) { inp.atkBuf = 0.2; if (--a.n <= 0) a.t = Math.min(a.t, 0.35); } }
+        else steer(inp, dx, dz);
+        break;
+      case 'special': {
+        if (!o || (f.move && f.move.kind === 'sp')) { done = true; break; }
+        const r = SP_RANGE[f.ch.sp] || [0, 3];
+        if (d < r[0]) steer(inp, -dx, -dz);
+        else if (d > r[1] - 0.4) steer(inp, dx, dz);
+        else { inp.sx = inp.sz = 0; if (f.spCd <= 0) inp.spBuf = 0.2; }
+        break;
+      }
+      case 'air':
+        if (!o) { done = true; break; }
+        if (!a.jumped) { steer(inp, dx, dz); if (d < 3.4 && f.y === 0) { inp.jumpBuf = 0.2; a.jumped = true; } }
+        else {
+          steer(inp, dx, dz);
+          if (f.y > 0.6 && !f.airUsed && f.atkCd <= 0) inp.atkBuf = 0.2;
+          if (f.airUsed || (f.y === 0 && a.t < ACT_T.air - 0.6)) done = true;
+        }
+        break;
+      case 'jump':
+        inp.sx = inp.sz = 0;
+        if (!a.jumped) { if (f.y === 0) { inp.jumpBuf = 0.2; a.jumped = true; } }
+        else if (f.y === 0 && a.t < 0.4) done = true;
+        break;
+      case 'guard': inp.sx = inp.sz = 0; inp.guardT = true; break;
+      case 'left': case 'right': if (a.dir) steer(inp, a.dir[0], a.dir[1]); break;
+      case 'approach': if (!o || d < f.ch.atkReach + 0.3) done = true; else steer(inp, dx, dz); break;
+      case 'center': if (hyp(f.x, f.z) < 1) done = true; else steer(inp, -f.x, -f.z); break;
+      case 'bubble': {
+        let bub = null, bd = 1e9;
+        for (const b of bubs) { if (b.pend) continue; const dd = hyp(b.x - f.x, b.z - f.z); if (dd < bd) { bd = dd; bub = b; } }
+        if (!bub) { done = true; break; }
+        steer(inp, bub.x - f.x, bub.z - f.z);
+        if (bub.hi && bd < 1.8 && f.y === 0) inp.jumpBuf = 0.2;
+        break;
+      }
+      case 'dance':
+        a.ph += dt * 7; inp.sx = Math.cos(a.ph); inp.sz = Math.sin(a.ph);
+        if (f.y === 0 && Math.random() < dt * 0.8) inp.jumpBuf = 0.2;
+        break;
+      default: done = true;
+    }
+    if (done) { v.act = null; inp.sx = inp.sz = 0; inp.guardT = false; v.cpu.t = 0; }
+    return;
+  }
+  if (v.stance === 'fight') { cpuThink(f, o, dt, v.cpu); return; }
+  if (v.stance === 'flee') {
+    inp.guardT = false;
+    if (!o) { inp.sx = inp.sz = 0; return; }
+    let x = f.x - o.x, z = f.z - o.z; const m = hyp(x, z) || 1; x /= m; z /= m;
+    const e = hyp(f.x, f.z);
+    if (e > R - 3) {
+      const rx = f.x / e, rz = f.z / e; let tx = -rz, tz = rx;
+      if (tx * x + tz * z < 0) { tx = -tx; tz = -tz; }
+      x = tx - rx * 0.6; z = tz - rz * 0.6;
+    }
+    steer(inp, x, z); return;
+  }
+  /* wait: stay put, but raise the guard when something is about to land */
+  inp.sx = inp.sz = 0;
+  inp.guardT = foes(f).some(t => t.move && hyp(t.x - f.x, t.z - f.z) < 3.4) || shots.some(p => p.owner !== f && hyp(p.x - f.x, p.z - f.z) < 2.6);
 }
 
 /* ================= online =================
@@ -2792,6 +3047,87 @@ function readKeys() {
   }
 }
 
+/* ================= 声で操作: microphone, panel, reply bubble ================= */
+const V_STATE = {
+  on: '聞いています。声で指示してください', start: 'マイクを準備しています…', off: 'マイク停止中（左のボタンで再開）',
+  denied: 'マイクが許可されていません。ブラウザの設定で許可してください', nomic: 'マイクが見つかりません',
+  nosr: 'このブラウザは音声認識に未対応です。文字で指示してください',
+};
+const Voice = {
+  rec: null, want: false, live: false, st: 'off', used: new Set(), startedAt: 0,
+  set(st) { this.st = st; const p = $('#voice'); p.dataset.st = st; $('#v-state').textContent = V_STATE[st] || ''; },
+  make() {
+    const r = new SpeechRec();
+    r.lang = 'ja-JP'; r.continuous = true; r.interimResults = true; r.maxAlternatives = 3;
+    r.onstart = () => { this.live = true; this.used.clear(); this.startedAt = performance.now(); if (!this.want) { try { r.abort(); } catch (e) {} return; } this.set('on'); };
+    r.onerror = e => { if (e.error === 'not-allowed' || e.error === 'service-not-allowed') { this.want = false; this.set('denied'); } else if (e.error === 'audio-capture') { this.want = false; this.set('nomic'); } };
+    r.onend = () => {
+      this.live = false;
+      if (!this.want) { if (this.st === 'on' || this.st === 'start') this.set('off'); return; }
+      const quick = performance.now() - this.startedAt < 1500;
+      setTimeout(() => { if (this.want && !this.live) { try { r.start(); } catch (e) {} } }, quick ? 1500 : 250);
+    };
+    r.onresult = e => {
+      for (let i = e.resultIndex; i < e.results.length; i++) {
+        if (this.used.has(i)) continue;
+        const res = e.results[i];
+        if (res.isFinal) { this.used.add(i); const alts = []; for (let k = 0; k < res.length; k++) alts.push(res[k].transcript); hearOrder(alts); }
+        else if (quickOrder(res[0].transcript)) this.used.add(i);
+      }
+    };
+    return r;
+  },
+  start() {
+    if (!SpeechRec) { this.set('nosr'); return; }
+    this.want = true;
+    if (this.live) { this.set('on'); return; }
+    this.set('start');
+    try { if (!this.rec) this.rec = this.make(); this.rec.start(); } catch (e) {}
+  },
+  stop() { this.want = false; if (this.rec && this.live) { try { this.rec.abort(); } catch (e) {} } if (SpeechRec) this.set('off'); },
+  /* ask for the microphone while the player is still tapping the ON switch */
+  prime() { if (!SpeechRec || this.live) return; try { if (!this.rec) this.rec = this.make(); this.rec.start(); } catch (e) {} },
+};
+function showHeard(t, interim) { const el = $('#v-heard'); el.textContent = '「' + String(t).trim().slice(0, 60) + '」'; el.classList.toggle('interim', !!interim); }
+function setPlan(t) { $('#v-plan').textContent = t; }
+let vsayT = 0;
+function sayLine(f, text) { const el = $('#vsay'); el.textContent = text; el.style.setProperty('--pc', PCOL[f.idx]); el.hidden = false; vsayT = 2.4; }
+function updateVoiceSay(dt) {
+  const el = $('#vsay');
+  if (vsayT <= 0) return;
+  vsayT -= dt;
+  const f = G.me;
+  if (vsayT <= 0 || !f || !G.voice) { vsayT = 0; el.hidden = true; return; }
+  const p = project(f.x, f.y + 3.0, f.z);
+  el.style.transform = 'translate(' + p.x.toFixed(1) + 'px,' + p.y.toFixed(1) + 'px) translate(-50%,-100%)';
+  el.hidden = !!p.behind;
+}
+function voicePanel(on, up) {
+  const p = $('#voice'); p.hidden = !on; p.classList.toggle('up', !!up);
+  if (!on) { vsayT = 0; $('#vsay').hidden = true; return; }
+  $('#v-heard').textContent = ''; $('#v-heard').classList.remove('interim'); setPlan('「攻撃」「必殺」「ジャンプ」「逃げろ」など');
+}
+$('#v-mic').addEventListener('click', () => { audio.init(); if (Voice.want) Voice.stop(); else Voice.start(); });
+$('#v-form').addEventListener('submit', e => {
+  e.preventDefault();
+  const el = $('#v-text'), t = el.value.trim(); if (!t) return;
+  el.value = ''; hearOrder([t]);
+});
+G.voiceOn = lsGet('uw3d-voice') === '1';
+function syncVoiceUI() {
+  const b = $('#voice-btn');
+  b.setAttribute('aria-pressed', String(G.voiceOn)); b.textContent = G.voiceOn ? '🎤 声 ON' : '🎤 声 OFF';
+  const msg = G.type === 'local' ? '🎤 声で操作は、CPU対戦とオンライン対戦で使えます（ふたりで対戦では使いません）。'
+    : '🎤 声で操作します。試合中はマイクで指示を聞きます。「攻撃」「必殺」「ジャンプ」「防御」「逃げろ」「待て」「真ん中」「泡」「クジラを狙え」、自分の技の名前でも動きます。' +
+      (SpeechRec ? '' : '（このブラウザは音声認識に未対応なので、試合中は文字で指示します）');
+  for (const id of ['#sel-voice', '#on-voice']) { const el = $(id); el.hidden = !G.voiceOn; el.textContent = msg; }
+}
+$('#voice-btn').addEventListener('click', () => {
+  G.voiceOn = !G.voiceOn; lsSet('uw3d-voice', G.voiceOn ? '1' : '0'); syncVoiceUI(); audio.tick();
+  if (G.voiceOn) Voice.prime();
+});
+syncVoiceUI();
+
 /* ================= screens & flow ================= */
 function show(id) { $$('.screen').forEach(s => { s.hidden = s.id !== id; }); $('#top-actions').hidden = !(id === 's-title' || id === 's-select' || id === 's-online' || id === 's-room'); }
 /* showcase models are built on first use; the title ring shows 8 of the 20 at random */
@@ -2840,6 +3176,7 @@ function renderSelect() {
   $$('#roster .tile').forEach((b, i) => b.setAttribute('aria-pressed', String(i === G.selIdx)));
   const d = $('#detail'); d.style.setProperty('--c', c.glow); d.innerHTML = detailHTML(c);
   $('#sel-ok').textContent = G.type === 'local' && G.picker === 0 ? 'つぎは2P' : 'この潜水者で';
+  syncVoiceUI();
 }
 function openSelect(type) {
   clearMatch(); hideFightUI();
@@ -2868,7 +3205,8 @@ $('#sel-back').addEventListener('click', () => {
 
 function clearMatch() {
   for (const f of G.fighters) { disposeModel(f.model); if (f.callF) f.callF.t = f.callF.dur; }
-  G.fighters = []; G.me = G.opp = null; G.cpu = null;
+  G.fighters = []; G.me = G.opp = null; G.cpu = null; G.voice = null;
+  Voice.stop(); voicePanel(false);
   clearShots(); clearBubs();
   clearFloaters(); $('#banner').hidden = true; bannerT = 0; $('#think').hidden = true; $('#vs').hidden = true; $('#count').hidden = true;
   G.paused = false;
@@ -2883,7 +3221,7 @@ const hudEls = [1, 2, 3, 4].map(n => { const s = $('.side.p' + n); return { root
 function setupHUD() {
   hudEls.forEach((h, i) => {
     const f = G.fighters[i]; h.root.hidden = !f; if (!f) return;
-    h.root.style.setProperty('--pc', PCOL[i]); h.tag.textContent = tagFor(f); h.sym.textContent = f.ch.sym; h.nm.textContent = pname(f); h.nm.title = f.ch.name;
+    h.root.style.setProperty('--pc', PCOL[i]); h.tag.textContent = tagFor(f) + (G.voice && f === G.me ? '🎤' : ''); h.sym.textContent = f.ch.sym; h.nm.textContent = pname(f); h.nm.title = f.ch.name;
     h.root.classList.toggle('me', G.type === 'online' && f === G.me);
   });
   $('#pause-btn').textContent = G.type === 'online' ? '退出' : 'II';
@@ -2905,10 +3243,13 @@ function startMatch(chars, ctrls, ids, nms) {
     for (const f of F) if (f.ctrl === 'cpu') f.brain = newBrain();
     G.cpu = (F.find(f => f.brain) || {}).brain || null;
   }
+  /* 声で操作: your 潜水者 gets its own input, driven by spoken orders instead of the pad */
+  if (G.voiceOn && G.type !== 'local' && G.me) { G.me.input = blankInput(); pads[0].f = null; G.voice = newVoice(); }
   G.time = MATCH_SEC; G.hitstop = 0; G.intrT = 10 + Math.random() * 5; G.shake = 0; G.endT = 0; G.bubT = 5;
   G.camYaw = G.me ? G.me.face : 0;
   layoutShowcase('none'); layoutPads(); setupHUD();
-  show(null); $('#hud').hidden = false; $('#hud2').hidden = F.length <= 2; $('#pads').hidden = false;
+  show(null); $('#hud').hidden = false; $('#hud2').hidden = F.length <= 2; $('#pads').hidden = !!G.voice;
+  if (G.voice) { voicePanel(true, F.length > 2); Voice.start(); }
   const vs = $('#vs'); vs.textContent = ''; vs.classList.toggle('many', F.length > 2);
   F.forEach((f, i) => {
     if (i) { const mid = document.createElement('div'); mid.className = 'mid'; mid.textContent = 'VS'; vs.append(mid); }
@@ -2936,6 +3277,7 @@ function decide() {
 }
 function showResult() {
   const r = decide(), n = G.fighters.length; G.phase = 'result';
+  Voice.stop(); voicePanel(false);
   $('#pads').hidden = true; $('#hud').hidden = true; $('#hud2').hidden = true; clearInputs(); $('#think').hidden = true;
   $('#res-reason').textContent = { ko: 'KNOCKOUT', ring: 'RING OUT', time: 'TIME UP', double: 'DOUBLE KO', last: 'LAST ONE STANDING', left: 'DISCONNECTED' }[r.reason] || 'RESULT';
   $('#res-sym').textContent = r.w ? r.w.ch.sym : '🌊';
@@ -3003,7 +3345,7 @@ document.addEventListener('visibilitychange', () => { if (document.hidden && G.t
 /* title */
 $$('[data-go]').forEach(b => b.addEventListener('click', () => {
   audio.init(); const go = b.dataset.go;
-  if (go === 'online') { G.type = 'online'; G.phase = 'online'; $('#on-status').textContent = ''; show('s-online'); Lobby.start(); renderLobby(); }
+  if (go === 'online') { G.type = 'online'; G.phase = 'online'; $('#on-status').textContent = ''; show('s-online'); syncVoiceUI(); Lobby.start(); renderLobby(); }
   else openSelect(go);
 }));
 /* name: saved on this device; a random 潜水者 number until the player picks one */
@@ -3160,7 +3502,11 @@ function stepGame(rdt) {
     if (G.phaseT <= 0) {
       G.count--;
       if (G.count > 0) { showCount(String(G.count)); G.phaseT = 0.7; }
-      else { showCount('ダイブ！', true); G.phase = 'fight'; G.countHide = 0.7; for (const p of pads) { p.input.atkBuf = p.input.spBuf = p.input.rndBuf = p.input.jumpBuf = 0; } checkEnd(); }
+      else {
+        showCount('ダイブ！', true); G.phase = 'fight'; G.countHide = 0.7; for (const p of pads) { p.input.atkBuf = p.input.spBuf = p.input.rndBuf = p.input.jumpBuf = 0; }
+        if (G.voice && G.me && !G.voice.act && G.voice.stance === 'wait') sayLine(G.me, '指示をちょうだい！');
+        checkEnd();
+      }
     }
     return;
   }
@@ -3172,8 +3518,9 @@ function stepGame(rdt) {
   if (G.phase === 'fight') {
     for (const f of F) if (f.brain) cpuThink(f, nearest(f), dt, f.brain);
     if (G.cpuA) { const a = G.type === 'online' ? G.me : F[0]; if (a) cpuThink(a, nearest(a), dt, G.cpuA); }
+    if (G.voice && G.me) voiceThink(G.me, dt, G.voice);
   }
-  for (const f of F) { if (f.ctrl === 'remote') updateRemote(f, nearest(f), dt); else updateFighter(f, nearest(f), dt); }
+  for (const f of F) { if (f.ctrl === 'remote') updateRemote(f, nearest(f), dt); else updateFighter(f, aimOf(f), dt); }
   for (let i = 0; i < F.length; i++) for (let j = i + 1; j < F.length; j++) separate(F[i], F[j]);
   updateShots(dt);
   updateZones(dt);
@@ -3251,7 +3598,7 @@ function updateCamera(dt) {
   const ph = G.phase, portrait = isPortrait(), F = G.fighters;
   let rate = ph === 'select' ? 5 : 3;
   if (F.length >= 2 && chaseOn()) {
-    const me = G.me, t = nearest(me);
+    const me = G.me, t = aimOf(me);
     if (t && hyp(t.x - me.x, t.z - me.z) > 1.6) G.camYaw = angLerp(G.camYaw, Math.atan2(t.x - me.x, t.z - me.z), Math.min(1, dt * 3));
     else if (!t) G.camYaw = angLerp(G.camYaw, me.face, Math.min(1, dt * 2));
     const fx = Math.sin(G.camYaw), fz = Math.cos(G.camYaw), back = portrait ? 8.5 : 6.8;
@@ -3308,6 +3655,7 @@ function frame(now) {
     updateFloaters(rdt);
     updateThink();
     updateTags();
+    updateVoiceSay(rdt);
     renderer.render(scene, camera);
   } catch (err) { console.error(err); }
 }

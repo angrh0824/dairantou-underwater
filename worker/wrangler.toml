@@ -1,0 +1,13 @@
+# 声モードの中継。デプロイ: このフォルダで npx wrangler deploy
+# APIキーは npx wrangler secret put OPENROUTER_API_KEY で登録（ファイルには書かない）
+name = "dairantou-voice"
+main = "src/index.js"
+compatibility_date = "2026-09-01"
+workers_dev = true
+
+[vars]
+# 使うモデル。Jev に選ばせるなら "typesafe/jev-router"
+MODEL = "anthropic/claude-haiku-5.5"
+ALLOWED_ORIGINS = "https://angrh0824.github.io,http://localhost:8765,http://127.0.0.1:8765"
+RATE_PER_MIN = "30"
+TIMEOUT_MS = "6000"
