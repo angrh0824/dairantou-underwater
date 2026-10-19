@@ -493,6 +493,20 @@ const AIR_DESC = {
   shot: '空中から手紙を投げ下ろす。着いたところで爆発',
 };
 ROSTER.forEach(c => { const a = AIR[c.id]; c.mv.air = a[0]; c.air = a[1]; });
+/* 地上の攻撃と防御も、技名に合わせて一人ずつ違う（中身は ATKK / DEFK） */
+const ATK_OF = {
+  'whale-man': 'slam', 'star-person': 'star', 'mantis-count': 'jab', 'jelly-principal': 'zap', 'shark-lost': 'bite', 'ink-pianist': 'keys',
+  'seahorse-manager': 'vortex', 'puffer-gatekeeper': 'tackle', 'manta-house': 'glide', 'slug-fossil': 'slime', 'octopus-snail': 'quick',
+  'crab-meeting': 'sidecut', 'angler-note': 'lure', 'otter-robot': 'crack', 'garden-tower': 'pop', 'coelacanth-dream': 'roll',
+  'turtle-printer': 'duplex', 'shrimp-cadet': 'crumb', 'clione-guard': 'arrest', 'sea-cucumber-ceo': 'slip',
+};
+const DEF_OF = {
+  'whale-man': 'spout', 'star-person': 'ambush', 'mantis-count': 'parry', 'jelly-principal': 'sting', 'shark-lost': 'recall', 'ink-pianist': 'inkcurtain',
+  'seahorse-manager': 'anchor', 'puffer-gatekeeper': 'spikes', 'manta-house': 'mobile', 'slug-fossil': 'fossil', 'octopus-snail': 'evade',
+  'crab-meeting': 'hardshell', 'angler-note': 'vanish', 'otter-robot': 'battery', 'garden-tower': 'burrow', 'coelacanth-dream': 'nap',
+  'turtle-printer': 'jam', 'shrimp-cadet': 'stealth', 'clione-guard': 'reflect', 'sea-cucumber-ceo': 'shelve',
+};
+ROSTER.forEach(c => { c.atk = ATK_OF[c.id]; c.def = DEF_OF[c.id]; });
 const EVENTS = [
   ['海神のくしゃみ','🤧',{healMe:13}],
   ['深海のファックス','📠',{dmgOpp:15}],
@@ -1399,7 +1413,14 @@ function killShot(i) {
   shots.splice(i, 1);
 }
 const touching = (p, t, r) => t && !t.ko && hyp(p.x - t.x, p.z - t.z) < r && Math.abs(p.y - (t.y + 1)) < 1.2;
-function touchFoe(p) { for (const t of foes(p.owner)) if (touching(p, t, 1.1)) return t; return null; }
+/* a guarding エビフライ候補生 has erased its presence: flying things pass through it and CPUs look past it */
+const hidden = t => t.guarding && t.ch.def === 'stealth';
+function touchFoe(p) { for (const t of foes(p.owner)) if (!hidden(t) && touching(p, t, 1.1)) return t; return null; }
+function seenFoe(f, x, z) {
+  let best = null, bd = Infinity;
+  for (const t of G.fighters) { if (t === f || t.ko || hidden(t)) continue; const d = hyp(t.x - x, t.z - z); if (d < bd) { bd = d; best = t; } }
+  return best;
+}
 const level = (a, t, tol) => Math.abs(a.y - t.y) < (tol || 1.3);
 const SHOT = {
   paper(p, dt, t) {
@@ -1507,6 +1528,24 @@ const SHOT = {
     p.mesh.position.set(p.x, k < 0.25 ? -1.9 + k / 0.25 * 1.9 : k > 0.7 ? -(k - 0.7) / 0.3 * 1.9 : 0, p.z);
     return p.t > 1.1;
   },
+  /* エビフライ候補生の攻撃: a short-range crumb */
+  crumb(p, dt, t) {
+    p.x += p.vx * dt; p.z += p.vz * dt; p.mesh.rotation.y += dt * 12;
+    if (Math.random() < 0.4) burst(p.x, p.y, p.z, 0xe8c070, 1, 1);
+    if (!touching(p, t, 1.0)) return p.t > 0.4;
+    if (canHit(p.owner, t)) { const n = unit(p.vx, p.vz), r = atkDamage(p.owner, t); dealHit(p.owner, t, { d: Math.max(1, Math.round(r.d * 0.7)), kx: n.x * 2.5, kz: n.z * 2.5 }); }
+    burst(p.x, p.y, p.z, 0xe8c070, 6, 3);
+    return true;
+  },
+  /* ナマコの社長の攻撃: a 稟議書 sliding along the floor; it only trips fighters standing on it, so a jump clears it */
+  memo(p, dt, t) {
+    p.x += p.vx * dt; p.z += p.vz * dt; p.y = 0.12; p.mesh.rotation.y = Math.atan2(p.vx, p.vz) + Math.sin(p.t * 20) * 0.1;
+    if (Math.random() < 0.3) burst(p.x, 0.1, p.z, 0xffffff, 1, 1);
+    if (!t || t.ko || hyp(p.x - t.x, p.z - t.z) > 1.0 || t.y > 0.3) return p.t > 0.6;
+    if (canHit(p.owner, t)) { const n = unit(p.vx, p.vz), r = atkDamage(p.owner, t); dealHit(p.owner, t, { d: Math.max(1, Math.round(r.d * 0.7)), kx: n.x * 2, kz: n.z * 2, ky: 6, st: 0.3 }); }
+    burst(p.x, 0.3, p.z, 0xffffff, 6, 3);
+    return true;
+  },
   glue(p, dt, t) {
     p.x += p.vx * dt; p.z += p.vz * dt;
     if (!touching(p, t, 0.95)) return p.t > 0.42;
@@ -1515,10 +1554,29 @@ const SHOT = {
     return true;
   },
 };
+/* straight-flying things a guarding クリオネ sends back to their thrower */
+const REFLECTS = new Set(['paper', 'ink', 'baby', 'item', 'glue', 'crumb']);
+/* judged one frame ahead, because a shot moves before it checks what it touched */
+function reflector(p, dt) {
+  if (!REFLECTS.has(p.kind)) return null;
+  const nx = p.x + (p.vx || 0) * dt, nz = p.z + (p.vz || 0) * dt;
+  for (const t of foes(p.owner)) if (t.guarding && t.ch.def === 'reflect' && Math.abs(p.y - (t.y + 1)) < 1.2 && hyp(nx - t.x, nz - t.z) < 1.3) return t;
+  return null;
+}
 function updateShots(dt) {
   for (let i = shots.length - 1; i >= 0; i--) {
     const p = shots[i]; p.t += dt;
-    const done = SHOT[p.kind](p, dt, touchFoe(p) || nearestTo(p.owner, p.x, p.z)) || p.t > 6 || hyp(p.x, p.z) > R + 6;
+    const rf = reflector(p, dt);
+    if (rf) {
+      p.owner = rf; p.vx = -p.vx; p.vz = -p.vz; if (p.h !== undefined) p.h += Math.PI;
+      p.x += p.vx * dt * 2; p.z += p.vz * dt * 2; p.t = Math.min(p.t, 0.1);
+      burst(p.x, p.y, p.z, 0xbfe9ff, 8, 4); tagFl(rf, '規則です');
+      p.mesh.position.set(p.x, p.y, p.z); continue;
+    }
+    const hit = touchFoe(p);
+    shotNow = p;
+    let done;
+    try { done = SHOT[p.kind](p, dt, hit || seenFoe(p.owner, p.x, p.z)) || p.t > 6 || hyp(p.x, p.z) > R + 6; } finally { shotNow = null; }
     if (!p.manual) p.mesh.position.set(p.x, p.y, p.z);
     if (done) killShot(i);
   }
@@ -1602,7 +1660,7 @@ function derive(c) {
   const s = c.st;
   return {
     speed: 5.6 - (s.def - 17) * 0.07 + (c.speedBonus || 0),
-    atkCd: (0.42 + s.def * 0.008) * (c.atkRate || 1),
+    atkCd: (0.42 + s.def * 0.008) * (c.atkRate || 1) * ATKK[c.atk].cd,
     spDmg: Math.round((13 + s.atk * 0.82 + s.pri * 0.45) * 0.5),
     shRate: 6 + s.def * 0.25,
   };
@@ -1652,18 +1710,23 @@ function atkDamage(a, t) {
   return { d: Math.max(2, base - Math.round(t.ch.st.def * 0.06)) + pr, po: pr >= 3 ? 3 : 0 };
 }
 
+/* set while a projectile is being moved, so its hits are marked as 飛び道具 (pj) for the guards that care */
+let shotNow = null;
 function dealHit(a, t, h) {
+  if (shotNow) h.pj = 1;
   burst(t.x, 1.1, t.z, h.big ? 0xffd86e : 0xffffff, h.big ? 16 : 8, h.big ? 7 : 4.5);
   audio.hit(h.big);
   G.hitstop = Math.max(G.hitstop, h.big ? 0.085 : 0.04);
   if (h.big) G.shake = Math.max(G.shake, 0.35);
   if (t.ctrl === 'remote') {
-    Net.sendHit({ d: h.d | 0, kx: r2(h.kx || 0), kz: r2(h.kz || 0), ky: r2(h.ky || 0), po: h.po || 0, st: r2(h.st || 0), sl: r2(h.sl || 0), sk: h.sk === undefined ? 0.5 : h.sk, pl: h.pull ? 1 : 0, he: h.he | 0, sh: h.sh | 0 }, t.id);
+    const o = { d: h.d | 0, kx: r2(h.kx || 0), kz: r2(h.kz || 0), ky: r2(h.ky || 0), po: h.po || 0, st: r2(h.st || 0), sl: r2(h.sl || 0), sk: h.sk === undefined ? 0.5 : h.sk, pl: h.pull ? 1 : 0, he: h.he | 0, sh: h.sh | 0 };
+    for (const k of ['pj', 'gb', 'cx', 'jm']) if (h[k]) o[k] = 1;
+    Net.sendHit(o, t.id);
     t.flash = 1; return;
   }
   if (h.he) heal(t, h.he);
   if (h.sh) addShield(t, h.sh);
-  applyHit(t, h);
+  applyHit(t, h, a);
 }
 /* non-damage effects (heals, shields, unavoidable event damage) without hit sparks */
 function giveFx(a, t, h) {
@@ -1673,10 +1736,20 @@ function giveFx(a, t, h) {
   if (h.sh) addShield(t, h.sh);
   if (h.d) applyHit(t, { d: h.d, kx: h.kx, kz: h.kz, ev: 1 });
 }
-function applyHit(t, h) {
+/* a = who hit (a fighter, or nothing for events); the defender's own guard (DEFK) decides how much gets through */
+function applyHit(t, h, a) {
   if (t.ko) return;
   let d = h.d || 0, kx = h.kx || 0, kz = h.kz || 0, ky = h.ky || 0;
-  if (t.guarding && !h.ev) { d = Math.ceil(d * 0.5); kx *= 0.3; kz *= 0.3; ky = 0; }
+  if (h.jm) { t.atkCd = Math.max(t.atkCd, 1.3); t.spCd = Math.min(SPCD, t.spCd + 1); tagFl(t, '紙詰まり'); }
+  if (h.gb && (t.guarding || t.shield > 0)) { t.shield = Math.max(0, t.shield - 14); burst(t.x, 1.1, t.z, 0xc8d6e0, 10, 5); tagFl(t, 'パキッ'); }
+  const def = t.guarding && !h.ev && !h.gb ? DEFK[t.ch.def] : null;
+  if (def) {
+    if (def.pre && !h.cx && def.pre(t, h, a) === false) return;
+    d = Math.ceil(d * def.dm); kx *= def.km; kz *= def.km; ky = 0;
+    if (def.post) d = def.post(t, h, a, d);
+  }
+  const g = !!def && !def.weak;
+  if (def && def.counter && !h.cx && !h.pj && nearFoe(t, a)) def.counter(t, a);
   const abs = Math.min(t.shield, d); t.shield -= abs;
   const hpd = d - abs; t.hp = Math.max(0, t.hp - hpd);
   if (abs > 0) bubbles(t.x, 1.0, t.z, 3);
@@ -1685,10 +1758,10 @@ function applyHit(t, h) {
     const s = h.pull ? 1 : 1 + (100 - t.hp) / 65, k = armor ? 0.25 : 1;
     t.vx = kx * s * k; t.vz = kz * s * k;
     if (ky && !armor) t.vy = ky > 0 ? Math.max(t.vy, ky) : Math.min(t.vy, ky);
-    if (!armor) { t.hitstun = t.guarding ? 0.1 : 0.12 + hyp(kx, kz) * s * 0.032; endMove(t); }
+    if (!armor) { t.hitstun = g ? 0.1 : 0.12 + hyp(kx, kz) * s * 0.032; endMove(t); }
   }
-  if (h.st && !armor && !t.guarding) { t.hitstun = Math.max(t.hitstun, h.st); endMove(t); }
-  if (h.sl && !t.guarding) {
+  if (h.st && !armor && !g) { t.hitstun = Math.max(t.hitstun, h.st); endMove(t); }
+  if (h.sl && !g) {
     const sk = h.sk === undefined ? 0.5 : h.sk;
     if (!(t.slowT > 0)) floater(sk === 0 ? 'ねばねば' : 'のろのろ', t.x, 2.3, t.z, 'tox', 0.9, 0, 1);
     t.slowT = Math.max(t.slowT, h.sl); t.slowK = sk;
@@ -1727,10 +1800,14 @@ const SPDUR = {
   spin: 1.1, rush: 0.95, zigzag: 0.9, lob: 0.5, drum: 1.15, eels: 0.7, warp: 0.75, leap: 1.6, grab: 0.8, glue: 0.5,
 };
 const ARMORED = ['dash', 'puff', 'spin', 'leap'];
+function newAtkMove(f) { const K = ATKK[f.ch.atk]; return { kind: 'atk', t: 0, dur: K.dur, hits: {}, fx: false, armor: !!K.armor }; }
 function startAttack(f, o) {
-  f.atkCd = f.d.atkCd; aimAt(f, o, 6.5);
-  f.move = { kind: 'atk', t: 0, dur: 0.34, hits: {}, fx: false };
-  f.vx = Math.sin(f.face) * f.ch.lunge; f.vz = Math.cos(f.face) * f.ch.lunge;
+  const K = ATKK[f.ch.atk];
+  f.atkCd = f.d.atkCd; aimAt(f, o, Math.max(6.5, K.range + 2));
+  f.move = newAtkMove(f);
+  if (f.recallT > 0) { f.move.boost = 1.6; f.recallT = 0; }
+  if (K.start) K.start(f);
+  else { const l = f.ch.lunge * (K.lk === undefined ? 1 : K.lk); f.vx = Math.sin(f.face) * l; f.vz = Math.cos(f.face) * l; }
   f.animSeq = ++G.animCounter; f.animKind = 'atk';
   callout(f, f.ch.mv.atk, false); audio.swing();
 }
@@ -1801,9 +1878,250 @@ const AIRMOVE = {
     shoot(f, 'letter', letterMesh(), { sx: f.x, sz: f.z, sy: f.y + 1.0, tx, tz, dur: 0.45, arc: 0.6, r: 2.0, dmg: airDmg(f), mark: markMesh(tx, tz, 0xf5e78f, 2.0) });
   },
 };
+/* ---------- 地上の攻撃: 20通り ----------
+   run() plays every frame of the move on every device; hits only land on the attacker's own device (canHit).
+   range = how far away it is worth swinging from (CPU and voice orders), min = too close for it. */
+function atkHit(f, m, key, inside, mult, extra) {
+  for (const t of foes(f)) {
+    if (m.hits[key + t.idx] || !canHit(f, t) || !level(f, t) || !inside(t)) continue;
+    m.hits[key + t.idx] = 1;
+    const r = atkDamage(f, t), n = unit(t.x - f.x, t.z - f.z), d = Math.max(1, Math.round(r.d * mult * (m.boost || 1)));
+    dealHit(f, t, Object.assign({ d, kx: n.x * f.ch.atkKb, kz: n.z * f.ch.atkKb, po: r.po }, extra ? extra(t, n, d) : null));
+  }
+}
+const within = (x, z, r) => t => hyp(t.x - x, t.z - z) < r;
+const inLine = (f, fx, fz, a0, a1, w) => t => { const dx = t.x - f.x, dz = t.z - f.z, al = dx * fx + dz * fz; return al > a0 && al < a1 && Math.abs(dx * fz - dz * fx) < w; };
+const inArc = (f, fx, fz, r, cos) => t => { const dx = t.x - f.x, dz = t.z - f.z, d = hyp(dx, dz) || 1; return d < r && (dx * fx + dz * fz) / d > cos; };
+const ahead = (f, fx, fz, s) => [f.x + fx * s, f.z + fz * s];
+function damp(f, dt, k) { const e = Math.exp(-k * dt); f.vx *= e; f.vz *= e; }
+const glowOf = f => parseInt(f.ch.glow.slice(1), 16);
+const CRUMB_MAT = new THREE.MeshStandardMaterial({ color: 0xf0c878, emissive: 0xb07a2a, emissiveIntensity: 0.35, roughness: 0.8 });
+const ATKK = {
+  slam: { dur: 0.52, cd: 1.3, lk: 0, range: 2.2, desc: 'ためてから全体重でぶつかる。遅いが重く、よく吹き飛ぶ。ため中はひるまない', run(f, m, dt, fx, fz) {
+    m.armor = m.t < 0.36;
+    if (m.t < 0.22) { damp(f, dt, 10); f.squash = Math.max(f.squash, 0.4); return; }
+    if (!m.go) { m.go = 1; if (f.ctrl !== 'remote') { f.vx = fx * f.ch.lunge * 1.5; f.vz = fz * f.ch.lunge * 1.5; } audio.swing(); }
+    damp(f, dt, 6);
+    if (m.t > 0.38) return;
+    const [px, pz] = ahead(f, fx, fz, 1.3);
+    if (!m.fx) { m.fx = 1; burst(px, 0.9, pz, glowOf(f), 10, 5); }
+    atkHit(f, m, 'a', within(px, pz, 1.5), 1.35, (t, n) => ({ kx: n.x * f.ch.atkKb * 1.7, kz: n.z * f.ch.atkKb * 1.7, big: 1 }));
+  } },
+  star: { dur: 0.36, cd: 1.05, lk: 0.3, range: 1.9, spin: 1, desc: '五方向へ同時にペチペチ。まわりの全員に当たる', run(f, m, dt) {
+    damp(f, dt, 8);
+    if (m.t < 0.1 || m.t > 0.22) return;
+    if (!m.fx) { m.fx = 1; for (let i = 0; i < 5; i++) { const a = f.face + i * Math.PI * 0.4; burst(f.x + Math.sin(a) * 1.3, 1.0, f.z + Math.cos(a) * 1.3, 0xffceab, 3, 2.5); } }
+    atkHit(f, m, 'a', within(f.x, f.z, 2.0), 0.75, (t, n) => ({ kx: n.x * 3.4, kz: n.z * 3.4 }));
+  } },
+  jab: { dur: 0.28, cd: 1, lk: 0.6, range: 2.6, desc: 'まっすぐ遠くまで届く一撃。線の上の相手をまとめて打ち抜く', run(f, m, dt, fx, fz) {
+    damp(f, dt, 9);
+    if (m.t < 0.06 || m.t > 0.16) return;
+    if (!m.fx) { m.fx = 1; for (let s = 0.8; s <= 2.6; s += 0.45) burst(f.x + fx * s, 1.1, f.z + fz * s, 0xe4a7ff, 1, 1.5); }
+    atkHit(f, m, 'a', inLine(f, fx, fz, 0.2, 2.7, 0.85), 1.15, () => ({ kx: fx * f.ch.atkKb, kz: fz * f.ch.atkKb }));
+  } },
+  zap: { dur: 0.42, cd: 1.1, lk: 0.2, range: 2.0, desc: 'まわりにしびれる話。当たった相手に、ちくちくの毒が必ず残る', run(f, m, dt) {
+    damp(f, dt, 8);
+    if (m.t < 0.12 || m.t > 0.24) return;
+    if (!m.fx) { m.fx = 1; ring(f.x, 1.0, f.z, 0xffa9ec, 2.1, 0.3); burst(f.x, 1.2, f.z, 0xffa9ec, 10, 4); }
+    atkHit(f, m, 'a', within(f.x, f.z, 2.1), 0.55, (t, n) => ({ kx: n.x * 1.8, kz: n.z * 1.8, po: 4 }));
+  } },
+  bite: { dur: 0.36, cd: 1.05, lk: 1.5, range: 2.3, desc: '飛びついてかみつく。与えたダメージの一部だけ体力が戻る', run(f, m, dt, fx, fz) {
+    damp(f, dt, 7);
+    if (m.t < 0.08 || m.t > 0.22) return;
+    const [px, pz] = ahead(f, fx, fz, f.ch.atkReach);
+    if (!m.fx) { m.fx = 1; burst(px, 1.1, pz, 0xffffff, 5, 3); }
+    atkHit(f, m, 'a', within(px, pz, 1.25), 1.15, (t, n, d) => { heal(f, Math.ceil(d * 0.35)); return null; });
+  } },
+  keys: { dur: 0.48, cd: 1.15, lk: 0.6, range: 2.1, desc: '黒鍵の3連打。最後の一音で押し出す', run(f, m, dt, fx, fz) {
+    damp(f, dt, 7);
+    const [px, pz] = ahead(f, fx, fz, f.ch.atkReach);
+    [[0.06, 'a'], [0.18, 'b'], [0.3, 'c']].forEach(([t0, k], i) => {
+      if (m.t < t0 || m.t > t0 + 0.1) return;
+      const last = i === 2;
+      if (!m['n' + k]) { m['n' + k] = 1; burst(px, 1.1, pz, last ? 0xa9a3ff : 0x2a2440, 4, 2.5); if (i) audio.swing(); }
+      atkHit(f, m, k, within(px, pz, 1.3), 0.45, (t, n) => ({ kx: n.x * (last ? f.ch.atkKb * 1.4 : 0.8), kz: n.z * (last ? f.ch.atkKb * 1.4 : 0.8), big: last ? 1 : 0 }));
+    });
+  } },
+  vortex: { dur: 0.44, cd: 1.15, lk: 0.2, range: 2.3, spin: 1, desc: 'くるりと回って、まわりの相手を自分のほうへ引き寄せる', run(f, m, dt) {
+    damp(f, dt, 8);
+    if (m.t < 0.12 || m.t > 0.26) return;
+    if (!m.fx) { m.fx = 1; ring(f.x, 0.9, f.z, 0xffe28c, 2.4, 0.35); bubbles(f.x, 0.8, f.z, 6); }
+    atkHit(f, m, 'a', within(f.x, f.z, 2.4), 0.7, (t, n) => ({ kx: -n.x * 5, kz: -n.z * 5, pull: 1 }));
+  } },
+  tackle: { dur: 0.36, cd: 1.1, lk: 1.3, range: 2.0, desc: 'ダメージは小さいが、相手を大きく押し出す。場外ねらい', run(f, m, dt, fx, fz) {
+    damp(f, dt, 7); f.puff = m.t < 0.3 ? 0.5 : 0;
+    if (m.t < 0.08 || m.t > 0.22) return;
+    const [px, pz] = ahead(f, fx, fz, f.ch.atkReach);
+    if (!m.fx) { m.fx = 1; burst(px, 1.0, pz, 0xffe9a8, 6, 4); }
+    atkHit(f, m, 'a', within(px, pz, 1.3), 0.6, (t, n) => ({ kx: n.x * f.ch.atkKb * 2.4, kz: n.z * f.ch.atkKb * 2.4, big: 1 }));
+  } },
+  glide: { dur: 0.52, cd: 1.25, lk: 0, range: 4.5, desc: '床をすべって長く進み、通り道の相手をはね飛ばす', run(f, m, dt, fx, fz) {
+    if (m.t > 0.4) { damp(f, dt, 9); return; }
+    if (f.ctrl !== 'remote') { f.vx = fx * 11; f.vz = fz * 11; }
+    if (Math.random() < 0.5) bubbles(f.x - fx, 0.3, f.z - fz, 1);
+    atkHit(f, m, 'a', within(f.x + fx * 0.5, f.z + fz * 0.5, 1.35), 0.9, t => {
+      const s = (t.x - f.x) * fz - (t.z - f.z) * fx > 0 ? 1 : -1;
+      return { kx: (fz * s * 0.8 + fx * 0.6) * 6, kz: (-fx * s * 0.8 + fz * 0.6) * 6 };
+    });
+  } },
+  slime: { dur: 0.38, cd: 1.1, lk: 0.7, range: 2.0, desc: 'ぬめりをつける。当たった相手はしばらく、のろのろになる', run(f, m, dt, fx, fz) {
+    damp(f, dt, 7);
+    if (m.t < 0.08 || m.t > 0.22) return;
+    const [px, pz] = ahead(f, fx, fz, f.ch.atkReach);
+    if (!m.fx) { m.fx = 1; burst(px, 0.9, pz, 0x8de0b0, 8, 2.5); }
+    atkHit(f, m, 'a', within(px, pz, 1.3), 0.7, () => ({ sl: 2.4, sk: 0.4 }));
+  } },
+  quick: { dur: 0.2, cd: 0.55, lk: 0.8, range: 2.0, desc: 'とにかく速い。一発は軽いが、すぐ次が出せる', run(f, m, dt, fx, fz) {
+    damp(f, dt, 6);
+    if (m.t < 0.05 || m.t > 0.15) return;
+    const [px, pz] = ahead(f, fx, fz, f.ch.atkReach);
+    if (!m.fx) { m.fx = 1; burst(px, 1.0, pz, 0xffc7a1, 3, 2); }
+    atkHit(f, m, 'a', within(px, pz, 1.2), 0.55, (t, n) => ({ kx: n.x * f.ch.atkKb * 0.6, kz: n.z * f.ch.atkKb * 0.6 }));
+  } },
+  sidecut: { dur: 0.38, cd: 1.05, range: 2.1, desc: '横歩きしながら、前を広くはさむ',
+    start(f) { f.side = -(f.side || 1); const fx = Math.sin(f.face), fz = Math.cos(f.face); f.vx = fz * f.side * 5 + fx * 1.2; f.vz = -fx * f.side * 5 + fz * 1.2; },
+    run(f, m, dt, fx, fz) {
+      damp(f, dt, 6);
+      if (m.t < 0.1 || m.t > 0.24) return;
+      if (!m.fx) { m.fx = 1; for (const a of [-1.1, -0.55, 0, 0.55, 1.1]) burst(f.x + Math.sin(f.face + a) * 1.6, 1.0, f.z + Math.cos(f.face + a) * 1.6, 0xff9a7a, 1, 2); }
+      atkHit(f, m, 'a', inArc(f, fx, fz, 2.2, 0.17), 0.85, (t, n) => ({ kx: n.x * 3.4, kz: n.z * 3.4 }));
+    } },
+  lure: { dur: 0.42, cd: 1.2, lk: 0, range: 4.3, desc: '灯りで遠くの相手を引き寄せる', run(f, m, dt, fx, fz) {
+    damp(f, dt, 9);
+    if (m.t < 0.12) { f.raise = m.t / 0.12; return; }
+    if (m.t > 0.24) return;
+    if (!m.fx) { m.fx = 1; for (let s = 0.8; s <= 4.4; s += 0.6) burst(f.x + fx * s, 1.3, f.z + fz * s, 0xfff2a8, 1, 1); }
+    atkHit(f, m, 'a', inArc(f, fx, fz, 4.5, 0.9), 0.55, (t, n) => ({ kx: -n.x * 6.5, kz: -n.z * 6.5, pull: 1 }));
+  } },
+  crack: { dur: 0.38, cd: 1.15, lk: 0.8, range: 2.0, desc: '貝を割る要領で、ガードと泡の盾を割る', run(f, m, dt, fx, fz) {
+    damp(f, dt, 7);
+    if (m.t < 0.1 || m.t > 0.24) return;
+    const [px, pz] = ahead(f, fx, fz, f.ch.atkReach);
+    if (!m.fx) { m.fx = 1; burst(px, 1.0, pz, 0xc8d6e0, 6, 3.5); }
+    atkHit(f, m, 'a', within(px, pz, 1.3), 0.9, () => ({ gb: 1 }));
+  } },
+  pop: { dur: 0.48, cd: 1.15, lk: 0, range: 3.6, min: 1.6, desc: '少し離れた地面から飛び出して、相手を打ち上げる', run(f, m, dt, fx, fz) {
+    damp(f, dt, 9);
+    const [px, pz] = ahead(f, fx, fz, 2.7);
+    if (m.t < 0.18) { if (Math.random() < 0.5) burst(px + Math.random() - 0.5, 0.1, pz + Math.random() - 0.5, 0xc4b592, 1, 2); return; }
+    if (m.t > 0.3) return;
+    if (!m.fx) { m.fx = 1; burst(px, 0.4, pz, 0xffe2ba, 12, 5); audio.noise(0.15, 0.1, 900); }
+    atkHit(f, m, 'a', within(px, pz, 1.3), 0.9, t => { const n = unit(t.x - px, t.z - pz); return { kx: n.x * 2, kz: n.z * 2, ky: 8 }; });
+  } },
+  roll: { dur: 0.56, cd: 1.35, lk: 0.4, range: 2.0, spin: 1, armor: 1, desc: 'ゆっくり寝返り。まわり全員に重い一撃。出ている間はひるまない', run(f, m, dt) {
+    damp(f, dt, 6);
+    if (m.t < 0.16 || m.t > 0.42) return;
+    if (!m.fx) { m.fx = 1; ring(f.x, 0.6, f.z, glowOf(f), 2.2, 0.4); burst(f.x, 0.5, f.z, 0xdff6ff, 10, 4); }
+    atkHit(f, m, 'a', within(f.x, f.z, 2.1), 1.1, (t, n) => ({ kx: n.x * 5, kz: n.z * 5, big: 1 }));
+  } },
+  duplex: { dur: 0.46, cd: 1.15, lk: 0.5, range: 2.0, desc: '前と後ろを両面で押し出す。囲まれても強い', run(f, m, dt, fx, fz) {
+    damp(f, dt, 7);
+    const r = f.ch.atkReach;
+    if (m.t > 0.08 && m.t < 0.18) { if (!m.fa) { m.fa = 1; burst(f.x + fx * r, 1.0, f.z + fz * r, 0xffffff, 5, 3); } atkHit(f, m, 'a', within(f.x + fx * r, f.z + fz * r, 1.3), 0.75); }
+    if (m.t > 0.26 && m.t < 0.36) { if (!m.fb) { m.fb = 1; burst(f.x - fx * r, 1.0, f.z - fz * r, 0xffffff, 5, 3); audio.swing(); } atkHit(f, m, 'b', within(f.x - fx * r, f.z - fz * r, 1.3), 0.75); }
+  } },
+  crumb: { dur: 0.3, cd: 1, lk: -0.4, range: 5.5, desc: 'パン粉を飛ばす。離れた相手にも届く', run(f, m, dt, fx, fz) {
+    damp(f, dt, 8);
+    if (m.fx || m.t < 0.08) return;
+    m.fx = 1;
+    const mesh = new THREE.Mesh(BALL_GEO, CRUMB_MAT); mesh.scale.setScalar(0.55);
+    shoot(f, 'crumb', mesh, { x: f.x + fx * 0.8, z: f.z + fz * 0.8, y: f.y + 1.0, vx: fx * 14, vz: fz * 14 });
+    burst(f.x + fx * 0.8, f.y + 1.0, f.z + fz * 0.8, 0xe8c070, 5, 3);
+  } },
+  arrest: { dur: 0.42, cd: 1.25, lk: 0.9, range: 1.9, desc: '捕まえて職務質問。少しのあいだ動けなくする', run(f, m, dt, fx, fz) {
+    damp(f, dt, 7);
+    if (m.t < 0.08 || m.t > 0.2) return;
+    const [px, pz] = ahead(f, fx, fz, f.ch.atkReach);
+    if (!m.fx) { m.fx = 1; burst(px, 1.1, pz, 0xbfe9ff, 6, 2.5); }
+    atkHit(f, m, 'a', within(px, pz, 1.3), 0.55, (t, n) => ({ kx: -n.x * 1.5, kz: -n.z * 1.5, pull: 1, st: 0.55 }));
+  } },
+  slip: { dur: 0.4, cd: 1.2, lk: 0, range: 5, desc: '床をすべる稟議書。踏んだ相手を転ばせる（ジャンプでかわせる）', run(f, m, dt, fx, fz) {
+    damp(f, dt, 8);
+    if (m.fx || m.t < 0.1) return;
+    m.fx = 1;
+    const mesh = new THREE.Mesh(PAPER_GEO, PAPER_MAT); mesh.scale.setScalar(1.6);
+    shoot(f, 'memo', mesh, { x: f.x + fx * 0.9, z: f.z + fz * 0.9, y: 0.12, vx: fx * 9, vz: fz * 9 });
+  } },
+};
+
+/* ---------- 防御: 20通り ----------
+   dm / km: share of damage / knockback still taken while guarding, sm: shield build rate, mv: walking speed while guarding.
+   pre(t, h, a) returning false cancels the hit, post(t, h, a, d) returns the damage taken now, counter(t, a) answers the attacker.
+   All of it runs on the defender's own device; answers to an attacker on another device travel as a normal hit. */
+const DEF_BASE = { dm: 0.5, km: 0.3, sm: 1, mv: 0.35 };
+function tagFl(f, text) { const now = performance.now(); if (now - (f.flAt || 0) < 600) return; f.flAt = now; floater(text, f.x, 2.6, f.z, 'shd', 0.9, 0, 1.1); }
+const nearFoe = (t, a, r) => a && a !== t && !a.ko && G.fighters.includes(a) && hyp(a.x - t.x, a.z - t.z) < (r || 3.6);
+function backHit(t, a, h) { if (nearFoe(t, a) && canHit(t, a)) dealHit(t, a, Object.assign({ cx: 1 }, h)); }
+const DEFK = {
+  spout: { desc: '守っている間に殴られると、潮吹きで相手を押し返す', counter(t, a) {
+    const n = unit(a.x - t.x, a.z - t.z); bubbles(t.x, 1.8, t.z, 8); tagFl(t, '潮吹き！'); backHit(t, a, { d: 0, kx: n.x * 8, kz: n.z * 8 });
+  } },
+  ambush: { desc: '守っている間に殴られると、まわりへ五方向の反撃', counter(t) {
+    if (t.ambushCd > 0) return; t.ambushCd = 1; tagFl(t, '伏せ待ち！');
+    for (let i = 0; i < 5; i++) { const a = t.face + i * Math.PI * 0.4; burst(t.x + Math.sin(a) * 1.3, 0.8, t.z + Math.cos(a) * 1.3, 0xffceab, 2, 2.5); }
+    for (const v of foes(t)) if (canHit(t, v) && level(t, v) && hyp(v.x - t.x, v.z - t.z) < 2.1) { const n = unit(v.x - t.x, v.z - t.z); dealHit(t, v, { d: 5, kx: n.x * 4.5, kz: n.z * 4.5, cx: 1 }); }
+  } },
+  parry: { dm: 0.6, desc: 'ガードを出した直後に受けると無傷で見切り、相手をしびれさせる（おそいと少し効く）', pre(t, h, a) {
+    if (h.pj || t.guardFor > 0.3) return true;
+    tagFl(t, '見切った！'); burst(t.x, 1.2, t.z, 0xe4a7ff, 12, 5); backHit(t, a, { d: 0, st: 0.6 });
+    return false;
+  } },
+  sting: { desc: '守っている間に殴ってきた相手に、ちくちくの毒をうつす', counter(t, a) { backHit(t, a, { d: 2, po: 4 }); } },
+  recall: { sm: 0.7, desc: '少し守り続けると思い出す。次の攻撃が1.6倍' },
+  inkcurtain: { desc: '守っている間に殴ってきた相手を、墨でのろのろにする', counter(t, a) { burst(t.x, 1, t.z, 0x2a2440, 12, 4); backHit(t, a, { d: 0, sl: 1.8, sk: 0.45 }); } },
+  anchor: { dm: 0.55, km: 0, desc: '尾を巻き付けて、守っている間はまったく吹き飛ばない' },
+  spikes: { desc: 'まんまるのトゲ。守っている間に殴ってきた相手が痛い', counter(t, a) { const n = unit(a.x - t.x, a.z - t.z); t.puff = 0.6; backHit(t, a, { d: 4, kx: n.x * 3.5, kz: n.z * 3.5 }); } },
+  mobile: { dm: 0.6, km: 0.4, mv: 0.9, desc: '居留守のまま、ほぼ普段の速さで動ける' },
+  fossil: { dm: 0.15, km: 0, sm: 0, mv: 0, desc: '化石になる。ほとんど効かず吹き飛ばないが、動けず泡の盾もたまらない' },
+  evade: { desc: 'ガードを出して最初の一撃は既読無視。横へすり抜ける', pre(t, h, a) {
+    if (!t.evadeReady) return true;
+    t.evadeReady = false; t.evadeCd = 1;
+    const n = a ? unit(a.x - t.x, a.z - t.z) : { x: Math.sin(t.face), z: Math.cos(t.face) }, s = Math.random() < 0.5 ? 1 : -1;
+    bubbles(t.x, 0.8, t.z, 5);
+    let x = t.x + n.z * s * 1.4, z = t.z - n.x * s * 1.4; const e = hyp(x, z);
+    if (e > R - 0.8) { x *= (R - 0.8) / e; z *= (R - 0.8) / e; }
+    t.x = x; t.z = z; t.vx = n.z * s * 4; t.vz = -n.x * s * 4; tagFl(t, '既読無視');
+    return false;
+  } },
+  hardshell: { dm: 0.3, km: 0.15, sm: 0.6, desc: '甲羅で受ける。ダメージをかなり減らすが、泡の盾はたまりにくい' },
+  vanish: { desc: '守っている間に殴られると、うしろへ置き逃げする', post(t, h, a, d) {
+    if (t.vanishCd > 0) return d;
+    t.vanishCd = 1.5;
+    const n = a ? unit(t.x - a.x, t.z - a.z) : { x: -Math.sin(t.face), z: -Math.cos(t.face) };
+    burst(t.x, 1, t.z, 0xfff2a8, 10, 4);
+    let x = t.x + n.x * 2.6, z = t.z + n.z * 2.6; const e = hyp(x, z);
+    if (e > R - 0.8) { x *= (R - 0.8) / e; z *= (R - 0.8) / e; }
+    t.x = x; t.z = z; t.vx = t.vz = 0; burst(x, 1, z, 0xfff2a8, 6, 3); tagFl(t, '置き逃げ');
+    return d;
+  } },
+  battery: { dm: 0.6, sm: 2, desc: '省エネ浮遊。泡の盾が2倍の速さでたまる' },
+  burrow: { dm: 0, km: 0, sm: 0, mv: 0, desc: '砂にもぐって全部よける。ただし1秒で顔を出し、少し休む', pre(t) { tagFl(t, 'スカッ'); return false; } },
+  nap: { dm: 1, km: 0.6, sm: 0, weak: 1, desc: '昼寝で体力が少しずつ戻る。ただしダメージは減らない' },
+  jam: { desc: '守っている間に殴ってきた相手を紙詰まりにする（攻撃がしばらく出ない）', counter(t, a) { backHit(t, a, { d: 0, jm: 1 }); } },
+  stealth: { mv: 0.75, desc: '気配を消す。飛び道具がすり抜け、CPUに狙われにくい。動きも速いまま', pre(t, h) { return !h.pj; } },
+  reflect: { desc: '飛び道具をはね返す（はね返せない物も防ぐ）', pre(t, h) { if (!h.pj) return true; tagFl(t, '規則です'); return false; } },
+  shelve: { desc: 'ダメージを寝かせて、あとから少しずつ受ける', post(t, h, a, d) {
+    if (d <= 0) return 0;
+    t.defer = (t.defer || 0) + d * 1.2; t.deferT = 1.5; tagFl(t, '決裁待ち');
+    return 0;
+  } },
+};
+for (const k in DEFK) DEFK[k] = Object.assign({}, DEF_BASE, DEFK[k]);
+/* timers behind the guards: parry window, recall, nap, burrow limit, deferred damage */
+function guardTick(f, dt) {
+  const k = f.ch.def, was = f.guardFor > 0;
+  f.guardFor = f.guarding ? (f.guardFor || 0) + dt : 0;
+  for (const c of ['evadeCd', 'vanishCd', 'ambushCd', 'burrowCd', 'recallT']) if (f[c] > 0) f[c] -= dt;
+  if (f.defer > 0) { f.deferT -= dt; if (f.deferT <= 0) { const x = Math.min(f.defer, 5 * dt); f.defer -= x; f.hp = Math.max(1, f.hp - x); } }
+  if (!f.guarding) { f.evadeReady = false; return; }
+  if (!was && k === 'evade' && !(f.evadeCd > 0)) f.evadeReady = true;
+  if (k === 'recall' && f.guardFor >= 0.8 && !(f.recallT > 0)) { f.recallT = 4; tagFl(f, '思い出した！'); }
+  else if (k === 'nap') heal(f, 3 * dt);
+  else if (k === 'burrow' && f.guardFor > 1) { f.guarding = false; f.guardFor = 0; f.burrowCd = 1.5; bubbles(f.x, 0.4, f.z, 6); tagFl(f, 'ぷはっ'); }
+}
 function remoteAnim(f, kind) {
   if (f.ko) return;
-  if (kind === 'atk') { f.move = { kind: 'atk', t: 0, dur: 0.34, hits: {}, fx: false }; callout(f, f.ch.mv.atk, false); audio.swing(); }
+  if (kind === 'atk') { f.move = newAtkMove(f); callout(f, f.ch.mv.atk, false); audio.swing(); }
   else if (kind === 'air') { f.move = { kind: 'air', t: 0, dur: AIRDUR[f.ch.air], hits: {} }; callout(f, f.ch.mv.air, false); audio.swing(); }
   else if (kind === 'sp') { f.move = { kind: 'sp', t: 0, dur: SPDUR[f.ch.sp], hits: {} }; callout(f, f.ch.mv.sp, true); audio.sp(); f.squash = 0.6; }
 }
@@ -2010,17 +2328,8 @@ const SPECIAL = {
 function runMove(f, o, dt) {
   const m = f.move; m.t += dt;
   const fx = Math.sin(f.face), fz = Math.cos(f.face);
-  if (m.kind === 'atk') {
-    const k = Math.exp(-7 * dt); f.vx *= k; f.vz *= k;
-    if (!m.fx && m.t > 0.1) { m.fx = true; burst(f.x + fx * f.ch.atkReach, 1.1, f.z + fz * f.ch.atkReach, 0xdff6ff, 3, 2); }
-    if (m.t > 0.08 && m.t < 0.2) {
-      const px = f.x + fx * f.ch.atkReach, pz = f.z + fz * f.ch.atkReach;
-      for (const t of foes(f)) if (!m.hits[t.idx] && canHit(f, t) && hyp(t.x - px, t.z - pz) < 1.2 && level(f, t)) {
-        m.hits[t.idx] = 1; const r = atkDamage(f, t), n = unit(t.x - f.x, t.z - f.z);
-        dealHit(f, t, { d: r.d, kx: n.x * f.ch.atkKb, kz: n.z * f.ch.atkKb, po: r.po });
-      }
-    }
-  } else if (m.kind === 'air') AIRMOVE[f.ch.air](f, m, dt, fx, fz);
+  if (m.kind === 'atk') ATKK[f.ch.atk].run(f, m, dt, fx, fz);
+  else if (m.kind === 'air') AIRMOVE[f.ch.air](f, m, dt, fx, fz);
   else SPECIAL[f.ch.sp](f, o, m, dt, fx, fz);
   if (f.move === m && m.t >= m.dur) endMove(f);
 }
@@ -2184,7 +2493,7 @@ function updateFighter(f, o, dt) {
   const stick = Math.abs(inp.sx) + Math.abs(inp.sz) > 0.04;
   let mx = live ? (stick ? inp.sx : inp.kx) : 0, mz = live ? (stick ? inp.sz : inp.kz) : 0;
   if (inp.yaw) { const c = Math.cos(inp.yaw), s = Math.sin(inp.yaw), x = mx; mx = x * c + mz * s; mz = -x * s + mz * c; }
-  const guardIn = live && !air && (inp.guardT || inp.guardK);
+  const guardIn = live && !air && (inp.guardT || inp.guardK) && !(f.burrowCd > 0), gdef = DEFK[f.ch.def];
   if (f.hitstun > 0) {
     f.hitstun -= dt; f.state = 'hit'; f.guarding = f.guarding && guardIn;
     const k = Math.exp(-2.6 * dt); f.vx *= k; f.vz *= k;
@@ -2195,10 +2504,10 @@ function updateFighter(f, o, dt) {
     f.guarding = guardIn;
     const mag = hyp(mx, mz); if (mag > 1) { mx /= mag; mz /= mag; }
     const slow = f.slowT > 0 ? f.slowK : 1;
-    const on = mag > 0.18, spd = f.d.speed * (f.guarding ? 0.35 : 1) * slow, a = Math.min(1, dt * (air ? 5 : 12));
+    const on = mag > 0.18, spd = f.d.speed * (f.guarding ? gdef.mv : 1) * slow, a = Math.min(1, dt * (air ? 5 : 12));
     f.vx += ((on ? mx * spd : 0) - f.vx) * a; f.vz += ((on ? mz * spd : 0) - f.vz) * a;
     if (f.guarding) {
-      f.shield = Math.min(MAXSH, f.shield + f.d.shRate * dt);
+      f.shield = Math.min(MAXSH, f.shield + f.d.shRate * gdef.sm * dt);
       if (o && !o.ko) f.faceT = Math.atan2(o.x - f.x, o.z - f.z);
       if (Math.random() < dt * (f.ch.sp === 'dash' ? 14 : 5)) bubbles(f.x + (Math.random() - 0.5) * 0.6, f.ch.sp === 'dash' ? 2.2 : 0.7, f.z + (Math.random() - 0.5) * 0.6, 1);
     } else if (on) f.faceT = Math.atan2(mx, mz);
@@ -2209,6 +2518,7 @@ function updateFighter(f, o, dt) {
       else if (inp.atkBuf > 0 && f.atkCd <= 0 && (!air || (f.y > 0.25 && !f.airUsed))) { inp.atkBuf = 0; if (air) startAir(f, o); else startAttack(f, o); }
     }
   }
+  guardTick(f, dt);
   decayBuf(inp, dt);
   if (f.ko) return;
   f.x += f.vx * dt; f.z += f.vz * dt;
@@ -2272,10 +2582,12 @@ function cpuThink(f, o, dt, b) {
   if (f.y > 0.5 && !f.airUsed && f.atkCd <= 0 && d < 3.2 && Math.random() < 0.6) inp.atkBuf = 0.2;
   else if (f.y === 0 && d > 2 && d < 4.2 && Math.random() < 0.05) inp.jumpBuf = 0.2;
   let mx = nx, mz = nz;
-  if (d < f.ch.atkReach + 0.6) {
-    if (f.atkCd <= 0 && Math.random() < 0.85) inp.atkBuf = 0.2;
+  const K = ATKK[f.ch.atk];
+  if (d < K.range) {
+    if (f.atkCd <= 0 && d > (K.min || 0) && Math.random() < 0.85) inp.atkBuf = 0.2;
     if (Math.random() < 0.1) b.strafe *= -1;
     mx = -nz * b.strafe * 0.6 + nx * 0.1; mz = nx * b.strafe * 0.6 + nz * 0.1;
+    if (K.min && d < K.min) { mx -= nx; mz -= nz; }
   } else if (RANGED.has(f.ch.sp) && d < 5 && f.spCd < 1.5) { mx = -nx; mz = -nz; }
   let bub = null, bd = 6;
   for (const b of bubs) { const dd = hyp(b.x - f.x, b.z - f.z); if (!b.pend && dd < bd) { bd = dd; bub = b; } }
@@ -2440,11 +2752,14 @@ function voiceThink(f, dt, v) {
     const dx = o ? o.x - f.x : 0, dz = o ? o.z - f.z : 0, d = o ? hyp(dx, dz) : 99;
     let done = a.t <= 0;
     switch (a.k) {
-      case 'attack': case 'combo':
+      case 'attack': case 'combo': {
         if (!o) { done = true; break; }
-        if (d < f.ch.atkReach + 0.5) { inp.sx = inp.sz = 0; if (f.atkCd <= 0 && !f.move && inp.atkBuf <= 0) { inp.atkBuf = 0.2; if (--a.n <= 0) a.t = Math.min(a.t, 0.35); } }
+        const K = ATKK[f.ch.atk];
+        if (d < K.range - 0.1 && d > (K.min || 0)) { inp.sx = inp.sz = 0; if (f.atkCd <= 0 && !f.move && inp.atkBuf <= 0) { inp.atkBuf = 0.2; if (--a.n <= 0) a.t = Math.min(a.t, 0.35); } }
+        else if (K.min && d <= K.min) steer(inp, -dx, -dz);
         else steer(inp, dx, dz);
         break;
+      }
       case 'special': {
         if (!o || (f.move && f.move.kind === 'sp')) { done = true; break; }
         const r = SP_RANGE[f.ch.sp] || [0, 3];
@@ -2662,14 +2977,15 @@ const Net = {
   sendHit(h, to) { h.s = ++this.hitSeq; h.to = to; this.hits.push(h); if (this.hits.length > 10) this.hits.shift(); this.set({ hits: this.hits.slice() }); },
 };
 const maxSeq = a => (Array.isArray(a) ? a.reduce((m, h) => Math.max(m, (h && h.s) | 0), 0) : 0);
-function applyIncoming(t, h) {
+function applyIncoming(t, h, from) {
   if (!t || t.ko || (G.phase !== 'fight' && G.phase !== 'end')) return;
   const d = clamp(h.d | 0, 0, 45), he = clamp(h.he | 0, 0, 20), sh = clamp(h.sh | 0, -30, 30);
   const kx = clamp(+h.kx || 0, -16, 16), kz = clamp(+h.kz || 0, -16, 16), ky = clamp(+h.ky || 0, -14, 12), po = clamp(h.po | 0, 0, 6);
   const st = clamp(+h.st || 0, 0, 1.2), sl = clamp(+h.sl || 0, 0, 3), sk = h.sk === undefined ? 0.5 : clamp(+h.sk || 0, 0, 1);
   if (he) heal(t, he);
   if (sh) addShield(t, sh);
-  if (d || kx || kz || ky || st || sl) applyHit(t, { d, kx, kz, ky, po, st, sl, sk, pull: h.pl ? 1 : 0, ev: h.ev ? 1 : 0 });
+  const fl = { pj: h.pj ? 1 : 0, gb: h.gb ? 1 : 0, cx: h.cx ? 1 : 0, jm: h.jm ? 1 : 0 };
+  if (d || kx || kz || ky || st || sl || fl.gb || fl.jm) applyHit(t, Object.assign({ d, kx, kz, ky, po, st, sl, sk, pull: h.pl ? 1 : 0, ev: h.ev ? 1 : 0 }, fl), from);
 }
 function ingestRemote(f, op) {
   if (op.ph !== 'fight') return;
@@ -2678,7 +2994,7 @@ function ingestRemote(f, op) {
   f.remote = { x: clamp(+op.x || 0, -30, 30), z: clamp(+op.z || 0, -30, 30), y: clamp(+op.y || 0, -30, 10), f: +op.f || 0, st: String(op.st || 'idle').slice(0, 8), g: !!op.g };
   if (!f.ko) { f.hp = clamp(+op.hp, 0, 100); f.shield = clamp(+op.sh || 0, 0, MAXSH); }
   if ((op.a | 0) > sn.a) { sn.a = op.a | 0; remoteAnim(f, op.an); }
-  if (Array.isArray(op.hits)) for (const h of op.hits) if (h && (h.s | 0) > sn.h) { sn.h = h.s | 0; if (h.to === Net.id()) applyIncoming(G.me, h); }
+  if (Array.isArray(op.hits)) for (const h of op.hits) if (h && (h.s | 0) > sn.h) { sn.h = h.s | 0; if (h.to === Net.id()) applyIncoming(G.me, h, f); }
   if (op.ev && (op.ev.s | 0) > sn.e) { sn.e = op.ev.s | 0; const k = op.ev.k | 0; if (EVENTS[k]) runEvent(f, fighterById(op.ev.to) || nearest(f) || G.me, k, false); }
   if (f.id === Net.hostId()) {
     if (op.ix && (op.ix.s | 0) > sn.i) { sn.i = op.ix.s | 0; const k = op.ix.k | 0; if (INTR[k]) spawnIntruder(k, op.ix.n | 0, op.ix.r | 0); }
@@ -3152,8 +3468,8 @@ function detailHTML(c) {
   return '<div class="dh"><span class="ds">' + c.sym + '</span><div><h3>' + c.name + '</h3><p>' + c.sub + '</p></div></div>' +
     '<div class="stats">' + st.map(([k, v]) => '<span>' + k + '</span><span class="bar"><i style="width:' + Math.round(v / 30 * 100) + '%"></i></span><span class="v">' + v + '</span>').join('') + '</div>' +
     '<ul class="moves">' +
-    '<li><span class="k">攻撃</span><span><b>' + c.mv.atk + '</b></span></li>' +
-    '<li><span class="k">防御</span><span><b>' + c.mv.def + '</b><small>押している間、泡の盾がたまる（最大42）</small></span></li>' +
+    '<li><span class="k">攻撃</span><span><b>' + c.mv.atk + '</b><small>' + ATKK[c.atk].desc + '</small></span></li>' +
+    '<li><span class="k">防御</span><span><b>' + c.mv.def + '</b><small>' + DEFK[c.def].desc + (DEFK[c.def].sm > 0 ? '。押している間は泡の盾もたまる（最大42）' : '') + '</small></span></li>' +
     '<li><span class="k">必殺</span><span><b>' + c.mv.sp + '</b><small>' + c.spDesc + '。使うと反動で自分も少し削れる</small></span></li>' +
     '<li><span class="k">空中</span><span><b>' + c.mv.air + '</b><small>ジャンプ中に攻撃。' + AIR_DESC[c.air] + '</small></span></li>' +
     '<li><span class="k">おまかせ</span><span><b>？の泡に触れると発動</b><small>ときどき浮かぶ泡に触れると、18種類のおまかせ技のどれかが出る。高い泡はジャンプで取る</small></span></li>' +
@@ -3516,7 +3832,7 @@ function stepGame(rdt) {
   if (G.phase === 'end') { dt *= 0.45; G.endT -= rdt; if (G.endT <= 0) { showResult(); return; } }
   if (dt <= 0) return;
   if (G.phase === 'fight') {
-    for (const f of F) if (f.brain) cpuThink(f, nearest(f), dt, f.brain);
+    for (const f of F) if (f.brain) cpuThink(f, seenFoe(f, f.x, f.z) || nearest(f), dt, f.brain);
     if (G.cpuA) { const a = G.type === 'online' ? G.me : F[0]; if (a) cpuThink(a, nearest(a), dt, G.cpuA); }
     if (G.voice && G.me) voiceThink(G.me, dt, G.voice);
   }
@@ -3533,9 +3849,21 @@ function stepGame(rdt) {
 }
 function renderFighter(f, time, dt) {
   const md = f.model, s = f.s, m = f.move;
-  md.root.position.set(f.x, f.y, f.z); md.root.rotation.y = f.face;
-  md.shadow.position.y = 0.02 - f.y; md.shadow.visible = f.state !== 'fall'; md.shadow.scale.setScalar(Math.max(0.45, 1 - Math.max(0, f.y) * 0.18));
-  if (md.ring) { md.ring.position.y = 0.035 - f.y; md.ring.visible = !f.ko; }
+  /* guards you can see: チンアナゴ sinks into the sand, エビフライ候補生 fades out; some attacks spin the whole body */
+  const gk = f.guarding && !f.ko ? f.ch.def : '';
+  f.sinkV = (f.sinkV || 0) + ((gk === 'burrow' ? 1.4 : 0) - (f.sinkV || 0)) * Math.min(1, dt * 12);
+  const AK = m && m.kind === 'atk' ? ATKK[f.ch.atk] : null;
+  md.root.position.set(f.x, f.y - f.sinkV, f.z); md.root.rotation.y = f.face + (AK && AK.spin ? Math.min(1, m.t / m.dur) * Math.PI * 2 : 0);
+  const ghost = gk === 'stealth';
+  if (!!md.ghost !== ghost) {
+    md.ghost = ghost;
+    for (const mt of md.mats) {
+      if (mt.userData.op0 === undefined) { mt.userData.op0 = mt.opacity; mt.userData.tr0 = mt.transparent; }
+      mt.transparent = ghost || mt.userData.tr0; mt.opacity = ghost ? 0.22 : mt.userData.op0; mt.needsUpdate = true;
+    }
+  }
+  md.shadow.position.y = 0.02 - f.y + f.sinkV; md.shadow.visible = f.state !== 'fall'; md.shadow.scale.setScalar(Math.max(0.45, 1 - Math.max(0, f.y) * 0.18));
+  if (md.ring) { md.ring.position.y = 0.035 - f.y + f.sinkV; md.ring.visible = !f.ko; }
   s.atkP = m && (m.kind === 'atk' || (m.kind === 'air' && f.ch.air === 'kick')) ? m.t / m.dur : 0; s.spP = m && m.kind === 'sp' ? m.t / m.dur : 0;
   s.airK = m && m.kind === 'air' ? f.ch.air : ''; s.airP = m && m.kind === 'air' ? m.t / m.dur : 0;
   s.moving = f.state === 'move'; s.guard = f.guarding && !f.ko; s.shake = f.hitstun > 0 ? Math.min(1, f.hitstun * 3) : (f.ctrl === 'remote' && f.state === 'hit' ? 0.5 : 0);
