@@ -2545,14 +2545,55 @@ function probeLobby(Peer, id) {
 }
 const Lobby = {
   on: false, peer: null, conn: null, host: false, slot: 0, busy: false, ok: false, merging: false, timer: 0, retryT: 0, ticks: 0,
-  guests: new Map(), stat: null, statAt: 0,
+  guests: new Map(), stat: null, statAt: 0, room: null, unsub: null, roomSt: '', gen: 0,
   status() {
     if (G.type !== 'online' || !Net.backend) return 'menu';
     if (['vs', 'count', 'fight', 'end', 'result'].includes(G.phase)) return 'play';
     return Net.pub ? 'wait' : 'room';
   },
-  start() { if (this.on) return; this.on = true; this.stat = null; this.ticks = 0; this.connect(0); this.timer = setInterval(() => this.tick(), 1000); },
-  stop() { if (!this.on) return; this.on = false; clearInterval(this.timer); clearTimeout(this.retryT); this.retryT = 0; this.close(true); this.stat = null; },
+  /* inside Claude everyone viewing the artifact already shares one room, so count from its presence;
+     anywhere else (GitHub Pages) elect a PeerJS counter */
+  start() {
+    if (this.on) return;
+    this.on = true; this.stat = null; this.ticks = 0;
+    const gen = ++this.gen;
+    Net.getRoom().then(room => {
+      if (!this.on || gen !== this.gen) return;
+      if (room) { this.room = room; this.roomOn(); }
+      else { this.connect(0); this.timer = setInterval(() => this.tick(), 1000); }
+    });
+  },
+  stop() {
+    if (!this.on) return;
+    this.on = false; this.gen++; clearInterval(this.timer); this.timer = 0; clearTimeout(this.retryT); this.retryT = 0;
+    if (this.room) {
+      if (this.unsub) this.unsub();
+      const pr = this.room.presence({ uw: null, st: null }); if (pr && pr.catch) pr.catch(() => {});
+      this.room = null; this.unsub = null; this.roomSt = '';
+    } else this.close(true);
+    this.stat = null;
+  },
+  roomOn() {
+    const push = () => {
+      const st = this.status(); if (st === this.roomSt) return;
+      this.roomSt = st; const pr = this.room.presence({ uw: 2, st }); if (pr && pr.catch) pr.catch(() => {});
+    };
+    push();
+    this.unsub = this.room.onPeers(() => this.roomCount(), () => {});
+    this.timer = setInterval(() => { if (this.room) { push(); this.roomCount(); } }, 1000);
+    this.roomCount();
+  },
+  roomCount() {
+    if (!this.room) return;
+    const c = { on: 0, menu: 0, wait: 0, play: 0, room: 0 };
+    for (const p of this.room.peers()) {
+      if (p.kind !== 'viewer') continue;
+      const st = p.sameTab ? this.status() : p.presence && p.presence.uw === 2 && LOBBY_KINDS.includes(p.presence.st) ? p.presence.st : '';
+      if (st) { c.on++; c[st]++; }
+    }
+    if (!c.on) { c.on = 1; c[this.status()]++; }
+    this.stat = c; renderLobby();
+  },
   /* leaving: our id stays reserved on the server for a while, so name a successor who opens the next slot right away */
   bye() {
     if (!this.host) return;
@@ -3025,7 +3066,16 @@ async function randomMatch() {
     for (let k = 0; k < PUB_N; k++) {
       setOnStatus('相手をさがしています…');
       const code = 'p' + k;
-      try { await Net.join(code, true, true); G.roomMsg = ''; setOnStatus(''); toRoom(); return; }
+      try {
+        await Net.join(code, true, true);
+        if (Net.backend.kind === 'room') {
+          /* a Claude room never refuses a join: look around first, and move on if it is full or mid-match */
+          await sleep(1500);
+          const others = Net.list();
+          if (others.length >= MAXP || others.some(e => e.presence.ph === 'fight')) { await Net.leave(); continue; }
+        }
+        G.roomMsg = ''; setOnStatus(''); toRoom(); return;
+      }
       catch (e) { if (!e || e.code !== 'taken') throw e; }
       try { await Net.join(code, false, true); }
       catch (e) { if (e && (e.code === 'noroom' || e.code === 'timeout')) continue; throw e; }
