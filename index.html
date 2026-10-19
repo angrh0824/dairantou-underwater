@@ -49,6 +49,11 @@ h1,h2,h3,p{margin:0}
 .status{min-height:1.4em;font-size:13px;color:var(--lamp);line-height:1.6}
 .count{display:flex;flex-wrap:wrap;gap:4px 14px;min-height:1.5em;font-size:12px;color:var(--mist);line-height:1.5}
 .count b{font-family:var(--display);font-weight:400;font-size:15px;color:var(--p1);font-variant-numeric:tabular-nums}
+.namebox{display:flex;align-items:center;gap:10px}
+.namebox label{flex:none;font-size:12px;color:var(--mist)}
+.namebox input{flex:1 1 auto;min-width:0;height:40px;border-radius:12px;border:1px solid var(--line);background:rgba(0,0,0,.25);color:var(--foam);font:inherit;font-weight:700;font-size:16px;padding:0 12px;-webkit-user-select:text;user-select:text;touch-action:manipulation}
+#tags{position:fixed;inset:0;pointer-events:none;z-index:13;overflow:hidden}
+.ntag{position:absolute;left:0;top:0;font-weight:900;font-size:12px;padding:2px 8px;border-radius:999px;background:rgba(3,18,31,.72);color:var(--foam);border:1px solid var(--pc);white-space:nowrap;will-change:transform}
 
 /* title */
 #s-title{align-items:flex-end;background:linear-gradient(90deg,rgba(3,18,31,.92) 0%,rgba(3,18,31,.6) 42%,rgba(3,18,31,0) 70%)}
@@ -238,6 +243,7 @@ body.portrait .pad.p2 .btns{bottom:calc(env(safe-area-inset-top,0px) + 76px)}
 <canvas id="gl" aria-label="水中アリーナ"></canvas>
 <div id="fx"></div>
 <div id="think" hidden></div>
+<div id="tags"></div>
 <div id="banner" hidden></div>
 
 <div id="hud" hidden>
@@ -308,6 +314,7 @@ body.portrait .pad.p2 .btns{bottom:calc(env(safe-area-inset-top,0px) + 76px)}
     <p class="eyebrow">ONLINE</p>
     <h2>オンライン対戦</h2>
     <p class="count" id="on-count" role="status"></p>
+    <div class="namebox"><label for="on-name">なまえ</label><input id="on-name" maxlength="10" autocomplete="off" enterkeyhint="done" placeholder="10文字まで"></div>
     <p class="note">2〜4人で乱闘して、最後まで場内に残った人の勝ち。ランダムマッチなら、空いている部屋を自動でさがして入ります。友だちと遊ぶときは部屋をつくって、部屋コードを伝えてください。</p>
     <button class="go" id="on-random" type="button">ランダムマッチ</button>
     <button class="ghost" id="on-create" type="button">部屋をつくる（友だちと）</button>
@@ -1562,7 +1569,7 @@ function derive(c) {
 }
 class Fighter {
   constructor(idx, ch, ctrl, n) {
-    this.idx = idx; this.ch = ch; this.ctrl = ctrl; this.d = derive(ch); this.id = ''; this.left = false;
+    this.idx = idx; this.ch = ch; this.ctrl = ctrl; this.d = derive(ch); this.id = ''; this.nm = ''; this.left = false;
     this.model = buildModel(ch, PCOL[idx]); scene.add(this.model.root);
     this.input = blankInput(); this.s = Object.assign({}, IDLE);
     const a = -Math.PI / 2 + idx * Math.PI * 2 / (n || 2), r = (n || 2) > 2 ? 4.6 : 4;
@@ -1576,6 +1583,11 @@ class Fighter {
     this.slowT = 0; this.slowK = 1; this.away = null; this.fade = 0;
   }
 }
+/* player names (online): up to 10 characters, control characters removed; always rendered as text */
+const NAME_MAX = 10;
+const nameOk = ch => { const c = ch.codePointAt(0); return !(c < 32 || (c >= 127 && c < 160) || (c >= 0x200b && c <= 0x200f) || (c >= 0x2028 && c <= 0x202e) || (c >= 0x2066 && c <= 0x2069)); };
+const cleanName = s => [...String(s || '')].filter(nameOk).join('').trim().slice(0, NAME_MAX);
+const pname = f => f.nm || f.ch.name;
 const foes = f => G.fighters.filter(t => t !== f && !t.ko);
 function nearestTo(f, x, z) {
   let best = null, bd = Infinity;
@@ -1646,7 +1658,7 @@ function applyHit(t, h) {
 function koFighter(f, why) {
   if (f.ko || (G.phase !== 'fight' && G.phase !== 'end')) return;
   f.ko = why; endMove(f); f.hitstun = 0; f.guarding = false; f.poison = 0;
-  if (why === 'ring') { f.state = 'fall'; f.vy = 0.8; showBanner('🌊', '場外！', f.ch.name + ' が深海へ落ちていく…', 'sys'); }
+  if (why === 'ring') { f.state = 'fall'; f.vy = 0.8; showBanner('🌊', '場外！', pname(f) + ' が深海へ落ちていく…', 'sys'); }
   else { f.state = 'ko'; f.vy = 6.5; }
   audio.ko(); G.shake = 0.5;
   if (G.type === 'online' && f === G.me) Net.set({ ko: why });
@@ -2028,7 +2040,7 @@ function fireOmakase(f, k) {
 }
 function runEvent(f, o, k, apply) {
   const ev = EVENTS[k];
-  showBanner(ev.e, f.ch.name + 'のおまかせ「' + ev.t + '」', OMAKASE[k].d, 'ev');
+  showBanner(ev.e, pname(f) + 'のおまかせ「' + ev.t + '」', OMAKASE[k].d, 'ev');
   dropEmoji(ev.e, f); audio.ding();
   OMAKASE[k].act(f, o, apply);
 }
@@ -2090,9 +2102,9 @@ function spawnIntruder(k, nIdx, rIdx) {
   let r = G.fighters[rIdx]; if (!r || r === n) r = nearest(n) || n;
   const tgt = it.who === 'n' ? n : r;
   let eff = '';
-  if (it.kind === 'dmg') eff = tgt.ch.name + 'に' + it.v + 'ダメージ';
-  else if (it.kind === 'heal') eff = tgt.ch.name + 'が' + it.v + '回復';
-  else if (it.kind === 'sh') eff = tgt.ch.name + 'の泡の盾 ' + (it.v > 0 ? '+' : '') + it.v;
+  if (it.kind === 'dmg') eff = pname(tgt) + 'に' + it.v + 'ダメージ';
+  else if (it.kind === 'heal') eff = pname(tgt) + 'が' + it.v + '回復';
+  else if (it.kind === 'sh') eff = pname(tgt) + 'の泡の盾 ' + (it.v > 0 ? '+' : '') + it.v;
   showBanner(it.e, 'おじゃま乱入「' + it.t + '」', it.line + (eff ? ' ' + eff : ''), 'intr');
   floater(it.e, -R - 3, 2.8, tgt.z, 'swim', 2.6, (2 * R + 6) / 2.6, 0);
   dropEmoji(it.e, tgt);
@@ -2363,7 +2375,7 @@ const Net = {
     const room = await this.getRoom();
     this.pub = !!pub;
     this.backend = room ? await roomBackend(room, code) : await peerBackend(code, create, { busy: () => this.pub && ['vs', 'count', 'fight', 'end'].includes(G.phase) });
-    this.code = code; this.hits = []; this.goSeen = ''; this.me = { v: 2, ph: 'lobby', ch: G.roomPick, rdy: !!pub }; this.dirty = true; this.push(true);
+    this.code = code; this.hits = []; this.goSeen = ''; this.me = { v: 2, ph: 'lobby', ch: G.roomPick, rdy: !!pub, nm: G.myName }; this.dirty = true; this.push(true);
   },
   async leave() { const b = this.backend; this.backend = null; this.code = ''; if (b) { try { await b.leave(); } catch (e) {} } },
   set(p) { Object.assign(this.me, p); this.dirty = true; },
@@ -2418,7 +2430,7 @@ function ingestRemote(f, op) {
   }
   if (op.ko && !f.ko && (G.phase === 'fight' || G.phase === 'end')) {
     f.ko = op.ko === 'ring' ? 'ring' : 'ko'; endMove(f); f.hp = f.ko === 'ko' ? 0 : f.hp;
-    if (f.ko === 'ring') { f.state = 'fall'; f.vy = 0.8; showBanner('🌊', '場外！', f.ch.name + ' が深海へ落ちていく…', 'sys'); } else { f.state = 'ko'; f.vy = 6.5; }
+    if (f.ko === 'ring') { f.state = 'fall'; f.vy = 0.8; showBanner('🌊', '場外！', pname(f) + ' が深海へ落ちていく…', 'sys'); } else { f.state = 'ko'; f.vy = 6.5; }
     audio.ko(); G.shake = 0.5; checkEnd();
   }
 }
@@ -2469,7 +2481,8 @@ function hostTryStart(list) {
   } else if (!list.every(e => e.presence.ph === 'lobby' && e.presence.rdy)) return;
   const ids = Net.order(list).slice(0, MAXP);
   const chs = ids.map(id => ((id === Net.id() ? Net.me : list.find(e => e.id === id).presence).ch | 0));
-  const go = { s: ++Net.goSeq, ids, chs };
+  const nms = ids.map(id => cleanName((id === Net.id() ? Net.me : list.find(e => e.id === id).presence).nm));
+  const go = { s: ++Net.goSeq, ids, chs, nms };
   Net.set({ go }); beginOnline(go, Net.id());
 }
 function guestTryStart(list) {
@@ -2486,12 +2499,13 @@ function beginOnline(go, hostId) {
   Net.set({ cl: [], bw: [], bb: [] });
   for (const e of Net.list()) { const p = e.presence; Net.seen[e.id] = { a: p.a | 0, h: maxSeq(p.hits), e: p.ev ? p.ev.s | 0 : 0, i: p.ix ? p.ix.s | 0 : 0 }; }
   Net.set({ ph: 'fight', rdy: false, ko: 0 }); Net.push(true);
-  startMatch(chs.map(c => ROSTER[c] || ROSTER[0]), ids.map(id => (id === Net.id() ? 'human' : 'remote')), ids);
+  const nms = ids.map((_, i) => cleanName(Array.isArray(go.nms) ? go.nms[i] : '') || 'P' + (i + 1));
+  startMatch(chs.map(c => ROSTER[c] || ROSTER[0]), ids.map(id => (id === Net.id() ? 'human' : 'remote')), ids, nms);
 }
 function playerLeft(f) {
   if (f.left) return;
   f.left = true; f.model.root.visible = false;
-  showBanner('🚪', f.ch.name + ' が退出', '接続が切れました', 'sys');
+  showBanner('🚪', pname(f) + ' が退出', '接続が切れました', 'sys');
   if (!f.ko) { f.ko = 'left'; endMove(f); }
   checkEnd();
 }
@@ -2809,19 +2823,19 @@ const hudEls = [1, 2, 3, 4].map(n => { const s = $('.side.p' + n); return { root
 function setupHUD() {
   hudEls.forEach((h, i) => {
     const f = G.fighters[i]; h.root.hidden = !f; if (!f) return;
-    h.root.style.setProperty('--pc', PCOL[i]); h.tag.textContent = tagFor(f); h.sym.textContent = f.ch.sym; h.nm.textContent = f.ch.name;
+    h.root.style.setProperty('--pc', PCOL[i]); h.tag.textContent = tagFor(f); h.sym.textContent = f.ch.sym; h.nm.textContent = pname(f); h.nm.title = f.ch.name;
     h.root.classList.toggle('me', G.type === 'online' && f === G.me);
   });
   $('#pause-btn').textContent = G.type === 'online' ? '退出' : 'II';
   $('#pause-btn').setAttribute('aria-label', G.type === 'online' ? '退出' : '一時停止');
   $('#view-btn').hidden = G.type === 'local'; syncViewBtn();
 }
-function startMatch(chars, ctrls, ids) {
+function startMatch(chars, ctrls, ids, nms) {
   clearMatch();
   G.chars = chars; G.ctrls = ctrls;
   G.fighters = chars.map((c, i) => new Fighter(i, c, ctrls[i], chars.length));
   const F = G.fighters;
-  if (ids) F.forEach((f, i) => { f.id = ids[i]; });
+  if (ids) F.forEach((f, i) => { f.id = ids[i]; f.nm = nms ? nms[i] : ''; });
   clearInputs();
   if (G.type === 'online') {
     G.me = F[Net.myIdx]; G.me.input = pads[0].input; pads[0].f = G.me; pads[1].f = null;
@@ -2838,7 +2852,7 @@ function startMatch(chars, ctrls, ids) {
     if (i) { const mid = document.createElement('div'); mid.className = 'mid'; mid.textContent = 'VS'; vs.append(mid); }
     const p = document.createElement('div'); p.className = 'vs-p' + (i % 2 ? ' b' : ''); p.style.setProperty('--pc', PCOL[i]);
     const s = document.createElement('span'), b = document.createElement('b'), sm = document.createElement('small');
-    s.className = 'vs-s'; s.textContent = f.ch.sym; b.textContent = f.ch.name; sm.textContent = tagFor(f);
+    s.className = 'vs-s'; s.textContent = f.ch.sym; b.textContent = pname(f); sm.textContent = f.nm ? f.ch.name + (f === G.me ? '（あなた）' : '') : tagFor(f);
     p.append(s, b, sm); vs.append(p);
   });
   vs.hidden = false;
@@ -2863,18 +2877,18 @@ function showResult() {
   $('#pads').hidden = true; $('#hud').hidden = true; $('#hud2').hidden = true; clearInputs(); $('#think').hidden = true;
   $('#res-reason').textContent = { ko: 'KNOCKOUT', ring: 'RING OUT', time: 'TIME UP', double: 'DOUBLE KO', last: 'LAST ONE STANDING', left: 'DISCONNECTED' }[r.reason] || 'RESULT';
   $('#res-sym').textContent = r.w ? r.w.ch.sym : '🌊';
-  $('#res-title').textContent = r.w ? r.w.ch.name + ' の勝ち' : '引き分け';
+  $('#res-title').textContent = r.w ? pname(r.w) + (r.w.nm ? '（' + r.w.ch.name + '）' : '') + ' の勝ち' : '引き分け';
   let who = '';
-  if (r.w) { const tag = tagFor(r.w); who = tag === 'あなた' ? 'YOU WIN' : tag === 'CPU' ? 'CPU WIN' : tag + ' WIN'; }
+  if (r.w) { const tag = tagFor(r.w); who = tag === 'あなた' ? 'YOU WIN' : tag === 'CPU' ? 'CPU WIN' : G.type === 'online' ? 'YOU LOSE' : tag + ' WIN'; }
   $('#res-who').textContent = who;
   let log = '';
-  if (r.reason === 'ko') log = r.l.ch.name + ' の体力は、静かに 0 になった。';
-  else if (r.reason === 'ring') log = r.l.ch.name + ' は場外へ押し出され、深海へ沈んでいった。';
-  else if (r.reason === 'left') log = r.l.ch.name + ' との接続が切れた。海は静かになった。';
-  else if (r.reason === 'last') log = n + '人の乱闘で、最後まで海底に立っていたのは ' + r.w.ch.name + '。';
+  if (r.reason === 'ko') log = pname(r.l) + ' の体力は、静かに 0 になった。';
+  else if (r.reason === 'ring') log = pname(r.l) + ' は場外へ押し出され、深海へ沈んでいった。';
+  else if (r.reason === 'left') log = pname(r.l) + ' との接続が切れた。海は静かになった。';
+  else if (r.reason === 'last') log = n + '人の乱闘で、最後まで海底に立っていたのは ' + pname(r.w) + '。';
   else if (r.reason === 'double') log = '同時に海底へ沈んだ。これは引き分け。';
-  else if (r.w && r.l) log = '時間切れ。水圧判定で ' + r.w.ch.name + ' の勝ち（体力 ' + Math.round(r.w.hp) + ' 対 ' + Math.round(r.l.hp) + '）。';
-  else log = r.w ? '時間切れ。水圧判定で、いちばん体力が残っていた ' + r.w.ch.name + ' の勝ち（体力 ' + Math.round(r.w.hp) + '）。' : '時間切れ。海は決めなかった。引き分け。';
+  else if (r.w && r.l) log = '時間切れ。水圧判定で ' + pname(r.w) + ' の勝ち（体力 ' + Math.round(r.w.hp) + ' 対 ' + Math.round(r.l.hp) + '）。';
+  else log = r.w ? '時間切れ。水圧判定で、いちばん体力が残っていた ' + pname(r.w) + ' の勝ち（体力 ' + Math.round(r.w.hp) + '）。' : '時間切れ。海は決めなかった。引き分け。';
   $('#res-log').textContent = log;
   $('#res-again').textContent = G.type === 'online' ? (Net.pub ? 'もう一度（同じ部屋）' : 'もう一度（準備OKで待つ）') : 'もう一度';
   $('#res-select').textContent = G.type === 'online' ? (Net.pub ? 'ほかの相手をさがす' : '部屋にもどる') : 'キャラ選択';
@@ -2930,6 +2944,18 @@ $$('[data-go]').forEach(b => b.addEventListener('click', () => {
   if (go === 'online') { G.type = 'online'; G.phase = 'online'; $('#on-status').textContent = ''; show('s-online'); Lobby.start(); renderLobby(); }
   else openSelect(go);
 }));
+/* name: saved on this device; a random 潜水者 number until the player picks one */
+G.myName = cleanName(lsGet('uw3d-name')) || '潜水者' + rnd(100, 999);
+const nameInput = $('#on-name');
+nameInput.value = G.myName;
+nameInput.addEventListener('input', () => {
+  const v = cleanName(nameInput.value);
+  if (!v) return;
+  G.myName = v; lsSet('uw3d-name', v);
+  if (Net.backend) Net.set({ nm: v });
+});
+nameInput.addEventListener('blur', () => { if (!cleanName(nameInput.value)) nameInput.value = G.myName; });
+nameInput.addEventListener('keydown', e => { if (e.key === 'Enter') nameInput.blur(); });
 function renderLobby() {
   const s = Lobby.stat;
   for (const el of [$('#on-count'), $('#room-count')]) {
@@ -3002,7 +3028,7 @@ roomSlots.innerHTML = PCOL.map((c, i) => '<div class="slot" style="--pc:' + c + 
 function renderRoom(list) {
   const myId = Net.id(), hostId = Net.hostId(), ids = Net.order(list);
   const hostP = Net.isHost() ? Net.me : (list.find(e => e.id === hostId) || {}).presence, cd = hostP ? hostP.cd | 0 : 0;
-  const sig = JSON.stringify([Net.code, Net.pub, cd, myId, Net.me.ch, Net.me.rdy, ids, list.map(e => [e.id, e.presence.ch, e.presence.rdy, e.presence.ph]), G.roomMsg]);
+  const sig = JSON.stringify([Net.code, Net.pub, cd, myId, Net.me.ch, Net.me.rdy, ids, Net.me.nm, list.map(e => [e.id, e.presence.ch, e.presence.rdy, e.presence.ph, e.presence.nm]), G.roomMsg]);
   if (sig === G.roomSig) return; G.roomSig = sig;
   if (list.length) G.roomMsg = '';
   $('#room-code').textContent = Net.pub ? 'ランダム' : Net.code;
@@ -3020,8 +3046,8 @@ function renderRoom(list) {
   $$('.slot', roomSlots).forEach((el, i) => {
     const id = ids[i], p = id === myId ? Net.me : (list.find(e => e.id === id) || {}).presence, c = p && ROSTER[p.ch | 0];
     $('.who', el).textContent = !id ? 'P' + (i + 1) : id === myId ? 'P' + (i + 1) + '・あなた' : 'P' + (i + 1) + (id === hostId ? '・ホスト' : '');
-    $('b', el).textContent = c ? c.sym + ' ' + c.name : 'あき';
-    $('small', el).textContent = !p ? '—' : p.ph === 'fight' ? '試合中' : p.ph === 'result' ? 'リザルト中' : p.rdy ? '準備OK' : '選択中';
+    $('b', el).textContent = p ? cleanName(p.nm) || 'P' + (i + 1) : 'あき';
+    $('small', el).textContent = !p ? '—' : (c ? c.sym + ' ' + c.name + ' ・ ' : '') + (p.ph === 'fight' ? '試合中' : p.ph === 'result' ? 'リザルト中' : p.rdy ? '準備OK' : '選択中');
     el.classList.toggle('ready', !!(p && p.rdy)); el.classList.toggle('empty', !p);
   });
   $$('#room-roster .tile').forEach((b, i) => { b.setAttribute('aria-pressed', String(i === (Net.me.ch | 0))); b.disabled = !!Net.me.rdy && !Net.pub; });
@@ -3123,6 +3149,23 @@ function updateHUD() {
     if (air !== p.btn.atk.classList.contains('air')) { p.btn.atk.classList.toggle('air', air); p.btn.atk.firstChild.textContent = air ? '空中' : '攻撃'; }
   }
 }
+/* online: name tags over everyone else's head */
+const tagLayer = $('#tags'), tagEls = [];
+function updateTags() {
+  const show = G.type === 'online' && ['vs', 'count', 'fight', 'end'].includes(G.phase);
+  G.fighters.forEach((f, i) => {
+    let el = tagEls[i];
+    if (!el) { el = tagEls[i] = document.createElement('div'); el.className = 'ntag'; tagLayer.append(el); }
+    const vis = show && f !== G.me && !f.ko && !f.left;
+    el.hidden = !vis; if (!vis) return;
+    if (el.textContent !== pname(f)) el.textContent = pname(f);
+    el.style.setProperty('--pc', PCOL[i]);
+    const p = project(f.x, f.y + 2.7, f.z);
+    el.style.transform = 'translate(' + p.x.toFixed(1) + 'px,' + p.y.toFixed(1) + 'px) translate(-50%,-100%)';
+    if (p.behind) el.hidden = true;
+  });
+  for (let i = G.fighters.length; i < tagEls.length; i++) tagEls[i].hidden = true;
+}
 function updateThink() {
   const el = $('#think'), cpu = G.cpu && G.fighters[1];
   if (cpu && G.cpu.think > 0 && G.phase === 'fight' && !G.paused) {
@@ -3193,6 +3236,7 @@ function frame(now) {
     updateHUD();
     updateFloaters(rdt);
     updateThink();
+    updateTags();
     renderer.render(scene, camera);
   } catch (err) { console.error(err); }
 }
