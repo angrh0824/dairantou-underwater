@@ -6,8 +6,12 @@ compatibility_date = "2026-09-01"
 workers_dev = true
 
 [vars]
-# 使うモデル。Jev に選ばせるなら "typesafe/jev-router"
-MODEL = "anthropic/claude-haiku-5.5"
+# 聞き方とモデル
+#   Jev（判断モデル）:      API = "decisions" / MODEL = "typesafe/jev-1.14"
+#   Claude Haiku（文章）:  API = "chat"      / MODEL = "anthropic/claude-haiku-5.5"
+#   Jev Router（文章）:    API = "chat"      / MODEL = "typesafe/jev-router"
+API = "decisions"
+MODEL = "typesafe/jev-1.14"
 ALLOWED_ORIGINS = "https://angrh0824.github.io,http://localhost:8765,http://127.0.0.1:8765"
 RATE_PER_MIN = "30"
 TIMEOUT_MS = "6000"
