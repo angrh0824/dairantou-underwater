@@ -213,7 +213,6 @@ body.portrait .pad.p2 .btns{bottom:calc(env(safe-area-inset-top,0px) + 76px)}
 #think{position:fixed;left:0;top:0;z-index:14;pointer-events:none;font-weight:900;font-size:12px;padding:5px 10px;border-radius:14px;background:rgba(234,248,255,.92);color:var(--ink);white-space:nowrap}
 
 /* 声で操作: mic panel (bottom right) and the monster's reply over its head */
-#voice-btn[aria-pressed="true"]{background:var(--p1);color:var(--ink);border-color:transparent}
 .vnote{font-size:12px;line-height:1.6;color:var(--lamp)}
 #voice{position:fixed;z-index:16;right:max(12px, env(safe-area-inset-right,0px));bottom:calc(env(safe-area-inset-bottom,0px) + 12px);width:min(340px,calc(100vw - 24px));display:flex;flex-direction:column;gap:8px;padding:10px 12px;border-radius:16px;background:rgba(3,18,31,.8);border:1px solid var(--line);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px)}
 body:not(.portrait) #voice.up{bottom:calc(env(safe-area-inset-bottom,0px) + 72px)}
@@ -317,7 +316,6 @@ body:not(.portrait) #voice.up{bottom:calc(env(safe-area-inset-bottom,0px) + 72px
 <div id="count" hidden></div>
 
 <div class="top-actions" id="top-actions">
-  <button class="icon-btn" id="voice-btn" type="button" aria-pressed="false" aria-label="声で操作">🎤 声 OFF</button>
   <button class="icon-btn" id="mute" type="button" aria-label="音のオンオフ">音 ON</button>
 </div>
 
@@ -327,11 +325,10 @@ body:not(.portrait) #voice.up{bottom:calc(env(safe-area-inset-bottom,0px) + 72px
     <h1 class="logo"><span class="t1">大乱闘<em>3D</em></span><span class="t2">アンダーウォーター</span></h1>
     <p class="lede">海面下 2,000m。今日も変な者が集まっている。</p>
     <div class="menu">
-      <button class="cta primary" type="button" data-go="cpu"><b>CPUと対戦</b><small>深海CPU 1〜3体と乱闘。たまに考えすぎる</small></button>
-      <button class="cta" type="button" data-go="local"><b>ふたりで対戦</b><small>1台を横に持って、左右半分ずつ操作</small></button>
+      <button class="cta primary" type="button" data-go="cpu"><b>CPUと対戦</b><small>深海CPU 1〜3体と乱闘。CPUも同じく指示で動く。たまに考えすぎる</small></button>
       <button class="cta" type="button" data-go="online"><b>オンライン対戦</b><small>部屋コードで2〜4人がつながって乱闘</small></button>
     </div>
-    <p class="rules"><span>左で泳ぐ・右で技とジャンプ</span><span>90秒・体力100</span><span>場外に落ちたら負け</span><span>？の泡でおまかせ</span><span>おじゃま乱入あり</span></p>
+    <p class="rules"><span>🎤 声だけで指示して戦う</span><span>90秒・体力100</span><span>場外に落ちたら負け</span><span>？の泡でおまかせ</span><span>おじゃま乱入あり</span></p>
     <p class="rotate-hint"><i></i>スマホを横向きにすると遊びやすくなります</p>
   </div>
 </section>
@@ -2603,7 +2600,10 @@ function cpuThink(f, o, dt, b) {
    The browser turns speech into text (Web Speech API). Short orders are matched here;
    anything else goes to the voice relay (a Cloudflare Worker that asks an AI) when VOICE_AI is set. */
 const VOICE_AI = '';
+/* false where the page may not use the microphone at all (the Claude artifact build): orders are typed instead */
+const MIC_OK = true;
 const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition || null;
+const micReady = () => MIC_OK && !!SpeechRec;
 const kata2hira = s => s.replace(/[ァ-ヶ]/g, c => String.fromCharCode(c.charCodeAt(0) - 0x60));
 const vnorm = s => kata2hira(String(s || '').normalize('NFKC').toLowerCase()).replace(/[\s、。,.!?・ー〜~「」『』()]/g, '');
 /* checked top to bottom; the first family with a hit wins */
@@ -2690,14 +2690,18 @@ function dirFor(k) {
   const yaw = chaseOn() ? G.camYaw : Math.PI, s = k === 'right' ? 1 : -1;
   return [-Math.cos(yaw) * s, Math.sin(yaw) * s];
 }
-function giveOrder(f, v, o, say, via) {
+/* the order itself, without the panel and the reply bubble (CPUs give orders this way too) */
+function applyOrder(f, v, o) {
   const inp = f.input;
   if (o.target) v.target = o.target;
-  let line = say || '';
-  if (o.act === 'special' && f.spCd > 1.2 && !line) line = 'まだ溜まってない！';
   if (STANCES.has(o.act)) { v.stance = o.act; v.act = null; }
   else v.act = { k: o.act, t: o.act === 'special' ? Math.max(ACT_T.special, f.spCd + 2) : ACT_T[o.act] || 2, n: o.act === 'combo' ? 5 : 2, jumped: false, dir: dirFor(o.act), ph: 0 };
   inp.sx = inp.sz = 0; inp.guardT = false; v.cpu.t = 0; v.cpu.guardT = 0;
+}
+function giveOrder(f, v, o, say, via) {
+  let line = say || '';
+  if (o.act === 'special' && f.spCd > 1.2 && !line) line = 'まだ溜まってない！';
+  applyOrder(f, v, o);
   sayLine(f, line || replyFor(f, o.act, o.target));
   setPlan('→ ' + (ACT_LABEL[o.act] || o.act) + (v.target ? '　🎯' + pname(v.target) : '') + (via === 'ai' ? '　(AI)' : ''));
 }
@@ -2746,7 +2750,7 @@ function voiceThink(f, dt, v) {
   if (f.ko) { inp.sx = inp.sz = 0; inp.guardT = false; return; }
   if (v.target && (v.target.ko || v.target.left || !G.fighters.includes(v.target))) v.target = null;
   f.aim = v.target;
-  const o = v.target || nearest(f), a = v.act;
+  const o = v.target || seenFoe(f, f.x, f.z) || nearest(f), a = v.act;
   if (a) {
     a.t -= dt;
     const dx = o ? o.x - f.x : 0, dz = o ? o.z - f.z : 0, d = o ? hyp(dx, dz) : 99;
@@ -2819,6 +2823,42 @@ function voiceThink(f, dt, v) {
   /* wait: stay put, but raise the guard when something is about to land */
   inp.sx = inp.sz = 0;
   inp.guardT = foes(f).some(t => t.move && hyp(t.x - f.x, t.z - f.z) < 3.4) || shots.some(p => p.owner !== f && hyp(p.x - f.x, p.z - f.z) < 2.6);
+}
+/* CPU in a voice-only game: it plays by your rules. Every second or two it gives its monster one of the same
+   orders a player can say, and it reacts to danger only after about the time it takes to shout. */
+function newCpuVoice() { return { t: 0.8 + Math.random() * 0.8, think: 0, react: 0, v: newVoice() }; }
+function cpuVoice(f, dt, b) {
+  const v = b.v;
+  if (!f.ko && G.phase === 'fight') {
+    if (b.think > 0) b.think -= dt;
+    else {
+      if (b.react > 0) { b.react -= dt; if (b.react <= 0) applyOrder(f, v, { act: Math.random() < 0.5 ? 'jump' : 'guard' }); }
+      else if (!v.act) {
+        const o = nearest(f);
+        if (o && o.move && o.move.kind === 'sp' && o.animSeq !== b.seen && hyp(o.x - f.x, o.z - f.z) < 5) { b.seen = o.animSeq; if (Math.random() < 0.6) b.react = 0.6 + Math.random() * 0.5; }
+      }
+      b.t -= dt;
+      if (b.t <= 0) { b.t = 1.2 + Math.random() * 1.3; cpuDecide(f, b); }
+    }
+  }
+  voiceThink(f, dt, v);
+}
+function cpuDecide(f, b) {
+  const v = b.v, fs = foes(f).filter(t => !hidden(t));
+  if (!fs.length) return;
+  /* たまに考えすぎる */
+  if (Math.random() < 0.05) { b.think = 0.9 + Math.random() * 1.1; applyOrder(f, v, { act: 'wait' }); return; }
+  const o = v.target && !v.target.ko ? v.target : nearest(f), d = o ? hyp(o.x - f.x, o.z - f.z) : 99, r = Math.random();
+  let act = null;
+  if (hyp(f.x, f.z) > R - 2.2 && r < 0.6) act = 'center';
+  else if (f.spCd <= 0 && r < 0.55) act = 'special';
+  else if (f.hp < 30 && r < 0.3) act = 'flee';
+  else if (d > 4 && bubs.some(x => !x.pend) && r < 0.35) act = 'bubble';
+  else if (r < 0.15) act = pickOne(['attack', 'combo', 'air']);
+  else if (v.stance !== 'fight') act = 'fight';
+  if (!act) return;
+  const target = fs.length > 1 && Math.random() < 0.25 ? fs.slice().sort((a, c) => a.hp - c.hp)[0] : null;
+  applyOrder(f, v, { act, target });
 }
 
 /* ================= online =================
@@ -3366,8 +3406,8 @@ function readKeys() {
 /* ================= 声で操作: microphone, panel, reply bubble ================= */
 const V_STATE = {
   on: '聞いています。声で指示してください', start: 'マイクを準備しています…', off: 'マイク停止中（左のボタンで再開）',
-  denied: 'マイクが許可されていません。ブラウザの設定で許可してください', nomic: 'マイクが見つかりません',
-  nosr: 'このブラウザは音声認識に未対応です。文字で指示してください',
+  denied: 'マイクが許可されていません。ブラウザの設定で許可するか、文字で指示してください', nomic: 'マイクが見つかりません。文字で指示してください',
+  nosr: 'このブラウザは音声認識に未対応です。文字で指示してください', nopage: 'このページではマイクが使えません。文字で指示してください',
 };
 const Voice = {
   rec: null, want: false, live: false, st: 'off', used: new Set(), startedAt: 0,
@@ -3394,15 +3434,15 @@ const Voice = {
     return r;
   },
   start() {
-    if (!SpeechRec) { this.set('nosr'); return; }
+    if (!micReady()) { this.set(MIC_OK ? 'nosr' : 'nopage'); return; }
     this.want = true;
     if (this.live) { this.set('on'); return; }
     this.set('start');
     try { if (!this.rec) this.rec = this.make(); this.rec.start(); } catch (e) {}
   },
-  stop() { this.want = false; if (this.rec && this.live) { try { this.rec.abort(); } catch (e) {} } if (SpeechRec) this.set('off'); },
-  /* ask for the microphone while the player is still tapping the ON switch */
-  prime() { if (!SpeechRec || this.live) return; try { if (!this.rec) this.rec = this.make(); this.rec.start(); } catch (e) {} },
+  stop() { this.want = false; if (this.rec && this.live) { try { this.rec.abort(); } catch (e) {} } if (micReady()) this.set('off'); },
+  /* ask for the microphone while the player is still tapping a menu button */
+  prime() { if (!micReady() || this.live) return; try { if (!this.rec) this.rec = this.make(); this.rec.start(); } catch (e) {} },
 };
 function showHeard(t, interim) { const el = $('#v-heard'); el.textContent = '「' + String(t).trim().slice(0, 60) + '」'; el.classList.toggle('interim', !!interim); }
 function setPlan(t) { $('#v-plan').textContent = t; }
@@ -3421,6 +3461,7 @@ function updateVoiceSay(dt) {
 function voicePanel(on, up) {
   const p = $('#voice'); p.hidden = !on; p.classList.toggle('up', !!up);
   if (!on) { vsayT = 0; $('#vsay').hidden = true; return; }
+  $('#v-mic').hidden = !micReady();
   $('#v-heard').textContent = ''; $('#v-heard').classList.remove('interim'); setPlan('「攻撃」「必殺」「ジャンプ」「逃げろ」など');
 }
 $('#v-mic').addEventListener('click', () => { audio.init(); if (Voice.want) Voice.stop(); else Voice.start(); });
@@ -3429,20 +3470,13 @@ $('#v-form').addEventListener('submit', e => {
   const el = $('#v-text'), t = el.value.trim(); if (!t) return;
   el.value = ''; hearOrder([t]);
 });
-G.voiceOn = lsGet('uw3d-voice') === '1';
-function syncVoiceUI() {
-  const b = $('#voice-btn');
-  b.setAttribute('aria-pressed', String(G.voiceOn)); b.textContent = G.voiceOn ? '🎤 声 ON' : '🎤 声 OFF';
-  const msg = G.type === 'local' ? '🎤 声で操作は、CPU対戦とオンライン対戦で使えます（ふたりで対戦では使いません）。'
-    : '🎤 声で操作します。試合中はマイクで指示を聞きます。「攻撃」「必殺」「ジャンプ」「防御」「逃げろ」「待て」「真ん中」「泡」「クジラを狙え」、自分の技の名前でも動きます。' +
-      (SpeechRec ? '' : '（このブラウザは音声認識に未対応なので、試合中は文字で指示します）');
-  for (const id of ['#sel-voice', '#on-voice']) { const el = $(id); el.hidden = !G.voiceOn; el.textContent = msg; }
+/* how to give orders, shown on the select and online screens */
+function voiceNotes() {
+  const msg = '🎤 声だけで戦います。試合中はマイクで指示を聞きます。「攻めろ」「攻撃」「必殺」「ジャンプ」「防御」「逃げろ」「待て」「真ん中」「泡」「クジラを狙え」、自分の技の名前でも動きます。' +
+    (micReady() ? '' : MIC_OK ? '（このブラウザは音声認識に未対応なので、試合中は文字で指示します）' : '（このページではマイクが使えないので、試合中は文字で指示します）');
+  for (const id of ['#sel-voice', '#on-voice']) { const el = $(id); el.hidden = false; el.textContent = msg; }
 }
-$('#voice-btn').addEventListener('click', () => {
-  G.voiceOn = !G.voiceOn; lsSet('uw3d-voice', G.voiceOn ? '1' : '0'); syncVoiceUI(); audio.tick();
-  if (G.voiceOn) Voice.prime();
-});
-syncVoiceUI();
+voiceNotes();
 
 /* ================= screens & flow ================= */
 function show(id) { $$('.screen').forEach(s => { s.hidden = s.id !== id; }); $('#top-actions').hidden = !(id === 's-title' || id === 's-select' || id === 's-online' || id === 's-room'); }
@@ -3469,10 +3503,10 @@ function detailHTML(c) {
     '<div class="stats">' + st.map(([k, v]) => '<span>' + k + '</span><span class="bar"><i style="width:' + Math.round(v / 30 * 100) + '%"></i></span><span class="v">' + v + '</span>').join('') + '</div>' +
     '<ul class="moves">' +
     '<li><span class="k">攻撃</span><span><b>' + c.mv.atk + '</b><small>' + ATKK[c.atk].desc + '</small></span></li>' +
-    '<li><span class="k">防御</span><span><b>' + c.mv.def + '</b><small>' + DEFK[c.def].desc + (DEFK[c.def].sm > 0 ? '。押している間は泡の盾もたまる（最大42）' : '') + '</small></span></li>' +
+    '<li><span class="k">防御</span><span><b>' + c.mv.def + '</b><small>' + DEFK[c.def].desc + (DEFK[c.def].sm > 0 ? '。守っている間は泡の盾もたまる（最大42）' : '') + '</small></span></li>' +
     '<li><span class="k">必殺</span><span><b>' + c.mv.sp + '</b><small>' + c.spDesc + '。使うと反動で自分も少し削れる</small></span></li>' +
-    '<li><span class="k">空中</span><span><b>' + c.mv.air + '</b><small>ジャンプ中に攻撃。' + AIR_DESC[c.air] + '</small></span></li>' +
-    '<li><span class="k">おまかせ</span><span><b>？の泡に触れると発動</b><small>ときどき浮かぶ泡に触れると、18種類のおまかせ技のどれかが出る。高い泡はジャンプで取る</small></span></li>' +
+    '<li><span class="k">空中</span><span><b>' + c.mv.air + '</b><small>「空中攻撃」「飛びかかれ」で、ジャンプして出す。' + AIR_DESC[c.air] + '</small></span></li>' +
+    '<li><span class="k">おまかせ</span><span><b>？の泡に触れると発動</b><small>ときどき浮かぶ泡に触れると、18種類のおまかせ技のどれかが出る。「泡」と言うと取りに行く</small></span></li>' +
     '<li><span class="k">ジャンプ</span><span><b>みんな跳べる</b><small>地面を走る衝撃波や、飛んでくる物をかわせる</small></span></li>' +
     '</ul>';
 }
@@ -3492,7 +3526,7 @@ function renderSelect() {
   $$('#roster .tile').forEach((b, i) => b.setAttribute('aria-pressed', String(i === G.selIdx)));
   const d = $('#detail'); d.style.setProperty('--c', c.glow); d.innerHTML = detailHTML(c);
   $('#sel-ok').textContent = G.type === 'local' && G.picker === 0 ? 'つぎは2P' : 'この潜水者で';
-  syncVoiceUI();
+  voiceNotes();
 }
 function openSelect(type) {
   clearMatch(); hideFightUI();
@@ -3556,15 +3590,15 @@ function startMatch(chars, ctrls, ids, nms) {
   } else {
     G.me = F[0]; F[0].input = pads[0].input; pads[0].f = F[0];
     if (ctrls[1] === 'human') { F[1].input = pads[1].input; pads[1].f = F[1]; } else pads[1].f = null;
-    for (const f of F) if (f.ctrl === 'cpu') f.brain = newBrain();
+    for (const f of F) if (f.ctrl === 'cpu') f.brain = newCpuVoice();
     G.cpu = (F.find(f => f.brain) || {}).brain || null;
   }
-  /* 声で操作: your 潜水者 gets its own input, driven by spoken orders instead of the pad */
-  if (G.voiceOn && G.type !== 'local' && G.me) { G.me.input = blankInput(); pads[0].f = null; G.voice = newVoice(); }
+  /* 声だけで戦う: your 潜水者 gets its own input, driven by spoken (or typed) orders; there is no pad */
+  if (G.me && G.me.ctrl !== 'cpu') { G.me.input = blankInput(); pads[0].f = null; G.voice = newVoice(); }
   G.time = MATCH_SEC; G.hitstop = 0; G.intrT = 10 + Math.random() * 5; G.shake = 0; G.endT = 0; G.bubT = 5;
   G.camYaw = G.me ? G.me.face : 0;
   layoutShowcase('none'); layoutPads(); setupHUD();
-  show(null); $('#hud').hidden = false; $('#hud2').hidden = F.length <= 2; $('#pads').hidden = !!G.voice;
+  show(null); $('#hud').hidden = false; $('#hud2').hidden = F.length <= 2; $('#pads').hidden = true;
   if (G.voice) { voicePanel(true, F.length > 2); Voice.start(); }
   const vs = $('#vs'); vs.textContent = ''; vs.classList.toggle('many', F.length > 2);
   F.forEach((f, i) => {
@@ -3660,8 +3694,8 @@ document.addEventListener('visibilitychange', () => { if (document.hidden && G.t
 
 /* title */
 $$('[data-go]').forEach(b => b.addEventListener('click', () => {
-  audio.init(); const go = b.dataset.go;
-  if (go === 'online') { G.type = 'online'; G.phase = 'online'; $('#on-status').textContent = ''; show('s-online'); syncVoiceUI(); Lobby.start(); renderLobby(); }
+  audio.init(); Voice.prime(); const go = b.dataset.go;
+  if (go === 'online') { G.type = 'online'; G.phase = 'online'; $('#on-status').textContent = ''; show('s-online'); voiceNotes(); Lobby.start(); renderLobby(); }
   else openSelect(go);
 }));
 /* name: saved on this device; a random 潜水者 number until the player picks one */
@@ -3832,9 +3866,9 @@ function stepGame(rdt) {
   if (G.phase === 'end') { dt *= 0.45; G.endT -= rdt; if (G.endT <= 0) { showResult(); return; } }
   if (dt <= 0) return;
   if (G.phase === 'fight') {
-    for (const f of F) if (f.brain) cpuThink(f, seenFoe(f, f.x, f.z) || nearest(f), dt, f.brain);
-    if (G.cpuA) { const a = G.type === 'online' ? G.me : F[0]; if (a) cpuThink(a, nearest(a), dt, G.cpuA); }
-    if (G.voice && G.me) voiceThink(G.me, dt, G.voice);
+    for (const f of F) if (f.brain) cpuVoice(f, dt, f.brain);
+    if (G.cpuA && G.me) cpuVoice(G.me, dt, G.cpuA);
+    else if (G.voice && G.me) voiceThink(G.me, dt, G.voice);
   }
   for (const f of F) { if (f.ctrl === 'remote') updateRemote(f, nearest(f), dt); else updateFighter(f, aimOf(f), dt); }
   for (let i = 0; i < F.length; i++) for (let j = i + 1; j < F.length; j++) separate(F[i], F[j]);
@@ -3993,7 +4027,7 @@ addEventListener('orientationchange', () => setTimeout(resize, 200));
 resize();
 pickTitleSet(); layoutShowcase('title'); show('s-title');
 requestAnimationFrame(frame);
-window.__uw = { G, Net, ROSTER, startMatch, openSelect, setCpuBoth(on) { G.cpuA = on ? newBrain() : null; } };
+window.__uw = { G, Net, ROSTER, startMatch, openSelect, setCpuBoth(on) { G.cpuA = on ? newCpuVoice() : null; } };
 })();
 </script>
 
