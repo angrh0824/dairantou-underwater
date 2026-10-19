@@ -3462,6 +3462,7 @@ function voicePanel(on, up) {
   const p = $('#voice'); p.hidden = !on; p.classList.toggle('up', !!up);
   if (!on) { vsayT = 0; $('#vsay').hidden = true; return; }
   $('#v-mic').hidden = !micReady();
+  $('#v-text').placeholder = micReady() ? '文字でも指示できます（例: 必殺）' : 'ここに指示を打ち込む（例: 必殺）';
   $('#v-heard').textContent = ''; $('#v-heard').classList.remove('interim'); setPlan('「攻撃」「必殺」「ジャンプ」「逃げろ」など');
 }
 $('#v-mic').addEventListener('click', () => { audio.init(); if (Voice.want) Voice.stop(); else Voice.start(); });
@@ -3472,8 +3473,10 @@ $('#v-form').addEventListener('submit', e => {
 });
 /* how to give orders, shown on the select and online screens */
 function voiceNotes() {
-  const msg = '🎤 声だけで戦います。試合中はマイクで指示を聞きます。「攻めろ」「攻撃」「必殺」「ジャンプ」「防御」「逃げろ」「待て」「真ん中」「泡」「クジラを狙え」、自分の技の名前でも動きます。' +
-    (micReady() ? '' : MIC_OK ? '（このブラウザは音声認識に未対応なので、試合中は文字で指示します）' : '（このページではマイクが使えないので、試合中は文字で指示します）');
+  const how = micReady() ? '🎤 声だけで戦います。試合中はマイクで指示を聞きます。'
+    : MIC_OK ? '🎤 声だけで戦います。このブラウザは音声認識に未対応なので、試合中は画面の欄に指示を打ち込みます。'
+    : '⌨️ 指示だけで戦います。このページではマイクが使えないので、試合中は画面の欄に指示を打ち込みます。';
+  const msg = how + '「攻めろ」「攻撃」「必殺」「ジャンプ」「防御」「逃げろ」「待て」「真ん中」「泡」「クジラを狙え」、自分の技の名前でも動きます。';
   for (const id of ['#sel-voice', '#on-voice']) { const el = $(id); el.hidden = false; el.textContent = msg; }
 }
 voiceNotes();
