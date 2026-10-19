@@ -47,6 +47,8 @@ h1,h2,h3,p{margin:0}
 .ghost{min-height:46px;padding:0 16px;border-radius:12px;border:1px solid var(--line);background:transparent;color:var(--foam);font-weight:700}
 .ghost.sm{min-height:34px;padding:0 12px;font-size:12px}
 .status{min-height:1.4em;font-size:13px;color:var(--lamp);line-height:1.6}
+.count{display:flex;flex-wrap:wrap;gap:4px 14px;min-height:1.5em;font-size:12px;color:var(--mist);line-height:1.5}
+.count b{font-family:var(--display);font-weight:400;font-size:15px;color:var(--p1);font-variant-numeric:tabular-nums}
 
 /* title */
 #s-title{align-items:flex-end;background:linear-gradient(90deg,rgba(3,18,31,.92) 0%,rgba(3,18,31,.6) 42%,rgba(3,18,31,0) 70%)}
@@ -305,6 +307,7 @@ body.portrait .pad.p2 .btns{bottom:calc(env(safe-area-inset-top,0px) + 76px)}
   <div class="sheet">
     <p class="eyebrow">ONLINE</p>
     <h2>オンライン対戦</h2>
+    <p class="count" id="on-count" role="status"></p>
     <p class="note">2〜4人で乱闘して、最後まで場内に残った人の勝ち。ランダムマッチなら、空いている部屋を自動でさがして入ります。友だちと遊ぶときは部屋をつくって、部屋コードを伝えてください。</p>
     <button class="go" id="on-random" type="button">ランダムマッチ</button>
     <button class="ghost" id="on-create" type="button">部屋をつくる（友だちと）</button>
@@ -323,6 +326,7 @@ body.portrait .pad.p2 .btns{bottom:calc(env(safe-area-inset-top,0px) + 76px)}
     <p class="eyebrow">ROOM</p>
     <div class="code"><span>部屋コード</span><b id="room-code">----</b><button class="ghost sm" id="room-copy" type="button">コピー</button></div>
     <p class="status" id="room-status" role="status"></p>
+    <p class="count" id="room-count"></p>
     <div class="room-vs" id="room-slots"></div>
     <div class="roster mini" id="room-roster"></div>
     <div class="row"><button class="ghost" id="room-leave" type="button">退出</button><button class="go" id="room-ready" type="button">準備OK</button></div>
@@ -2496,6 +2500,144 @@ function netGone(msg) {
   G.phase = 'online'; layoutShowcase('title'); show('s-online'); setOnStatus(msg);
 }
 
+/* ---------- 案内所 (lobby): how many people are online and waiting ----------
+   There is no server, so whoever claims the well-known lobby id first becomes the counter: everyone on the online
+   screens reports their status to it every second and it sends the totals back. When it leaves it says goodbye and
+   one of the others takes over; if two counters ever end up on different slots, the higher one merges into slot 0. */
+const LOBBY_SLOTS = 3, LOBBY_KINDS = ['menu', 'wait', 'play', 'room'];
+function claimPeer(Peer, id) {
+  return new Promise(res => {
+    let p; try { p = new Peer(id, { debug: 0 }); } catch (e) { res({ err: 'browser' }); return; }
+    p.on('open', () => res({ p }));
+    p.on('error', e => { try { p.destroy(); } catch (x) {} res({ err: e && e.type }); });
+  });
+}
+/* is someone really counting at this lobby id? connect and wait up to 3 s for totals */
+function probeLobby(Peer, id) {
+  return new Promise(res => {
+    let p = null, done = false;
+    const fin = v => { if (done) return; done = true; clearTimeout(t); try { if (p) p.destroy(); } catch (e) {} res(v); };
+    const t = setTimeout(() => fin(false), 3000);
+    try { p = new Peer({ debug: 0 }); } catch (e) { fin(false); return; }
+    p.on('error', () => fin(false));
+    p.on('open', () => { const c = p.connect(id, { reliable: true, serialization: 'json' }); c.on('data', d => { if (d && d.t === 'stat') fin(true); }); c.on('error', () => fin(false)); });
+  });
+}
+const Lobby = {
+  on: false, peer: null, conn: null, host: false, slot: 0, busy: false, ok: false, merging: false, timer: 0, retryT: 0, ticks: 0,
+  guests: new Map(), stat: null, statAt: 0,
+  status() {
+    if (G.type !== 'online' || !Net.backend) return 'menu';
+    if (['vs', 'count', 'fight', 'end', 'result'].includes(G.phase)) return 'play';
+    return Net.pub ? 'wait' : 'room';
+  },
+  start() { if (this.on) return; this.on = true; this.stat = null; this.ticks = 0; this.connect(0); this.timer = setInterval(() => this.tick(), 1000); },
+  stop() { if (!this.on) return; this.on = false; clearInterval(this.timer); clearTimeout(this.retryT); this.retryT = 0; this.close(true); this.stat = null; },
+  /* leaving: our id stays reserved on the server for a while, so name a successor who opens the next slot right away */
+  bye() {
+    if (!this.host) return;
+    const live = [...this.guests.values()].filter(g => g.c.open), heir = live[0] ? live[0].c.peer : '', j = (this.slot + 1) % LOBBY_SLOTS;
+    for (const g of live) { try { g.c.send({ t: 'bye', j, heir }); } catch (e) {} }
+  },
+  /* reconnect at a random moment so that exactly one of us cleanly takes over */
+  retry(j, ms) {
+    if (this.retryT) return;
+    this.retryT = setTimeout(() => { this.retryT = 0; if (!this.on || this.host || this.busy) return; this.close(); this.connect(j); }, ms);
+  },
+  close(sayBye) {
+    const p = this.peer, wait = sayBye && this.host && this.guests.size;
+    if (sayBye) this.bye();
+    this.peer = this.conn = null; this.host = false; this.ok = false; this.guests = new Map();
+    if (p) setTimeout(() => { try { p.destroy(); } catch (e) {} }, wait ? 250 : 0);
+  },
+  count() {
+    const c = { t: 'stat', on: 1, menu: 0, wait: 0, play: 0, room: 0 }, now = Date.now();
+    c[this.status()]++;
+    for (const g of this.guests.values()) { if (!g.c.open || now - g.at > 10000) continue; c.on++; c[g.st]++; }
+    return c;
+  },
+  tick() {
+    if (!this.on || this.busy) return;
+    this.ticks++;
+    if (this.host) {
+      this.stat = this.count(); this.statAt = Date.now();
+      for (const g of this.guests.values()) if (g.c.open) { try { g.c.send(this.stat); } catch (e) {} }
+      if (this.slot > 0 && this.ticks % 10 === 0) this.merge();
+    } else if (this.conn && this.conn.open) { try { this.conn.send({ t: 'st', st: this.status() }); } catch (e) {} }
+    /* no totals for 6 s: if our counter went quiet, try the first slot again; if this slot never answered, try the next */
+    if (!this.host && Date.now() - this.statAt > 6000) { const next = this.ok ? 0 : (this.slot + 1) % LOBBY_SLOTS; this.close(); this.connect(next); }
+    renderLobby();
+  },
+  hostOn(p) {
+    p.on('connection', c => this.addGuest(c));
+    p.on('disconnected', () => { try { if (!p.destroyed) p.reconnect(); } catch (e) {} });
+  },
+  async connect(j) {
+    this.busy = true; this.slot = j; this.statAt = Date.now();
+    try {
+      const Peer = await loadPeerLib(), id = PEER_PREFIX + 'lobby' + j;
+      const mine = await claimPeer(Peer, id);
+      if (!this.on) { if (mine.p) mine.p.destroy(); return; }
+      if (mine.p) { this.peer = mine.p; this.host = true; this.hostOn(mine.p); this.busy = false; this.tick(); return; }
+      if (mine.err !== 'unavailable-id') return;
+      const p = this.peer = new Peer({ debug: 0 });
+      p.on('error', e => { if (this.peer === p && e && e.type === 'peer-unavailable') this.retry((j + 1) % LOBBY_SLOTS, 200 + Math.random() * 600); });
+      p.on('open', () => {
+        if (this.peer !== p) return;
+        const c = this.conn = p.connect(id, { reliable: true, serialization: 'json' });
+        c.on('open', () => { try { c.send({ t: 'st', st: this.status() }); } catch (e) {} });
+        c.on('close', () => { if (this.conn === c) this.retry(j, 200 + Math.random() * 1000); });
+        c.on('data', d => {
+          if (!d || this.conn !== c) return;
+          if (d.t === 'bye') { const nj = clamp(d.j | 0, 0, LOBBY_SLOTS - 1); this.retry(nj, d.heir === p.id ? 30 : 700 + Math.random() * 600); return; }
+          if (d.t === 'move') { this.retry(clamp(d.j | 0, 0, LOBBY_SLOTS - 1), 150 + Math.random() * 500); return; }
+          if (d.t !== 'stat') return;
+          const n = k => clamp(d[k] | 0, 0, 9999);
+          this.stat = { on: n('on'), wait: n('wait'), play: n('play'), room: n('room') }; this.statAt = Date.now(); this.ok = true; renderLobby();
+        });
+        c.on('error', () => {});
+      });
+    } catch (e) {}
+    finally { this.busy = false; }
+  },
+  /* a counter on a higher slot moves everyone down to the lowest slot that is free (taking it over)
+     or has a live counter (joining it); slots still reserved by someone who left are skipped */
+  async merge() {
+    if (this.merging) return;
+    this.merging = true;
+    try {
+      const Peer = await loadPeerLib();
+      for (let k = 0; k < this.slot; k++) {
+        const id = PEER_PREFIX + 'lobby' + k, r = await claimPeer(Peer, id);
+        if (!this.on || !this.host) { if (r.p) r.p.destroy(); return; }
+        if (r.p) {
+          const oldPeer = this.peer, oldGuests = this.guests;
+          this.peer = r.p; this.slot = k; this.guests = new Map(); this.hostOn(r.p);
+          for (const g of oldGuests.values()) { try { g.c.send({ t: 'move', j: k }); } catch (e) {} }
+          setTimeout(() => { try { oldPeer.destroy(); } catch (e) {} }, 500);
+          return;
+        }
+        if (r.err === 'unavailable-id' && await probeLobby(Peer, id) && this.on && this.host) {
+          for (const g of this.guests.values()) { try { g.c.send({ t: 'move', j: k }); } catch (e) {} }
+          setTimeout(() => { if (this.on && this.host) { this.close(); this.connect(k); } }, 500);
+          return;
+        }
+      }
+    } catch (e) {}
+    finally { this.merging = false; }
+  },
+  addGuest(c) {
+    if (this.guests.size >= 300) { setTimeout(() => { try { c.close(); } catch (e) {} }, 300); return; }
+    const g = { c, st: 'menu', at: Date.now() }, guests = this.guests;
+    guests.set(c.peer, g);
+    c.on('open', () => { try { c.send(this.count()); } catch (e) {} });
+    c.on('data', d => { if (d && d.t === 'st') { g.st = LOBBY_KINDS.includes(d.st) ? d.st : 'menu'; g.at = Date.now(); } });
+    c.on('close', () => { if (guests.get(c.peer) === g) guests.delete(c.peer); });
+    c.on('error', () => {});
+  },
+};
+addEventListener('pagehide', () => Lobby.bye());
+
 /* ================= input: touch pads & keyboard ================= */
 function padHTML() {
   return '<div class="zone"></div><div class="base"><div class="knob"></div></div><div class="btns">' +
@@ -2752,6 +2894,7 @@ $('#res-home').addEventListener('click', goTitle);
 function goTitle() {
   clearMatch(); hideFightUI();
   if (G.type === 'online') Net.leave();
+  Lobby.stop();
   G.type = null; G.phase = 'title'; pickTitleSet(); layoutShowcase('title'); show('s-title'); layoutPads();
 }
 
@@ -2784,9 +2927,18 @@ document.addEventListener('visibilitychange', () => { if (document.hidden && G.t
 /* title */
 $$('[data-go]').forEach(b => b.addEventListener('click', () => {
   audio.init(); const go = b.dataset.go;
-  if (go === 'online') { G.type = 'online'; G.phase = 'online'; $('#on-status').textContent = ''; show('s-online'); }
+  if (go === 'online') { G.type = 'online'; G.phase = 'online'; $('#on-status').textContent = ''; show('s-online'); Lobby.start(); renderLobby(); }
   else openSelect(go);
 }));
+function renderLobby() {
+  const s = Lobby.stat;
+  for (const el of [$('#on-count'), $('#room-count')]) {
+    if (!Lobby.on) { el.textContent = ''; continue; }
+    if (!s) { el.textContent = 'オンラインの人数を確認しています…'; continue; }
+    el.innerHTML = '<span>いまオンライン <b>' + s.on + '</b> 人</span><span>ランダムマッチ待ち <b>' + s.wait + '</b> 人</span><span>対戦中 <b>' + s.play + '</b> 人</span>' +
+      (s.room ? '<span>友だち部屋 <b>' + s.room + '</b> 人</span>' : '');
+  }
+}
 const muteBtn = $('#mute');
 const syncMute = () => { muteBtn.textContent = audio.on ? '音 ON' : '音 OFF'; };
 syncMute();
