@@ -805,14 +805,63 @@ function eyes(g, m, list, r) {
     put(g, sph(r * 0.55, 8, 6), m('#141820', { roughness: 0.25 }), x + Math.sign(x) * r * 0.1, y, z + r * 0.62);
   }
 }
+/* parts that lie on a round body's skin (mouths, bellies, ties, teeth). The body is an ellipsoid: centre c, radii R
+   (sphere radius times its scale). la / lo are latitude (up +) and longitude (front 0, right +) in radians. */
+const UPV = new THREE.Vector3(0, 1, 0);
+function eggAt(c, R, la, lo, lift) {
+  const cl = Math.cos(la), sl = Math.sin(la), co = Math.cos(lo), so = Math.sin(lo);
+  const n = new THREE.Vector3(cl * so / R[0], sl / R[1], cl * co / R[2]).normalize();
+  const p = new THREE.Vector3(c[0] + R[0] * cl * so, c[1] + R[1] * sl, c[2] + R[2] * cl * co).addScaledVector(n, lift || 0);
+  const up = new THREE.Vector3(-sl * so * R[0], cl * R[1], -sl * co * R[2]).normalize();
+  return { p, n, up };
+}
+/* a patch of skin, lifted just off the body so it never flickers: fn(u, v) gives [la, lo] for u left→right, v bottom→top */
+function eggSkin(c, R, lift, nu, nv, fn) {
+  const pos = [], idx = [];
+  for (let j = 0; j <= nv; j++) for (let i = 0; i <= nu; i++) { const [la, lo] = fn(i / nu, j / nv), { p } = eggAt(c, R, la, lo, lift); pos.push(p.x, p.y, p.z); }
+  for (let j = 0; j < nv; j++) for (let i = 0; i < nu; i++) { const a = j * (nu + 1) + i, d = a + nu + 1; idx.push(a, a + 1, d + 1, a, d + 1, d); }
+  const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setIndex(idx); g.computeVertexNormals(); return g;
+}
+/* the body's own surface around direction dir, ang radians out: a belly or chin with a clean edge */
+function eggCap(g, mat, c, R, lift, dir, ang) {
+  const k = new THREE.Group(); k.position.set(c[0], c[1], c[2]); k.scale.set(R[0] + lift, R[1] + lift, R[2] + lift); g.add(k);
+  const s = put(k, new THREE.SphereGeometry(1, 28, 8, 0, Math.PI * 2, 0, ang), mat);
+  s.quaternion.setFromUnitVectors(UPV, new THREE.Vector3(dir[0], dir[1], dir[2]).normalize()); return s;
+}
+/* teeth standing on the skin and lying along it, merged into one mesh: each is [la, lo, h, r, dir] (dir -1 hangs down, +1 points up) */
+function fangs(c, R, list) {
+  const pos = [], nor = [], idx = [], q = new THREE.Quaternion(), b = new THREE.Matrix4(), mx = new THREE.Matrix4(), sc = new THREE.Vector3(1, 1, 0.6);
+  for (const [la, lo, h, r, dir] of list) {
+    const { p, n, up } = eggAt(c, R, la, lo, 0); if (dir < 0) up.negate();
+    q.setFromRotationMatrix(b.makeBasis(new THREE.Vector3().crossVectors(up, n), up, n));
+    const geo = new THREE.ConeGeometry(r, h, 8); geo.applyMatrix4(mx.compose(p.addScaledVector(n, r * 0.5).addScaledVector(up, h * 0.42), q, sc));
+    const base = pos.length / 3, P = geo.attributes.position.array, N = geo.attributes.normal.array, I = geo.index.array;
+    for (let i = 0; i < P.length; i++) { pos.push(P[i]); nor.push(N[i]); }
+    for (let i = 0; i < I.length; i++) idx.push(I[i] + base);
+    geo.dispose();
+  }
+  const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('normal', new THREE.Float32BufferAttribute(nor, 3)); g.setIndex(idx); return g;
+}
+/* a grin on the skin: lo spans ±w, top / bottom edges meet at the corners (la = corner); returns the patch and its edge functions */
+function grin(c, R, lift, w, top, bot, corner, nu, nv) {
+  const tp = lo => top + (corner - top) * (lo / w) ** 2, bt = lo => bot + (corner - bot) * (lo / w) ** 2;
+  return { geo: eggSkin(c, R, lift, nu, nv, (u, v) => { const lo = (u * 2 - 1) * w; return [bt(lo) + (tp(lo) - bt(lo)) * v, lo]; }), tp, bt };
+}
 
 function buildWhale(g, m, P) {
   const blue = m('#3d6f9f'), belly = m('#e3edf3'), dark = m('#1f2c3b'), tie = m('#d64a3e');
   put(g, sph(1, 16, 12), blue, 0, 1.2, 0).scale.set(1, 0.9, 1.18);
-  put(g, sph(0.9, 14, 10), belly, 0, 1.0, 0.25).scale.set(0.82, 0.72, 1.02);
+  const C = [0, 1.2, 0], R = [0.985, 0.8865, 1.1623];
+  eggCap(g, belly, C, R, 0.018, [0, -0.85, 0.53], 0.9);
   eyes(g, m, [[-0.52, 1.42, 0.86], [0.52, 1.42, 0.86]], 0.13);
-  put(g, box(0.2, 0.14, 0.1), tie, 0, 1.34, 1.08);
-  const t = put(g, cone(0.17, 0.6, 4), tie, 0, 1.0, 1.1); t.rotation.set(Math.PI - 0.32, Math.PI / 4, 0);
+  /* a long smile, then a necktie hanging from the chin */
+  put(g, eggSkin(C, R, 0.014, 20, 1, (u, v) => { const lo = (u * 2 - 1) * 0.5; return [-0.03 + 0.09 * (lo / 0.5) ** 2 + (v - 0.5) * 0.045, lo]; }), dark);
+  const kn = eggAt(C, R, -0.17, 0, 0.022), knot = put(g, sph(0.07, 10, 8), tie, kn.p.x, kn.p.y, kn.p.z);
+  knot.quaternion.setFromUnitVectors(UPV, kn.up); knot.scale.set(1.5, 0.85, 0.42);
+  put(g, eggSkin(C, R, 0.03, 2, 10, (u, v) => {
+    const la = -0.22 - (1 - v) * 0.5, hw = v < 0.22 ? 0.12 * v / 0.22 : 0.12 - 0.075 * (v - 0.22) / 0.78;
+    return [la, (u * 2 - 1) * hw / (R[0] * Math.cos(la))];
+  }), tie);
   P.flipL = put(g, sph(0.42, 10, 8), blue, -0.98, 0.95, 0.2); P.flipL.scale.set(0.32, 0.9, 0.6);
   P.flipR = put(g, sph(0.42, 10, 8), blue, 0.98, 0.95, 0.2); P.flipR.scale.set(0.32, 0.9, 0.6);
   const tail = new THREE.Group(); tail.position.set(0, 1.25, -1.05); g.add(tail); P.tail = tail;
@@ -954,7 +1003,8 @@ function buildStar(g, m, P) {
 function buildShark(g, m, P) {
   const blue = m('#476778'), belly = m('#e6eef2'), dark = m('#2c4251');
   put(g, sph(1, 16, 12), blue, 0, 1.0, 0).scale.set(0.72, 0.7, 1.45);
-  put(g, sph(0.9, 14, 10), belly, 0, 0.86, 0.12).scale.set(0.64, 0.56, 1.32);
+  const C = [0, 1.0, 0], R = [0.7092, 0.6895, 1.4283];
+  eggCap(g, belly, C, R, 0.018, [0, -1, 0.2], 0.95);
   const fin = put(g, cone(0.34, 0.8, 4), blue, 0, 1.78, -0.2); fin.scale.z = 0.3; fin.rotation.x = -0.35;
   for (const s of [-1, 1]) { const p = put(g, sph(0.42, 8, 6), blue, s * 0.74, 0.7, 0.2); p.scale.set(0.95, 0.12, 0.45); p.rotation.z = -s * 0.45; }
   const tail = new THREE.Group(); tail.position.set(0, 1.0, -1.3); g.add(tail); P.tail = tail;
@@ -963,10 +1013,15 @@ function buildShark(g, m, P) {
   const dn = put(tail, cone(0.16, 0.5, 4), blue, 0, -0.22, -0.45); dn.scale.z = 0.3; dn.rotation.x = -2.3;
   eyes(g, m, [[-0.48, 1.2, 0.95], [0.48, 1.2, 0.95]], 0.1);
   for (const s of [-1, 1]) for (let i = 0; i < 3; i++) put(g, box(0.02, 0.24, 0.05), dark, s * 0.68, 1.0, 0.5 - i * 0.13);
-  const jaw = new THREE.Group(); jaw.position.set(0, 0.8, 1.34); g.add(jaw); P.teeth = jaw;
-  put(jaw, torus(0.28, 0.06, 6, 18), m('#8a2f3a'), 0, 0, 0).scale.y = 0.55;
-  const tooth = m('#ffffff', { roughness: 0.3 });
-  for (let i = 0; i < 9; i++) { const a = i / 9 * Math.PI * 2; put(jaw, cone(0.05, 0.13, 4), tooth, Math.cos(a) * 0.27, Math.sin(a) * 0.15, 0.03).rotation.z = a + Math.PI / 2; }
+  /* a toothy grin under the snout; the jaw group opens around the mouth's middle when biting */
+  const mid = eggAt(C, R, -0.26, 0, 0).p, jaw = new THREE.Group(), j2 = new THREE.Group(); jaw.position.copy(mid); j2.position.copy(mid).negate();
+  g.add(jaw); jaw.add(j2); P.teeth = jaw;
+  const gr = grin(C, R, 0.016, 0.42, -0.12, -0.4, -0.02, 16, 4);
+  put(j2, gr.geo, m('#4a1520'));
+  const ft = [];
+  for (let i = 0; i < 7; i++) { const lo = (i - 3) / 3 * 0.33, s = gr.tp(lo) - gr.bt(lo); ft.push([gr.tp(lo), lo, Math.min(0.085, s * 0.3), 0.032, -1]); }
+  for (let i = 0; i < 6; i++) { const lo = (i - 2.5) / 2.5 * 0.29, s = gr.tp(lo) - gr.bt(lo); ft.push([gr.bt(lo), lo, Math.min(0.075, s * 0.27), 0.03, 1]); }
+  put(j2, fangs(C, R, ft), m('#ffffff', { roughness: 0.3 }));
   const q = new THREE.Group(); q.position.set(0.35, 2.35, 0.2); g.add(q); P.q = q;
   const qm = m('#ffd86e', { emissive: '#ffd86e', emissiveIntensity: 0.5 });
   put(q, new THREE.TorusGeometry(0.15, 0.045, 6, 14, Math.PI * 1.45), qm, 0, 0.12, 0).rotation.z = -Math.PI / 2;
@@ -1065,8 +1120,13 @@ function buildOctoSnail(g, m, P) {
 function buildAngler(g, m, P) {
   const body = m('#3d405e'), dark = m('#1d1e30'), tooth = m('#f4f1e6', { roughness: 0.3 });
   put(g, sph(0.9, 16, 12), body, 0, 1.0, 0).scale.set(1, 0.92, 1);
-  put(g, sph(0.62, 14, 8), dark, 0, 0.8, 0.55).scale.set(1.15, 0.55, 0.6);
-  for (let i = 0; i < 7; i++) { const x = (i - 3) * 0.15; put(g, cone(0.045, 0.18, 4), tooth, x, 1.0, 0.86 - x * x * 0.4).rotation.x = Math.PI; put(g, cone(0.04, 0.14, 4), tooth, x + 0.07, 0.6, 0.84 - x * x * 0.4); }
+  /* a huge dark grin with crooked fangs top and bottom */
+  const C = [0, 1.0, 0], R = [0.8865, 0.8156, 0.8865], gr = grin(C, R, 0.014, 0.75, -0.02, -0.52, 0.08, 20, 5);
+  put(g, gr.geo, dark);
+  const ft = [];
+  for (let i = 0; i < 7; i++) { const lo = (i - 3) / 3 * 0.6, s = (gr.tp(lo) - gr.bt(lo)) * R[1]; ft.push([gr.tp(lo), lo, Math.min(i % 2 ? 0.13 : 0.18, s * 0.45), 0.045, -1]); }
+  for (let i = 0; i < 6; i++) { const lo = (i - 2.5) / 2.5 * 0.52, s = (gr.tp(lo) - gr.bt(lo)) * R[1]; ft.push([gr.bt(lo), lo, Math.min(i % 2 ? 0.15 : 0.11, s * 0.38), 0.04, 1]); }
+  put(g, fangs(C, R, ft), tooth);
   eyes(g, m, [[-0.36, 1.42, 0.6], [0.36, 1.42, 0.6]], 0.09);
   for (const s of [-1, 1]) put(g, sph(0.36, 8, 6), body, s * 0.88, 0.8, -0.05).scale.set(0.15, 0.7, 0.5);
   const tl = put(g, cone(0.32, 0.5, 6), body, 0, 1.0, -1.05); tl.rotation.x = -Math.PI / 2; tl.scale.set(0.3, 1, 1);
