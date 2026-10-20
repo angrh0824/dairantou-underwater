@@ -100,6 +100,7 @@ body.portrait .rotate-hint{display:flex}
 .moves li{display:grid;grid-template-columns:3.4em minmax(0,1fr);gap:8px;align-items:start}
 .moves .k{font-family:var(--display);font-size:11px;color:var(--mist);padding-top:3px}
 .moves b{display:block;font-size:14px}
+.moves b .nx,#moves .mv-x{font-style:normal;font-weight:700;font-size:10px;color:var(--lamp);margin-left:6px;white-space:nowrap}
 .moves small{display:block;color:var(--mist);font-size:11px;line-height:1.5}
 .foot{font-size:11px;color:var(--mist)}
 .seg{display:flex;align-items:center;flex-wrap:wrap;gap:6px}
@@ -1858,7 +1859,10 @@ function dealHit(a, t, h) {
     if (h.d) h.d = Math.max(1, Math.round(h.d * a.pow));
     const k = 1 + (a.pow - 1) * 0.5; if (h.kx) h.kx *= k; if (h.kz) h.kz *= k;
   }
-  if (a && a.nameT > 0 && h.d && !h.cx) h.d = Math.round(h.d * NAME_BONUS);
+  /* 言い切り: the move name was said in full (see nameScore) */
+  const d0 = h.d;
+  if (a && a.nameT > 0 && h.d && !h.cx) h.d = Math.round(h.d * (a.nameK || 1));
+  if (a && a === G.me && d0 && !h.cx) nameHit(t, d0, a.nameT > 0 ? a.nameK || 1 : 1);
   if (a && a === G.me && h.d >= 14 && !h.cx) Grumble.ev('nice');
   burst(t.x, 1.1, t.z, h.big ? 0xffd86e : 0xffffff, h.big ? 16 : 8, h.big ? 7 : 4.5);
   audio.hit(h.big);
@@ -2793,7 +2797,7 @@ const ACT_T = { attack: 2.5, combo: 3.5, special: 3, air: 2.2, jump: 0.7, guard:
 const ACT_LABEL = { attack: '攻撃', combo: '連打', special: '必殺', air: '空中攻撃', jump: 'ジャンプ', guard: '防御', flee: '逃げる', wait: '待機', center: '真ん中へ', bubble: '泡を取りに行く', dance: '踊る', left: '左へよける', right: '右へよける', approach: '近づく', fight: '攻め続ける' };
 const pickOne = a => a[Math.floor(Math.random() * a.length)];
 const cleanSay = s => [...String(s || '')].filter(nameOk).join('').trim().slice(0, 24);
-const fullSaid = (n, name) => { const m = vnorm(name); return !!m && n.includes(m); };
+const fullSaid = (n, name) => { const m = vnorm(name), y = vnorm(yomiOf(name)); return !!m && (n.includes(m) || n.includes(y)); };
 function partSaid(n, name) {
   const m = vnorm(name); if (!m || m.length < 6) return false;
   for (let i = 0; i + 4 <= m.length; i++) if (n.includes(m.slice(i, i + 4))) return true;
@@ -2821,18 +2825,68 @@ function moveProbs(n, f) {
   const sum = s.reduce((a, b) => a + b, 0);
   return s.map(x => x / sum);
 }
+/* 技名の読み: how each name is said. Names in kana are read as written. The reading counts how long a name is to say
+   (for 言い切り) and is matched too, for recognizers that write a name in kana. */
+const MOVE_YOMI = {
+  '潮吹きバリア': 'しおふきバリア', '深海出張・直行便': 'しんかいしゅっちょうちょっこうびん', 'ブリーチング出社': 'ブリーチングしゅっしゃ',
+  '五方向ペチペチ': 'ごほうこうペチペチ', '砂浜の伏せ待ち': 'すなはまのふせまち', '星形の事情聴取': 'ほしがたのじじょうちょうしゅ', '流れ星の土下座': 'ながれぼしのどげざ',
+  '伯爵式・水圧パンチ': 'はくしゃくしきすいあつパンチ', '袖で目隠し': 'そでめかくし', '七色の高速会釈': 'なないろのこうそくえしゃく', '頭上から会釈': 'ずじょうからえしゃく',
+  '朝礼のしびれ話': 'ちょうれいのしびればなし', '透明な威厳': 'とうめいないげん', '全校一斉ぷるぷる': 'ぜんこういっせいぷるぷる', 'ふわふわ朝礼': 'ふわふわちょうれい',
+  '忘却バイト': 'ぼうきゃくバイト', '物陰で思い出す': 'ものかげでおもいだす', '歯だけ先に帰宅': 'はだけさきにきたく', '上の空バイト': 'うわのそらバイト',
+  '黒鍵しかない協奏曲': 'こっけんしかないきょうそうきょく', '墨色カーテン': 'すみいろカーテン', 'アンコールは墨まみれ': 'アンコールはすみまみれ', 'フォルテッシモ落下': 'フォルテッシモらっか',
+  '朝会スパイラル': 'ちょうかいスパイラル', '稟議の巻き付き': 'りんぎのまきつき', '育児休暇ドラゴン': 'いくじきゅうかドラゴン', '天下り': 'あまくだり',
+  '入場拒否タックル': 'にゅうじょうきょひタックル', 'まんまる警備網': 'まんまるけいびもう', '毒舌ゲートオープン': 'どくぜつゲートオープン', 'まんまる落石注意': 'まんまるらくせきちゅうい',
+  '屋根ごとスライド': 'やねごとスライド', '居留守フィン': 'いるすフィン', '固定資産・大回転': 'こていしさんだいかいてん', '屋根から失礼': 'やねからしつれい',
+  '古代のぬめり': 'こだいのぬめり', '一億年の沈黙': 'いちおくねんのちんもく', '絶滅寸前ラッシュ': 'ぜつめつすんぜんラッシュ', '地層ごと落下': 'ちそうごとらっか',
+  '八本だけ早歩き': 'はっぽんだけはやあるき', '殻の中で既読無視': 'からのなかできどくむし', 'ねじれた前進': 'ねじれたぜんしん', '八方ふさがり': 'はっぽうふさがり',
+  '横歩き議事録': 'よこあるきぎじろく', '甲羅の言い訳': 'こうらのいいわけ', '満場一致のはさみ': 'まんじょういっちのはさみ', '上から目線の議事録': 'うえからめせんのぎじろく',
+  '既読させる灯り': 'きどくさせるあかり', '暗闇の置き逃げ': 'くらやみのおきにげ', '深海ポスト投函': 'しんかいポストとうかん', '天からの速達': 'てんからのそくたつ',
+  'アルゴリズム貝割り': 'アルゴリズムかいわり', '省エネ浮遊': 'しょうエネふゆう', '充電式おなか太鼓': 'じゅうでんしきおなかだいこ', '自由落下アルゴリズム': 'じゆうらっかアルゴリズム',
+  '砂から半分出る': 'すなからはんぶんでる', '地盤ゆらぎません': 'じばんゆらぎません', '全棟同時にのぞく': 'ぜんとうどうじにのぞく', '屋上から一本': 'おくじょうからいっぽん',
+  '太古の寝返り': 'たいこのねがえり', '化石みたいな昼寝': 'かせきみたいなひるね', '四億年後の既視感': 'よんおくねんごのきしかん', '落ちる夢': 'おちるゆめ',
+  '両面コピー押し出し': 'りょうめんコピーおしだし', '紙詰まりシェル': 'かみづまりシェル', '一枚だけ色が違う': 'いちまいだけいろがちがう', '上から重ね刷り': 'うえからかさねずり',
+  '衣だけ先輩': 'ころもだけせんぱい', '油の気配を消す': 'あぶらのけはいをけす', 'レモン待ち突撃': 'レモンまちとつげき', 'パン粉ダイブ': 'パンこダイブ',
+  '羽衣の職質': 'はごろものしょくしつ', '透明な規則': 'とうめいなきそく', 'バッカルコーン封鎖': 'バッカルコーンふうさ', '上空から職質': 'じょうくうからしょくしつ',
+  '稟議書ぬるり': 'りんぎしょぬるり', '決裁を寝かせる': 'けっさいをねかせる', '臓器の大規模再編': 'ぞうきのだいきぼさいへん', 'トップダウン決裁': 'トップダウンけっさい',
+};
+const yomiOf = nm => MOVE_YOMI[nm] || nm;
+/* morae: every kana counts except the small ones (ゃ ぇ…); っ, ん and ー count */
+const moraOf = nm => [...yomiOf(nm).normalize('NFKC')].filter(c => /[ぁ-ゖァ-ヺー]/.test(c) && !/[ぁぃぅぇぉゃゅょゎゕゖァィゥェォャュョヮヵヶ]/.test(c)).length;
+/* 言い切り: saying a whole move name pays by its length. 「こうげき」 (4 morae) is worth nothing extra; each mora beyond adds
+   1/8, so a 12-mora name like ウェールウォッチングアタック is ×2 (×2.5 at most). Short names are quick to say instead. */
+const nameMax = nm => Math.round(clamp(1 + (moraOf(nm) - 4) / 8, 1, 2.5) * 100) / 100;
+/* how well the name was said: the closest stretch of what was heard, by edit distance (a kanji weighs two letters),
+   against the written name or its reading, whichever is closer. 1 = exactly. */
+function nameAcc(heard, nm) {
+  const w = c => (/[㐀-鿿々]/.test(c) ? 2 : 1), B = [...heard];
+  let best = 0;
+  for (const m of new Set([vnorm(nm), vnorm(yomiOf(nm))])) {
+    const A = [...m]; let prev = new Array(B.length + 1).fill(0);
+    for (let i = 1; i <= A.length; i++) {
+      const cur = [prev[0] + w(A[i - 1])];
+      for (let j = 1; j <= B.length; j++) cur[j] = Math.min(prev[j] + w(A[i - 1]), cur[j - 1] + w(B[j - 1]), prev[j - 1] + (A[i - 1] === B[j - 1] ? 0 : Math.max(w(A[i - 1]), w(B[j - 1]))));
+      prev = cur;
+    }
+    best = Math.max(best, 1 - Math.min(...prev) / A.reduce((s, c) => s + w(c), 0));
+  }
+  return best;
+}
+/* the multiplier: the whole bonus when said exactly, less and less the worse it was heard, nothing at 40% or below */
+const nameMul = (nm, acc) => Math.round((1 + (nameMax(nm) - 1) * clamp((acc - 0.4) / 0.6, 0, 1)) * 100) / 100;
+const actName = (f, act) => ({ attack: f.ch.mv.atk, combo: f.ch.mv.atk, guard: f.ch.mv.def, special: f.ch.mv.sp, air: f.ch.mv.air })[act] || '';
 /* 言いかけ: the start of exactly one of the four names was heard, so the move comes out without waiting for the rest.
    At least four letters' worth (a kanji counts two: 「深海」 is enough). Returns { i, share of the name } or null. */
 const nameW = s => [...s].reduce((a, c) => a + (/[㐀-鿿々]/.test(c) ? 2 : 1), 0);
 function namePrefix(n, names) {
   let best = null;
-  names.forEach((nm, i) => {
-    const m = vnorm(nm); let k = m.length;
+  const forms = names.map(nm => [...new Set([vnorm(nm), vnorm(yomiOf(nm))])]);
+  forms.forEach((fs, i) => fs.forEach(m => {
+    let k = m.length;
     while (k > 1 && !n.includes(m.slice(0, k))) k--;
     const pre = m.slice(0, k);
-    if (k < 2 || nameW(pre) < 4 || names.some((o, j) => j !== i && vnorm(o).startsWith(pre))) return;
+    if (k < 2 || nameW(pre) < 4 || forms.some((o, j) => j !== i && o.some(x => x.startsWith(pre)))) return;
     if (!best || k / m.length > best.share) best = { i, share: k / m.length };
-  });
+  }));
   return best;
 }
 function sharedStart(n, f) {
@@ -2918,17 +2972,50 @@ function applyOrder(f, v, o) {
   else v.act = { k: o.act, t: o.act === 'special' ? Math.max(ACT_T.special, f.spCd + 2) : ACT_T[o.act] || 2, n: o.act === 'combo' ? 5 : 2, jumped: false, dir: dirFor(o.act), ph: 0, wait: hesitation(o), t0: performance.now(), conf: o.conf };
   /* 声の大きさ: every order sets how fired up the monster is for the next few seconds */
   f.pow = o.pow || 1; f.powT = v.act ? Math.max(3, v.act.t + v.act.wait) : 3;
-  if (o.exact === 'full' && MOVE_ACTS.has(o.act)) nameBonus(f, o.act);
+  /* a CPU says the whole name in its head at once: its 言い切り starts after the time the name takes to say (6 morae a second) */
+  if (f.ctrl === 'cpu' && o.exact === 'full' && MOVE_ACTS.has(o.act)) { const nm = actName(f, o.act); f.nameIn = Math.max(0.3, moraOf(nm) / 6); f.nameQ = nameMul(nm, 1 - Math.random() * 0.2); }
   inp.sx = inp.sz = 0; inp.guardT = false; v.cpu.t = 0; v.cpu.guardT = 0;
 }
-/* 言い切り: saying a move's whole name makes hits 1.2x harder for 3 seconds. The move itself does not wait for the
-   end of the name (it comes out as soon as the start is clear), so finishing it while it swings still counts. */
-const NAME_BONUS = 1.2;
-function nameBonus(f, act) {
-  f.nameT = 3;
-  if (f !== G.me) return;
-  floater('言い切り！ 威力×' + NAME_BONUS, f.x, 3.9, f.z, 'call sp', 1.1, 0, 0.6, '#ffe8a0');
-  if (tut) tut.full = act;
+/* 言い切り (the player): what has been heard of the name since its move came out. Hits that land before the name is
+   finished are noted, and get the difference when it is (言霊); hits after that are multiplied at once, for 3 seconds. */
+function nameStart(f, v, o, key, n, fin) {
+  if (!v || !f || !o.name || !MOVE_ACTS.has(o.act)) return;
+  const now = performance.now();
+  v.said = { nm: o.name, name: vnorm(o.name), yomi: vnorm(yomiOf(o.name)), act: o.act, at: now, last: now, settled: !!fin, parts: new Map([[key, n]]), mul: 1, hits: [] };
+  nameCheck(f, v.said, fin);
+}
+const inName = (s, x) => s.name.includes(x) || s.yomi.includes(x);
+/* exactly said → the whole bonus at once; otherwise it is judged when the words are final (how close they came) */
+function nameCheck(f, s, settle) {
+  const all = [...s.parts.values()].join('');
+  const acc = all.includes(s.name) || all.includes(s.yomi) ? 1 : settle ? nameAcc(all, s.nm) : 0;
+  if (acc > 0) nameScore(f, s, acc);
+}
+function nameScore(f, s, acc) {
+  const mul = nameMul(s.nm, acc);
+  if (mul <= s.mul + 0.005) return;
+  for (const h of s.hits) { const extra = Math.round(h.d * (mul - h.m)); h.m = mul; if (extra > 0 && !h.t.ko) echoHit(f, h.t, extra); }
+  s.mul = mul; f.nameK = mul; f.nameT = 3;
+  floater('言い切り ×' + mul.toFixed(2) + (acc < 0.995 ? '（正確さ' + Math.round(acc * 100) + '%）' : '！'), f.x, 3.9, f.z, 'call sp', 1.2, 0, 0.6, '#ffe8a0');
+  setPlan($('#v-plan').textContent.replace(/　🗣.*$/, '') + '　🗣言い切り×' + mul.toFixed(2));
+  if (tut && acc >= 0.9) tut.full = s.act;
+}
+/* the words never came back as final: judge the name a moment after the last of it was heard */
+function nameTick() {
+  const s = G.voice && G.voice.said;
+  if (s && !s.settled && G.me && performance.now() - s.last > 1200) { s.settled = true; nameCheck(G.me, s, true); }
+}
+/* a hit by the player while its name may still get better: noted for 言霊 (not through a guard, which may have stopped it) */
+function nameHit(t, d, m) {
+  const s = G.voice && G.voice.said;
+  if (!s || t.guarding || performance.now() - s.at > 4000 || s.mul >= nameMax(s.nm) - 0.005) return;
+  s.hits.push({ t, d, m });
+}
+/* 言霊: the rest of a hit's bonus, landing as the name is finished: damage only, no knock-back */
+function echoHit(a, t, d) {
+  floater('言霊 +' + d, t.x, 2.7, t.z, 'call sp', 1.0, 0, 0.6, '#ffe8a0');
+  burst(t.x, 1.4, t.z, 0xffe8a0, 6, 3);
+  giveFx(a, t, { d });
 }
 function giveOrder(f, v, o, say, via) {
   let line = say || '';
@@ -2972,6 +3059,7 @@ function hearOrder(alts, typed) {
     const o = parseOrder(t, f);
     if (!o) continue;
     o.pow = pow; v.ask++; giveOrder(f, v, o);
+    if (typed) nameStart(f, v, o, 'typed', vnorm(t), true);
     if (VOICE_AI && MOVE_ACTS.has(o.act) && o.conf < 0.95 && o.exact !== 'pre') refineMove(t, f, v, o);
     return o;
   }
@@ -3020,14 +3108,14 @@ function onHeard(i, alts, fin) {
   const v = G.voice, f = G.me, t = String(alts[0] || '').trim(), key = Voice.sid + ':' + i;
   if (!t) return;
   const s = v && v.said && performance.now() - v.said.at < 4000 ? v.said : null;
-  const named = (o, n) => { if (v && o.name) v.said = { name: vnorm(o.name), act: o.act, at: performance.now(), parts: new Map([[key, n]]), full: o.exact === 'full' }; };
   if (!Voice.acted.has(i)) {
     const n = vnorm(t);
-    if (s && n.length >= 2 && s.name.indexOf(n.slice(0, 2)) > 0) Voice.acted.set(i, { said: '' });
+    const p2 = s && n.length >= 2 ? [s.name.indexOf(n.slice(0, 2)), s.yomi.indexOf(n.slice(0, 2))] : null;
+    if (p2 && !p2.includes(0) && p2.some(x => x > 0)) Voice.acted.set(i, { said: '' });
     else if (!fin && n.length < 2) { showHeard(t, true); return; }
     else {
       const o = fin ? hearOrder(alts) : quickOrder(t);
-      if (o) { Voice.acted.set(i, { said: t }); named(o, n); }
+      if (o) { Voice.acted.set(i, { said: t }); nameStart(f, v, o, key, n, fin); }
       return;
     }
   }
@@ -3037,9 +3125,9 @@ function onHeard(i, alts, fin) {
   const rest = t.startsWith(b.said) ? t.slice(b.said.length) : t.slice(Math.min(t.length, b.said.length));
   let r = vnorm(rest);
   if (s) {
-    s.parts.set(key, vnorm(t)); s.at = Math.max(s.at, performance.now() - 2500);
-    if (!s.full && [...s.parts.values()].join('').includes(s.name)) { s.full = true; nameBonus(f, s.act); setPlan($('#v-plan').textContent + '　🗣言い切り×' + NAME_BONUS); }
-    let j = 0; while (j < r.length && s.name.includes(r.slice(0, j + 1))) j++;
+    s.parts.set(key, vnorm(t)); s.at = Math.max(s.at, performance.now() - 2500); s.last = performance.now(); s.settled = !!fin;
+    nameCheck(f, s, fin);
+    let j = 0; while (j < r.length && inName(s, r.slice(0, j + 1))) j++;
     r = r.slice(j);
   }
   if (!r || (!fin && r.length < 2)) return;
@@ -3049,7 +3137,7 @@ function onHeard(i, alts, fin) {
     if (!fin && (!QUICK.has(o.act) || (r.length > 8 && o.exact !== 'full' && o.exact !== 'pre'))) return;
     if (tg) o.target = tg;
     Grumble.lastText = t; Grumble.lastOrder = performance.now(); Grumble.silent = false;
-    o.pow = Level.pow(1500); v.ask++; giveOrder(f, v, o); b.said = t; named(o, r);
+    o.pow = Level.pow(1500); v.ask++; giveOrder(f, v, o); b.said = t; nameStart(f, v, o, key, r, fin);
   } else if (tg && v.target !== tg) { v.target = tg; setPlan('→ 🎯' + pname(tg)); }
 }
 async function askAI(text, f, v, pow) {
@@ -3172,6 +3260,7 @@ const cpuSay = () => {
 };
 function cpuVoice(f, dt, b) {
   const v = b.v;
+  if (f.nameIn > 0 && (f.nameIn -= dt) <= 0) { f.nameK = f.nameQ; f.nameT = 3; }
   if (!f.ko && G.phase === 'fight') {
     if (b.think > 0) b.think -= dt;
     else {
@@ -4068,7 +4157,11 @@ const mvRows = {}; for (const li of $$('#moves li')) mvRows[li.dataset.k] = { li
 function movesPanel(on, up) {
   const p = $('#moves'); p.hidden = !on; p.classList.toggle('up', !!up);
   if (!on || !G.me) return;
-  const mv = G.me.ch.mv; mvRows.atk.n.textContent = mv.atk; mvRows.def.n.textContent = mv.def; mvRows.sp.n.textContent = mv.sp; mvRows.air.n.textContent = mv.air;
+  /* each name with what saying it in full is worth (言い切り) */
+  for (const k of MOVE_KEYS) {
+    const nm = G.me.ch.mv[k], r = mvRows[k], x = document.createElement('i');
+    r.n.textContent = nm; x.className = 'mv-x'; x.textContent = '×' + nameMax(nm).toFixed(1); r.n.appendChild(x);
+  }
 }
 function updateMoves() {
   const f = G.me, v = G.voice;
@@ -4131,7 +4224,7 @@ function tutSteps(me, dummy) {
     { t: '「待て」で止める', ex: '「待て」「ストップ」', hint: '止まっている間も、攻撃が来たら身を守ります', ok: () => v().stance === 'wait' && !v().act },
     { t: '「ジャンプ」でかわす', ex: '「ジャンプ」「よけて」', hint: '床を走る攻撃や、飛んでくる物をかわせます', ok: () => me.y > 0.4 },
     { t: '防御の技名で身を守る', ex: '「' + mv.def + '」「防御」', hint: mv.def + '：' + DEFK[me.ch.def].desc + '。「防御」だけだと、どの技か少し迷います', ok: () => me.guarding },
-    { t: '攻撃の技名を最後まで叫ぶ', ex: '「' + mv.atk + '」', hint: '技は名前の言いはじめで分かった時点で出ます。そのまま最後まで言い切ると、3秒間威力が1.2倍。「攻撃」だけだと3つの攻撃技で迷って約1秒遅れます。' + ATKK[me.ch.atk].desc,
+    { t: '攻撃の技名を最後まで叫ぶ', ex: '「' + mv.atk + '」', hint: '技は名前の言いはじめで分かった時点で出ます。そのまま最後まで言い切ると、名前の長さに応じて3秒間威力が上がります（この技は最大×' + nameMax(mv.atk).toFixed(1) + '。聞き取りがずれるほど下がる）。先に当たった分も言い切った時に上乗せ。「攻撃」だけだと迷って約1秒遅れます。' + ATKK[me.ch.atk].desc,
       ok: () => tut.full === 'attack' && tut.swing },
     { t: '必殺技の名前を叫ぶ', ex: '「' + mv.sp + '」', hint: '「必殺」だけだと迷って遅れます。一度使うと、しばらく溜まるまで出せません', setup: () => { me.spCd = 0; }, ok: () => me.move && me.move.kind === 'sp' },
     { t: '大きな声ほど強くなる', ex: micReady() ? '思いきり大声で「' + mv.atk + '！！」' : '「' + mv.atk + '！！」',
@@ -4225,15 +4318,16 @@ function layoutShowcase(mode, sel) {
 function tileHTML(c, i) { return '<button class="tile" type="button" data-i="' + i + '" style="--c:' + c.glow + '" aria-pressed="false"><span class="s">' + c.sym + '</span><span class="n">' + c.name + '</span></button>'; }
 $('#roster').innerHTML = ROSTER.map(tileHTML).join('');
 $('#room-roster').innerHTML = ROSTER.map(tileHTML).join('');
+const nameTag = nm => '<em class="nx">言い切り×' + nameMax(nm).toFixed(1) + '</em>';
 function detailHTML(c) {
   const st = [['攻撃', c.st.atk], ['防御', c.st.def], ['反動', c.st.rec], ['ちく', c.st.pri]];
   return '<div class="dh"><span class="ds">' + c.sym + '</span><div><h3>' + c.name + '</h3><p>' + c.sub + '</p></div></div>' +
     '<div class="stats">' + st.map(([k, v]) => '<span>' + k + '</span><span class="bar"><i style="width:' + Math.round(v / 30 * 100) + '%"></i></span><span class="v">' + v + '</span>').join('') + '</div>' +
     '<ul class="moves">' +
-    '<li><span class="k">攻撃</span><span><b>' + c.mv.atk + '</b><small>' + ATKK[c.atk].desc + '</small></span></li>' +
-    '<li><span class="k">防御</span><span><b>' + c.mv.def + '</b><small>' + DEFK[c.def].desc + (DEFK[c.def].sm > 0 ? '。守っている間は泡の盾もたまる（最大42）' : '') + '</small></span></li>' +
-    '<li><span class="k">必殺</span><span><b>' + c.mv.sp + '</b><small>' + c.spDesc + '。使うと反動で自分も少し削れる</small></span></li>' +
-    '<li><span class="k">空中</span><span><b>' + c.mv.air + '</b><small>「空中攻撃」「飛びかかれ」で、ジャンプして出す。' + AIR_DESC[c.air] + '</small></span></li>' +
+    '<li><span class="k">攻撃</span><span><b>' + c.mv.atk + nameTag(c.mv.atk) + '</b><small>' + ATKK[c.atk].desc + '</small></span></li>' +
+    '<li><span class="k">防御</span><span><b>' + c.mv.def + nameTag(c.mv.def) + '</b><small>' + DEFK[c.def].desc + (DEFK[c.def].sm > 0 ? '。守っている間は泡の盾もたまる（最大42）' : '') + '</small></span></li>' +
+    '<li><span class="k">必殺</span><span><b>' + c.mv.sp + nameTag(c.mv.sp) + '</b><small>' + c.spDesc + '。使うと反動で自分も少し削れる</small></span></li>' +
+    '<li><span class="k">空中</span><span><b>' + c.mv.air + nameTag(c.mv.air) + '</b><small>「空中攻撃」「飛びかかれ」で、ジャンプして出す。' + AIR_DESC[c.air] + '</small></span></li>' +
     '<li><span class="k">おまかせ</span><span><b>？の泡に触れると発動</b><small>ときどき浮かぶ泡に触れると、18種類のおまかせ技のどれかが出る。「泡」と言うと取りに行く</small></span></li>' +
     '<li><span class="k">ジャンプ</span><span><b>みんな跳べる</b><small>地面を走る衝撃波や、飛んでくる物をかわせる</small></span></li>' +
     '</ul>';
@@ -4753,6 +4847,7 @@ function frame(now) {
     updateVoiceSay(rdt);
     updateGrumble(rdt);
     updateLevel();
+    nameTick();
     updateMoves();
     renderer.render(scene, camera);
   } catch (err) { console.error(err); }
