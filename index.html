@@ -786,10 +786,17 @@ function kit() {
    are round while four fighters stay light enough for phones. Tiny parts (eyes, dots, crumbs) keep their old segments:
    nobody can see their corners. The number of parts (draw calls) is unchanged. */
 const seg = (n, big) => (big ? Math.round(n * 1.5) : n);
-const sph = (r, w, h) => new THREE.SphereGeometry(r, seg(w || 14, r >= 0.15), seg(h || 10, r >= 0.15));
+/* a finer sphere bulges a little past the old faceted one, so the big ones shrink 1.5% to keep their size and leave spikes showing */
+const sph = (r, w, h) => (r >= 0.15 ? new THREE.SphereGeometry(r * 0.985, seg(w || 14, true), seg(h || 10, true)) : new THREE.SphereGeometry(r, w || 14, h || 10));
 const cyl = (a, b, h, s) => new THREE.CylinderGeometry(a, b, h, seg(s || 10, Math.max(a, b) >= 0.1));
 const box = (w, h, d) => new THREE.BoxGeometry(w, h, d);
-const cone = (r, h, s) => new THREE.ConeGeometry(r, h, seg(s || 8, r >= 0.1));
+/* cones: four-sided ones are pyramids on purpose (fins, ties, roofs, teeth) and keep crisp flat faces;
+   the rest become truly round (at least 12 sides). Small ones (spikes, teeth, horns) are a quarter longer so they stick out. */
+function cone(r, h, s) {
+  const n = s || 8, tall = r < 0.1 ? h * 1.25 : h;
+  if (n <= 4) { const g = new THREE.ConeGeometry(r, tall, n).toNonIndexed(); g.computeVertexNormals(); return g; }
+  return new THREE.ConeGeometry(r, tall, Math.max(12, Math.round(n * 2)));
+}
 const torus = (r, t, a, b) => new THREE.TorusGeometry(r, t, seg(a || 6, r >= 0.15), seg(b || 20, r >= 0.15));
 function put(p, geo, mat, x, y, z) { const o = new THREE.Mesh(geo, mat); o.position.set(x || 0, y || 0, z || 0); p.add(o); return o; }
 function eyes(g, m, list, r) {
@@ -872,7 +879,7 @@ function buildPuffer(g, m, P) {
     const yv = 1 - (i + 0.5) / N * 2, rr = Math.sqrt(1 - yv * yv), th = i * 2.39996;
     const dx = Math.cos(th) * rr, dz = Math.sin(th) * rr;
     if (dz > 0.55 && Math.abs(yv) < 0.5) continue;
-    const sp = put(pf, cone(0.07, 0.26, 5), sm, dx * 0.84, yv * 0.84, dz * 0.84);
+    const sp = put(pf, cone(0.07, 0.26, 5), sm, dx * 0.92, yv * 0.92, dz * 0.92);
     sp.quaternion.setFromUnitVectors(up, new THREE.Vector3(dx, yv, dz)); P.spikes.push(sp);
   }
   eyes(pf, m, [[-0.36, 0.22, 0.66], [0.36, 0.22, 0.66]], 0.17);
