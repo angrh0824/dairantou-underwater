@@ -108,6 +108,8 @@ body.portrait .rotate-hint{display:flex}
 .seg button{min-height:36px;padding:0 14px;border-radius:10px;border:1px solid var(--line);background:transparent;color:var(--foam);font-weight:900}
 .seg button[aria-pressed="true"]{background:var(--p1);color:var(--ink);border-color:transparent}
 .seg small{font-size:11px;color:var(--mist);margin-left:4px}
+.seg select{min-height:36px;max-width:12em;padding:0 8px;border-radius:10px;border:1px solid var(--line);background:rgba(3,18,31,.65);color:var(--foam);font:inherit;font-size:13px;font-weight:700;color-scheme:dark}
+.seg select option{background:#03121f;color:#eaf8ff}
 @media (orientation:portrait){
   #s-select{align-items:flex-end}
   .sel-panel{width:100%;max-height:64%}
@@ -411,6 +413,8 @@ body:not(.portrait) #moves.up{bottom:calc(env(safe-area-inset-bottom,0px) + 72px
     <div class="detail" id="detail"></div>
     <p class="foot">ちく＝攻撃に混ざるちくちく成分。多いほど追加ダメージと毒が出やすい。</p>
     <div class="seg" id="sel-count" role="group" aria-label="対戦人数"><span>人数</span><button type="button" data-n="2">2人</button><button type="button" data-n="3">3人</button><button type="button" data-n="4">4人</button><small id="sel-count-note"></small></div>
+    <div class="seg" id="sel-foes" role="group" aria-label="対戦相手"></div>
+    <div class="seg" id="sel-lv" role="group" aria-label="CPUの強さ"><span>強さ</span><button type="button" data-lv="0">よわい</button><button type="button" data-lv="1">ふつう</button><button type="button" data-lv="2">つよい</button><small id="sel-lv-note"></small></div>
     <p class="vnote" id="sel-voice" hidden></p>
     <div class="row"><button class="ghost" id="sel-back" type="button">もどる</button><button class="go" id="sel-ok" type="button">この潜水者で</button></div>
   </div>
@@ -2973,7 +2977,7 @@ function applyOrder(f, v, o) {
   /* 声の大きさ: every order sets how fired up the monster is for the next few seconds */
   f.pow = o.pow || 1; f.powT = v.act ? Math.max(3, v.act.t + v.act.wait) : 3;
   /* a CPU says the whole name in its head at once: its 言い切り starts after the time the name takes to say (6 morae a second) */
-  if (f.ctrl === 'cpu' && o.exact === 'full' && MOVE_ACTS.has(o.act)) { const nm = actName(f, o.act); f.nameIn = Math.max(0.3, moraOf(nm) / 6); f.nameQ = nameMul(nm, 1 - Math.random() * 0.2); }
+  if (f.ctrl === 'cpu' && o.exact === 'full' && MOVE_ACTS.has(o.act)) { const nm = actName(f, o.act); f.nameIn = Math.max(0.3, moraOf(nm) / 6); f.nameQ = nameMul(nm, o.acc === undefined ? 1 - Math.random() * 0.2 : o.acc); }
   inp.sx = inp.sz = 0; inp.guardT = false; v.cpu.t = 0; v.cpu.guardT = 0;
 }
 /* 言い切り (the player): what has been heard of the name since its move came out. Hits that land before the name is
@@ -3251,46 +3255,58 @@ function stanceThink(f, dt, v, o) {
   inp.guardT = foes(f).some(t => t.move && hyp(t.x - f.x, t.z - f.z) < 3.4) || shots.some(p => p.owner !== f && hyp(p.x - f.x, p.z - f.z) < 2.6);
 }
 /* CPU in a voice-only game: it plays by your rules. Every second or two it gives its monster one of the same
-   orders a player can say, and it reacts to danger only after about the time it takes to shout. */
-function newCpuVoice() { return { t: 0.8 + Math.random() * 0.8, think: 0, react: 0, v: newVoice() }; }
-/* CPUs play the same gimmicks: they mostly know their move names but sometimes say just 「攻撃」, and they shout now and then */
-const cpuSay = () => {
-  const conf = Math.random() < 0.75 ? 1 : Math.round((0.35 + Math.random() * 0.55) * 100) / 100;
-  return { conf, exact: conf === 1 ? 'full' : '', pow: Math.round(clamp(1.03 + (Math.random() + Math.random() + Math.random() - 1.5) * 0.24, 0.8, 1.5) * 100) / 100 };
+   orders a player can say, and it reacts to danger only after about the time it takes to shout.
+   CPUの強さ: its monster is the same as yours at every level; what changes is how good a commander it is.
+   gap: seconds between orders · react: how often it calls a dodge when a special comes at it, after rDelay seconds ·
+   full: how often it says the whole move name (else a vague order that hesitates), acc: how well it says it (言い切り) ·
+   muse: overthinking · sp: using a charged special · focus: going for the weakest · pow: how loud it shouts.
+   In CPU-vs-CPU mirror matches つよい beats ふつう and ふつう beats よわい about 2 times in 3. */
+const CPU_LV = [
+  { name: 'よわい', note: '指示がのんびりで、技名はうろ覚え', gap: [2.6, 4.2], react: 0.15, rDelay: [0.9, 1.4], full: 0.3, acc: [0.55, 0.9], muse: 0.2, sp: 0.25, focus: 0.1, pow: 0.93 },
+  { name: 'ふつう', note: 'たいてい技名を言える', gap: [1.2, 2.5], react: 0.6, rDelay: [0.6, 1.1], full: 0.75, acc: [0.8, 1], muse: 0.05, sp: 0.55, focus: 0.25, pow: 1.03 },
+  { name: 'つよい', note: '技名を言い切り、必殺も回避もすばやい', gap: [0.8, 1.6], react: 0.85, rDelay: [0.35, 0.6], full: 0.92, acc: [0.92, 1], muse: 0.01, sp: 0.8, focus: 0.5, pow: 1.1 },
+];
+const randIn = ([a, b]) => a + Math.random() * (b - a);
+function newCpuVoice(lv) { const L = CPU_LV[lv === undefined ? 1 : lv] || CPU_LV[1]; return { t: randIn(L.gap) * 0.7, think: 0, react: 0, v: newVoice(), L }; }
+/* CPUs play the same gimmicks: they say the whole move name or something vague, and shout now and then */
+const cpuSay = L => {
+  L = L || CPU_LV[1];
+  const conf = Math.random() < L.full ? 1 : Math.round((0.35 + Math.random() * 0.55) * 100) / 100;
+  return { conf, exact: conf === 1 ? 'full' : '', acc: randIn(L.acc), pow: Math.round(clamp(L.pow + (Math.random() + Math.random() + Math.random() - 1.5) * 0.24, 0.8, 1.5) * 100) / 100 };
 };
 function cpuVoice(f, dt, b) {
-  const v = b.v;
+  const v = b.v, L = b.L || CPU_LV[1];
   if (f.nameIn > 0 && (f.nameIn -= dt) <= 0) { f.nameK = f.nameQ; f.nameT = 3; }
   if (!f.ko && G.phase === 'fight') {
     if (b.think > 0) b.think -= dt;
     else {
-      if (b.react > 0) { b.react -= dt; if (b.react <= 0) applyOrder(f, v, Object.assign(cpuSay(), { act: Math.random() < 0.5 ? 'jump' : 'guard' })); }
+      if (b.react > 0) { b.react -= dt; if (b.react <= 0) applyOrder(f, v, Object.assign(cpuSay(L), { act: Math.random() < 0.5 ? 'jump' : 'guard' })); }
       else if (!v.act) {
         const o = nearest(f);
-        if (o && o.move && o.move.kind === 'sp' && o.animSeq !== b.seen && hyp(o.x - f.x, o.z - f.z) < 5) { b.seen = o.animSeq; if (Math.random() < 0.6) b.react = 0.6 + Math.random() * 0.5; }
+        if (o && o.move && o.move.kind === 'sp' && o.animSeq !== b.seen && hyp(o.x - f.x, o.z - f.z) < 5) { b.seen = o.animSeq; if (Math.random() < L.react) b.react = randIn(L.rDelay); }
       }
       b.t -= dt;
-      if (b.t <= 0) { b.t = 1.2 + Math.random() * 1.3; cpuDecide(f, b); }
+      if (b.t <= 0) { b.t = randIn(L.gap); cpuDecide(f, b); }
     }
   }
   voiceThink(f, dt, v);
 }
 function cpuDecide(f, b) {
-  const v = b.v, fs = foes(f).filter(t => !hidden(t));
+  const v = b.v, L = b.L || CPU_LV[1], fs = foes(f).filter(t => !hidden(t));
   if (!fs.length) return;
   /* たまに考えすぎる */
-  if (Math.random() < 0.05) { b.think = 0.9 + Math.random() * 1.1; applyOrder(f, v, { act: 'wait' }); return; }
+  if (Math.random() < L.muse) { b.think = 0.9 + Math.random() * 1.1; applyOrder(f, v, { act: 'wait' }); return; }
   const o = v.target && !v.target.ko ? v.target : nearest(f), d = o ? hyp(o.x - f.x, o.z - f.z) : 99, r = Math.random();
   let act = null;
   if (hyp(f.x, f.z) > R - 2.2 && r < 0.6) act = 'center';
-  else if (f.spCd <= 0 && r < 0.55) act = 'special';
+  else if (f.spCd <= 0 && r < L.sp) act = 'special';
   else if (f.hp < 30 && r < 0.3) act = 'flee';
   else if (d > 4 && bubs.some(x => !x.pend) && r < 0.35) act = 'bubble';
   else if (r < 0.15) act = pickOne(['attack', 'combo', 'air']);
   else if (v.stance !== 'fight') act = 'fight';
   if (!act) return;
-  const target = fs.length > 1 && Math.random() < 0.25 ? fs.slice().sort((a, c) => a.hp - c.hp)[0] : null;
-  applyOrder(f, v, Object.assign(cpuSay(), { act, target }));
+  const target = fs.length > 1 && Math.random() < L.focus ? fs.slice().sort((a, c) => a.hp - c.hp)[0] : null;
+  applyOrder(f, v, Object.assign(cpuSay(L), { act, target }));
 }
 
 /* ================= online =================
@@ -4338,9 +4354,37 @@ $('#sel-count').addEventListener('click', e => {
   const b = e.target.closest('button[data-n]'); if (!b) return;
   G.cpuN = clamp(+b.dataset.n, 2, MAXP); lsSet('uw3d-cpun', String(G.cpuN)); renderSelect(); audio.tick();
 });
+/* the CPUs: each slot is a chosen 潜水者 (by id) or おまかせ (''), and how strong they are; remembered on this device */
+G.cpuLv = parseInt(lsGet('uw3d-cpulv'), 10); if (!(G.cpuLv >= 0 && G.cpuLv <= 2)) G.cpuLv = 1;
+G.cpuFoes = (() => { try { const a = JSON.parse(lsGet('uw3d-cpufoes') || '[]'); return [0, 1, 2].map(k => (ROSTER.some(c => c.id === a[k]) ? a[k] : '')); } catch (e) { return ['', '', '']; } })();
+$('#sel-lv').addEventListener('click', e => {
+  const b = e.target.closest('button[data-lv]'); if (!b) return;
+  G.cpuLv = +b.dataset.lv; lsSet('uw3d-cpulv', String(G.cpuLv)); renderSelect(); audio.tick();
+});
+$('#sel-foes').addEventListener('change', e => {
+  const sl = e.target.closest('select[data-k]'); if (!sl) return;
+  G.cpuFoes[+sl.dataset.k] = sl.value; lsSet('uw3d-cpufoes', JSON.stringify(G.cpuFoes)); audio.tick();
+});
+function renderFoes() {
+  const box = $('#sel-foes'), n = G.cpuN - 1;
+  if (box.childElementCount !== n + 1) {
+    const opts = '<option value="">🎲 おまかせ</option>' + ROSTER.map(c => '<option value="' + c.id + '">' + c.sym + ' ' + c.name + '</option>').join('');
+    box.innerHTML = '<span>相手</span>' + Array.from({ length: n }, (_, k) => '<select data-k="' + k + '" aria-label="相手' + (k + 1) + '">' + opts + '</select>').join('');
+  }
+  $$('#sel-foes select').forEach(sl => { sl.value = G.cpuFoes[+sl.dataset.k] || ''; });
+}
+/* who the CPUs are: the chosen ones, and the おまかせ slots filled at random with fighters nobody has yet */
+function cpuLineup(mine) {
+  const pick = G.cpuFoes.slice(0, G.cpuN - 1).map(id => (id ? ROSTER.findIndex(c => c.id === id) : -1));
+  const used = new Set([mine, ...pick]), pool = ROSTER.map((_, i) => i).filter(i => !used.has(i)).sort(() => Math.random() - 0.5);
+  return pick.map(i => (i >= 0 ? i : pool.pop()));
+}
 function renderSelect() {
   const c = ROSTER[G.selIdx];
-  $('#sel-count').hidden = G.type !== 'cpu';
+  $('#sel-count').hidden = $('#sel-foes').hidden = $('#sel-lv').hidden = G.type !== 'cpu';
+  if (G.type === 'cpu') renderFoes();
+  $$('#sel-lv button').forEach(b => b.setAttribute('aria-pressed', String(+b.dataset.lv === G.cpuLv)));
+  $('#sel-lv-note').textContent = CPU_LV[G.cpuLv].note;
   $$('#sel-count button').forEach(b => b.setAttribute('aria-pressed', String(+b.dataset.n === G.cpuN)));
   $('#sel-count-note').textContent = 'CPU ' + (G.cpuN - 1) + '体と乱闘';
   $('#sel-who').textContent = G.type === 'cpu' ? 'あなたの潜水者' : (G.picker === 0 ? '1P がえらぶ' : '2P がえらぶ');
@@ -4364,7 +4408,7 @@ $('#sel-ok').addEventListener('click', () => {
   G.picks[G.picker] = G.selIdx;
   if (G.type === 'local' && G.picker === 0) { G.picker = 1; G.selIdx = G.picks[1] | 0; renderSelect(); layoutShowcase('select', G.selIdx); return; }
   if (G.type === 'cpu') {
-    const pool = ROSTER.map((_, i) => i).filter(i => i !== G.picks[0]).sort(() => Math.random() - 0.5), cpus = pool.slice(0, G.cpuN - 1);
+    const cpus = cpuLineup(G.picks[0]);
     startMatch([G.picks[0], ...cpus].map(i => ROSTER[i]), ['human', ...cpus.map(() => 'cpu')]);
     return;
   }
@@ -4413,7 +4457,7 @@ function startMatch(chars, ctrls, ids, nms) {
   } else {
     G.me = F[0]; F[0].input = pads[0].input; pads[0].f = F[0];
     if (ctrls[1] === 'human') { F[1].input = pads[1].input; pads[1].f = F[1]; } else pads[1].f = null;
-    for (const f of F) if (f.ctrl === 'cpu') f.brain = newCpuVoice();
+    for (const f of F) if (f.ctrl === 'cpu') f.brain = newCpuVoice(G.type === 'cpu' ? G.cpuLv : 1);
     G.cpu = (F.find(f => f.brain) || {}).brain || null;
   }
   /* 声だけで戦う: your 潜水者 gets its own input, driven by spoken (or typed) orders; there is no pad */
@@ -4429,7 +4473,7 @@ function startMatch(chars, ctrls, ids, nms) {
     if (i) { const mid = document.createElement('div'); mid.className = 'mid'; mid.textContent = 'VS'; vs.append(mid); }
     const p = document.createElement('div'); p.className = 'vs-p' + (i % 2 ? ' b' : ''); p.style.setProperty('--pc', PCOL[i]);
     const s = document.createElement('span'), b = document.createElement('b'), sm = document.createElement('small');
-    s.className = 'vs-s'; s.textContent = f.ch.sym; b.textContent = pname(f); sm.textContent = f.nm ? f.ch.name + (f === G.me ? '（あなた）' : '') : tagFor(f);
+    s.className = 'vs-s'; s.textContent = f.ch.sym; b.textContent = pname(f); sm.textContent = f.nm ? f.ch.name + (f === G.me ? '（あなた）' : '') : tagFor(f) + (G.type === 'cpu' && f.brain && f.brain.L ? '・' + f.brain.L.name : '');
     p.append(s, b, sm); vs.append(p);
   });
   vs.hidden = false;
