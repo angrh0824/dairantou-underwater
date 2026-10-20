@@ -1858,6 +1858,7 @@ function dealHit(a, t, h) {
     if (h.d) h.d = Math.max(1, Math.round(h.d * a.pow));
     const k = 1 + (a.pow - 1) * 0.5; if (h.kx) h.kx *= k; if (h.kz) h.kz *= k;
   }
+  if (a && a.nameT > 0 && h.d && !h.cx) h.d = Math.round(h.d * NAME_BONUS);
   if (a && a === G.me && h.d >= 14 && !h.cx) Grumble.ev('nice');
   burst(t.x, 1.1, t.z, h.big ? 0xffd86e : 0xffffff, h.big ? 16 : 8, h.big ? 7 : 4.5);
   audio.hit(h.big);
@@ -2259,7 +2260,7 @@ for (const k in DEFK) DEFK[k] = Object.assign({}, DEF_BASE, DEFK[k]);
 function guardTick(f, dt) {
   const k = f.ch.def, was = f.guardFor > 0;
   f.guardFor = f.guarding ? (f.guardFor || 0) + dt : 0;
-  for (const c of ['evadeCd', 'vanishCd', 'ambushCd', 'burrowCd', 'recallT', 'powT']) if (f[c] > 0) f[c] -= dt;
+  for (const c of ['evadeCd', 'vanishCd', 'ambushCd', 'burrowCd', 'recallT', 'powT', 'nameT']) if (f[c] > 0) f[c] -= dt;
   if (f.powT > 0 && f.pow >= 1.05 && Math.random() < dt * 14 * (f.pow - 1)) burst(f.x + (Math.random() - 0.5), 0.4 + Math.random() * 1.4, f.z + (Math.random() - 0.5), 0xffb35c, 1, 2.2);
   if (f.defer > 0) { f.deferT -= dt; if (f.deferT <= 0) { const x = Math.min(f.defer, 5 * dt); f.defer -= x; f.hp = Math.max(1, f.hp - x); } }
   if (!f.guarding) { f.evadeReady = false; return; }
@@ -2820,6 +2821,24 @@ function moveProbs(n, f) {
   const sum = s.reduce((a, b) => a + b, 0);
   return s.map(x => x / sum);
 }
+/* 言いかけ: the start of exactly one of the four names was heard, so the move comes out without waiting for the rest.
+   At least four letters' worth (a kanji counts two: 「深海」 is enough). Returns { i, share of the name } or null. */
+const nameW = s => [...s].reduce((a, c) => a + (/[㐀-鿿々]/.test(c) ? 2 : 1), 0);
+function namePrefix(n, names) {
+  let best = null;
+  names.forEach((nm, i) => {
+    const m = vnorm(nm); let k = m.length;
+    while (k > 1 && !n.includes(m.slice(0, k))) k--;
+    const pre = m.slice(0, k);
+    if (k < 2 || nameW(pre) < 4 || names.some((o, j) => j !== i && vnorm(o).startsWith(pre))) return;
+    if (!best || k / m.length > best.share) best = { i, share: k / m.length };
+  });
+  return best;
+}
+function sharedStart(n, f) {
+  const mv = f.ch.mv;
+  return [mv.atk, mv.def, mv.sp, mv.air].filter(nm => { const m = vnorm(nm); let k = 1; while (k < m.length && nameW(m.slice(0, k)) < 4) k++; return n.includes(m.slice(0, k)); }).length >= 2;
+}
 const latencyOf = p => Math.round(1.2 * clamp((0.95 - p) / 0.65, 0, 1) * 100) / 100;
 const hesitation = o => (!MOVE_ACTS.has(o.act) ? 0 : latencyOf(o.conf === undefined ? (o.exact === 'full' ? 1 : 0.4) : o.conf));
 function targetSaid(raw, n, f) {
@@ -2843,8 +2862,9 @@ function parseOrder(text, f) {
   const raw = String(text || '').normalize('NFKC'), n = vnorm(raw);
   if (!n) return null;
   const mv = f.ch.mv, named = [['special', mv.sp], ['air', mv.air], ['guard', mv.def], ['attack', mv.atk]];
-  let act = null, exact = '';
+  let act = null, exact = '', pre = null;
   for (const [k, nm] of named) if (fullSaid(n, nm)) { act = k; exact = 'full'; break; }
+  if (!act && (pre = namePrefix(n, named.map(x => x[1])))) { act = named[pre.i][0]; exact = 'pre'; }
   if (!act) for (const [k, nm] of named) if (partSaid(n, nm)) { act = k; exact = 'part'; break; }
   if (!act) for (const [k, ws] of VKEYS) if (ws.some(w => n.includes(w))) { act = k; break; }
   /* a shortened move name (「議事録」 for 「横歩き議事録」): enough of its two-letter pieces were said */
@@ -2859,14 +2879,17 @@ function parseOrder(text, f) {
   if (!act && target) act = 'fight';
   /* a move order: pick the move it most likely means, and remember how sure that is */
   let conf;
-  if (MOVE_ACTS.has(act)) {
+  /* the start of one name: sure of the move, and the more of it was said, the surer (80% → 100%) */
+  if (exact === 'pre' && MOVE_ACTS.has(act)) conf = Math.round((0.8 + 0.2 * pre.share) * 100) / 100;
+  else if (MOVE_ACTS.has(act)) {
     const pr = moveProbs(n, f); let bi = 0;
     for (let i = 1; i < 4; i++) if (pr[i] > pr[bi]) bi = i;
     conf = Math.round(pr[bi] * 100) / 100;
     const top = MOVE_ACT[MOVE_KEYS[bi]];
     if (!(act === 'combo' && top === 'attack')) act = top;
   }
-  return act ? { act, target, exact, conf } : null;
+  /* name: the move name that was (partly) said, so the rest of it is not taken for a new order */
+  return act ? { act, target, exact, conf, name: exact ? ({ attack: mv.atk, combo: mv.atk, guard: mv.def, special: mv.sp, air: mv.air })[act] || '' : '' } : null;
 }
 function newVoice() { return { stance: 'wait', act: null, target: null, ask: 0, cpu: Object.assign(newBrain(), { calm: true, noSp: true, noBub: true }) }; }
 function replyFor(f, act, t) {
@@ -2895,14 +2918,23 @@ function applyOrder(f, v, o) {
   else v.act = { k: o.act, t: o.act === 'special' ? Math.max(ACT_T.special, f.spCd + 2) : ACT_T[o.act] || 2, n: o.act === 'combo' ? 5 : 2, jumped: false, dir: dirFor(o.act), ph: 0, wait: hesitation(o), t0: performance.now(), conf: o.conf };
   /* 声の大きさ: every order sets how fired up the monster is for the next few seconds */
   f.pow = o.pow || 1; f.powT = v.act ? Math.max(3, v.act.t + v.act.wait) : 3;
+  if (o.exact === 'full' && MOVE_ACTS.has(o.act)) nameBonus(f, o.act);
   inp.sx = inp.sz = 0; inp.guardT = false; v.cpu.t = 0; v.cpu.guardT = 0;
+}
+/* 言い切り: saying a move's whole name makes hits 1.2x harder for 3 seconds. The move itself does not wait for the
+   end of the name (it comes out as soon as the start is clear), so finishing it while it swings still counts. */
+const NAME_BONUS = 1.2;
+function nameBonus(f, act) {
+  f.nameT = 3;
+  if (f !== G.me) return;
+  floater('言い切り！ 威力×' + NAME_BONUS, f.x, 3.9, f.z, 'call sp', 1.1, 0, 0.6, '#ffe8a0');
+  if (tut) tut.full = act;
 }
 function giveOrder(f, v, o, say, via) {
   let line = say || '';
   const wait = hesitation(o);
   if (o.act === 'special' && f.spCd > 1.2 && !line) line = 'まだ溜まってない！溜まったら撃つ';
   if (wait >= 0.6 && !line) line = pickOne(['えっと…どれだっけ', 'えーっと…どの技？', 'どれのこと…？']);
-  if (tut) tut.exact = o.exact;
   applyOrder(f, v, o);
   Grumble.order(o.act);
   if (MOVE_ACTS.has(o.act) && hesitation(o) >= 0.6) Grumble.ev('vague');
@@ -2940,10 +2972,11 @@ function hearOrder(alts, typed) {
     const o = parseOrder(t, f);
     if (!o) continue;
     o.pow = pow; v.ask++; giveOrder(f, v, o);
-    if (VOICE_AI && MOVE_ACTS.has(o.act) && o.conf < 0.95) refineMove(t, f, v, o);
-    return;
+    if (VOICE_AI && MOVE_ACTS.has(o.act) && o.conf < 0.95 && o.exact !== 'pre') refineMove(t, f, v, o);
+    return o;
   }
   askAI(list[0], f, v, pow);
+  return null;
 }
 /* while the monster hesitates, Jev (through the relay) gives the real probabilities for which move you meant:
    the move may change, and the hesitation is set from Jev's certainty minus the time already spent */
@@ -2966,15 +2999,58 @@ async function refineMove(text, f, v, o) {
   a.conf = conf; a.wait = Math.max(0, latencyOf(conf) - (performance.now() - a.t0) / 1000);
   setPlan(planText(f, v, Object.assign({}, o, { act: a.k, conf }), latencyOf(conf), 'jev'));
 }
-/* words still being spoken: act early on short, clear orders, and on a full move name as soon as it is complete */
+/* words still being spoken: act early on short, clear orders, and on a move name as soon as its start is clear
+   (a long name would otherwise be over before the move began). Returns the order given, or null. */
 function quickOrder(t) {
   const v = G.voice, f = G.me;
   showHeard(t, true);
-  if (!v || !f || f.ko || G.phase !== 'fight') return false;
-  const o = parseOrder(t, f);
-  if (!o || !QUICK.has(o.act) || o.target || (vnorm(t).length > 8 && o.exact !== 'full')) return false;
+  if (!v || !f || f.ko || G.phase !== 'fight') return null;
+  const o = parseOrder(t, f), named = o && (o.exact === 'full' || o.exact === 'pre');
+  if (!o || !QUICK.has(o.act) || (o.target && !named) || (vnorm(t).length > 8 && !named)) return null;
+  /* 「まんまる」 starts two of the names: wait for the next sound rather than guess while the name is still coming */
+  if (o.exact === 'part' && sharedStart(vnorm(t), f)) return null;
   Grumble.lastText = t; Grumble.lastOrder = performance.now(); Grumble.silent = false;
-  o.pow = Level.pow(1500); v.ask++; giveOrder(f, v, o); return true;
+  o.pow = Level.pow(1500); v.ask++; giveOrder(f, v, o); return o;
+}
+/* Everything the recognizer hears comes through here, words still being spoken included. Once an order came out of
+   what is being said, the rest is still shown and read only for what is new: the rest of the move name (finishing it
+   → 言い切り), a target named after it, or a further order. A pause can split a long name into two results; the
+   second one starting inside the name is its rest too. */
+function onHeard(i, alts, fin) {
+  const v = G.voice, f = G.me, t = String(alts[0] || '').trim(), key = Voice.sid + ':' + i;
+  if (!t) return;
+  const s = v && v.said && performance.now() - v.said.at < 4000 ? v.said : null;
+  const named = (o, n) => { if (v && o.name) v.said = { name: vnorm(o.name), act: o.act, at: performance.now(), parts: new Map([[key, n]]), full: o.exact === 'full' }; };
+  if (!Voice.acted.has(i)) {
+    const n = vnorm(t);
+    if (s && n.length >= 2 && s.name.indexOf(n.slice(0, 2)) > 0) Voice.acted.set(i, { said: '' });
+    else if (!fin && n.length < 2) { showHeard(t, true); return; }
+    else {
+      const o = fin ? hearOrder(alts) : quickOrder(t);
+      if (o) { Voice.acted.set(i, { said: t }); named(o, n); }
+      return;
+    }
+  }
+  const b = Voice.acted.get(i);
+  showHeard(t, !fin);
+  if (!v || !f || f.ko || !['vs', 'count', 'fight'].includes(G.phase)) return;
+  const rest = t.startsWith(b.said) ? t.slice(b.said.length) : t.slice(Math.min(t.length, b.said.length));
+  let r = vnorm(rest);
+  if (s) {
+    s.parts.set(key, vnorm(t)); s.at = Math.max(s.at, performance.now() - 2500);
+    if (!s.full && [...s.parts.values()].join('').includes(s.name)) { s.full = true; nameBonus(f, s.act); setPlan($('#v-plan').textContent + '　🗣言い切り×' + NAME_BONUS); }
+    let j = 0; while (j < r.length && s.name.includes(r.slice(0, j + 1))) j++;
+    r = r.slice(j);
+  }
+  if (!r || (!fin && r.length < 2)) return;
+  /* something new after the name: another order, or just who to go for */
+  const o = parseOrder(r, f), tg = targetSaid(rest.normalize('NFKC'), vnorm(rest), f);
+  if (o && !(o.act === 'fight' && !famSaid(r, 'fight')) && !(v.act && v.act.k === o.act)) {
+    if (!fin && (!QUICK.has(o.act) || (r.length > 8 && o.exact !== 'full' && o.exact !== 'pre'))) return;
+    if (tg) o.target = tg;
+    Grumble.lastText = t; Grumble.lastOrder = performance.now(); Grumble.silent = false;
+    o.pow = Level.pow(1500); v.ask++; giveOrder(f, v, o); b.said = t; named(o, r);
+  } else if (tg && v.target !== tg) { v.target = tg; setPlan('→ 🎯' + pname(tg)); }
 }
 async function askAI(text, f, v, pow) {
   if (!VOICE_AI) { confused(f, v); return; }
@@ -3090,7 +3166,10 @@ function stanceThink(f, dt, v, o) {
    orders a player can say, and it reacts to danger only after about the time it takes to shout. */
 function newCpuVoice() { return { t: 0.8 + Math.random() * 0.8, think: 0, react: 0, v: newVoice() }; }
 /* CPUs play the same gimmicks: they mostly know their move names but sometimes say just 「攻撃」, and they shout now and then */
-const cpuSay = () => ({ conf: Math.random() < 0.75 ? 1 : Math.round((0.35 + Math.random() * 0.55) * 100) / 100, pow: Math.round(clamp(1.03 + (Math.random() + Math.random() + Math.random() - 1.5) * 0.24, 0.8, 1.5) * 100) / 100 });
+const cpuSay = () => {
+  const conf = Math.random() < 0.75 ? 1 : Math.round((0.35 + Math.random() * 0.55) * 100) / 100;
+  return { conf, exact: conf === 1 ? 'full' : '', pow: Math.round(clamp(1.03 + (Math.random() + Math.random() + Math.random() - 1.5) * 0.24, 0.8, 1.5) * 100) / 100 };
+};
 function cpuVoice(f, dt, b) {
   const v = b.v;
   if (!f.ko && G.phase === 'fight') {
@@ -3728,7 +3807,8 @@ const Level = {
 };
 /* one recognizer at a time: a new one each time listening is (re)started, so one that never got going cannot block the next */
 const Voice = {
-  rec: null, want: false, live: false, st: 'off', used: new Set(), startedAt: 0, dog: 0, tries: 0,
+  /* acted: results (by index) an order already came out of; fin: results already final; sid: which listening session */
+  rec: null, want: false, live: false, st: 'off', acted: new Map(), fin: new Set(), sid: 0, startedAt: 0, dog: 0, tries: 0,
   /* code: what the browser actually said, shown small so a player can tell us */
   set(st, code) { this.st = st; const p = $('#voice'); p.dataset.st = st; $('#v-state').textContent = (V_STATE[st] || '') + (code ? '（' + code + '）' : ''); },
   make() {
@@ -3736,7 +3816,7 @@ const Voice = {
     r.lang = 'ja-JP'; r.continuous = true; r.interimResults = true; r.maxAlternatives = 3;
     const begin = () => {
       if (this.rec !== r || this.live) return;
-      this.live = true; this.used.clear(); this.startedAt = performance.now(); clearTimeout(this.dog); this.tries = 0;
+      this.live = true; this.acted.clear(); this.fin.clear(); this.sid++; this.startedAt = performance.now(); clearTimeout(this.dog); this.tries = 0;
       if (!this.want) { try { r.abort(); } catch (e) {} return; }
       this.set('on');
       /* the loudness meter opens its own microphone stream only once speech recognition is running */
@@ -3764,10 +3844,11 @@ const Voice = {
     };
     r.onresult = e => {
       for (let i = e.resultIndex; i < e.results.length; i++) {
-        if (this.used.has(i)) continue;
-        const res = e.results[i];
-        if (res.isFinal) { this.used.add(i); const alts = []; for (let k = 0; k < res.length; k++) alts.push(res[k].transcript); hearOrder(alts); }
-        else if (quickOrder(res[0].transcript)) this.used.add(i);
+        if (this.fin.has(i)) continue;
+        const res = e.results[i], alts = [];
+        for (let k = 0; k < res.length; k++) alts.push(res[k].transcript);
+        if (res.isFinal) this.fin.add(i);
+        onHeard(i, alts, res.isFinal);
       }
     };
     return r;
@@ -4050,8 +4131,8 @@ function tutSteps(me, dummy) {
     { t: '「待て」で止める', ex: '「待て」「ストップ」', hint: '止まっている間も、攻撃が来たら身を守ります', ok: () => v().stance === 'wait' && !v().act },
     { t: '「ジャンプ」でかわす', ex: '「ジャンプ」「よけて」', hint: '床を走る攻撃や、飛んでくる物をかわせます', ok: () => me.y > 0.4 },
     { t: '防御の技名で身を守る', ex: '「' + mv.def + '」「防御」', hint: mv.def + '：' + DEFK[me.ch.def].desc + '。「防御」だけだと、どの技か少し迷います', ok: () => me.guarding },
-    { t: '攻撃の技名を正しく叫ぶ', ex: '「' + mv.atk + '」', hint: '一言一句正しい技名なら確信100%で、すぐ出ます。「攻撃」だけだと3つの攻撃技で迷って約1秒、うろ覚えの名前なら少しだけ遅れます。' + ATKK[me.ch.atk].desc,
-      ok: () => me.move && me.move.kind === 'atk' && tut.exact === 'full' },
+    { t: '攻撃の技名を最後まで叫ぶ', ex: '「' + mv.atk + '」', hint: '技は名前の言いはじめで分かった時点で出ます。そのまま最後まで言い切ると、3秒間威力が1.2倍。「攻撃」だけだと3つの攻撃技で迷って約1秒遅れます。' + ATKK[me.ch.atk].desc,
+      ok: () => tut.full === 'attack' && tut.swing },
     { t: '必殺技の名前を叫ぶ', ex: '「' + mv.sp + '」', hint: '「必殺」だけだと迷って遅れます。一度使うと、しばらく溜まるまで出せません', setup: () => { me.spCd = 0; }, ok: () => me.move && me.move.kind === 'sp' },
     { t: '大きな声ほど強くなる', ex: micReady() ? '思いきり大声で「' + mv.atk + '！！」' : '「' + mv.atk + '！！」',
       hint: () => micReady() ? (Level.ok ? 'いつもの声より大きいほど、約3秒のあいだ攻撃・速さ・ジャンプが強くなります（右下のメーターの白い線がいつもの声）。ささやくと少し弱くなります' : 'この端末では声の大きさを測れていません。「！」を付けて打ち込んでも少し気合が入ります')
@@ -4082,7 +4163,7 @@ function startTutorial() {
 }
 function tutGo(i) {
   const s = tut.steps[i], el = $('#tut');
-  tut.i = i; tut.okT = 0; tut.heard = false;
+  tut.i = i; tut.okT = 0; tut.heard = false; tut.full = ''; tut.swing = false;
   if (s.setup) s.setup();
   tut.n0 = G.voice ? G.voice.n || 0 : 0;
   el.hidden = false; el.classList.remove('ok');
@@ -4099,6 +4180,7 @@ function tutTick(dt) {
   if (tut.okT > 0) { tut.okT -= dt; if (tut.okT <= 0) { if (tut.i + 1 < tut.steps.length) tutGo(tut.i + 1); else tutEnd(); } return; }
   const s = tut.steps[tut.i];
   if (s.bub && !tut.gotBub && !bubs.length) tutBubble();
+  if (G.me.move && G.me.move.kind === 'atk') tut.swing = true;
   if ((s.free || (G.voice.n || 0) > tut.n0) && s.ok()) {
     tut.okT = 1.1; $('#tut').classList.add('ok'); $('#tut-n').textContent = 'できた！'; audio.tick();
   }
