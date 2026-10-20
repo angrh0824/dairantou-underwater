@@ -221,7 +221,7 @@ body:not(.portrait) #voice.up{bottom:calc(env(safe-area-inset-bottom,0px) + 72px
 .v-mic i{display:block;width:12px;height:20px;border-radius:6px;background:var(--mist)}
 #voice[data-st="on"] .v-mic{border-color:var(--p1)}
 #voice[data-st="on"] .v-mic i{background:var(--p1);animation:vpulse 1.4s ease-out infinite}
-#voice[data-st="denied"] .v-mic,#voice[data-st="nomic"] .v-mic{border-color:var(--hurt)}
+#voice[data-st="denied"] .v-mic,#voice[data-st="nomic"] .v-mic,#voice[data-st="service"] .v-mic,#voice[data-st="tap"] .v-mic,#voice[data-st="net"] .v-mic{border-color:var(--hurt)}
 @keyframes vpulse{from{box-shadow:0 0 0 0 rgba(127,226,255,.55)}to{box-shadow:0 0 0 14px rgba(127,226,255,0)}}
 .v-txt{min-width:0;flex:1 1 auto;display:flex;flex-direction:column;gap:2px}
 #v-state{font-size:11px;color:var(--mist)}
@@ -3604,7 +3604,9 @@ function readKeys() {
 const V_STATE = {
   on: '聞いています。声で指示してください', start: 'マイクを準備しています…（許可を聞かれたら「許可」を）', off: 'マイク停止中（左のボタンで再開）',
   tap: 'マイクが動きません。左のマイクボタンを押してください（だめなら下の欄に文字で）',
-  denied: 'マイクが許可されていません。ブラウザの設定で許可するか、文字で指示してください', nomic: 'マイクが見つかりません。文字で指示してください',
+  net: '音声認識がネットにつながりません。通信を確かめてください（つながれば自動で再開）',
+  service: 'このブラウザで音声認識が止められています。iPhoneは 設定→一般→キーボード→「音声入力」をオンに。ほかはChromeかSafariで',
+  denied: 'マイクが許可されていません。ブラウザ（と端末）の設定でこのサイトのマイクを「許可」にして、左のマイクボタンを押してください', nomic: 'マイクが見つかりません。文字で指示してください',
   nosr: 'このブラウザは音声認識に未対応です。文字で指示してください', nopage: 'このページではマイクが使えません。文字で指示してください',
 };
 /* 声の大きさ: speech recognition does not report loudness, so a second plain microphone stream is measured with Web Audio.
@@ -3660,7 +3662,8 @@ const Level = {
 /* one recognizer at a time: a new one each time listening is (re)started, so one that never got going cannot block the next */
 const Voice = {
   rec: null, want: false, live: false, st: 'off', used: new Set(), startedAt: 0, dog: 0, tries: 0,
-  set(st) { this.st = st; const p = $('#voice'); p.dataset.st = st; $('#v-state').textContent = V_STATE[st] || ''; },
+  /* code: what the browser actually said, shown small so a player can tell us */
+  set(st, code) { this.st = st; const p = $('#voice'); p.dataset.st = st; $('#v-state').textContent = (V_STATE[st] || '') + (code ? '（' + code + '）' : ''); },
   make() {
     const r = new SpeechRec();
     r.lang = 'ja-JP'; r.continuous = true; r.interimResults = true; r.maxAlternatives = 3;
@@ -3675,9 +3678,13 @@ const Voice = {
     r.onstart = begin; r.onaudiostart = begin;
     r.onerror = e => {
       if (this.rec !== r) return;
-      if (e.error === 'not-allowed' || e.error === 'service-not-allowed') { this.want = false; clearTimeout(this.dog); this.set('denied'); }
+      if (e.error === 'not-allowed') { this.want = false; clearTimeout(this.dog); this.set('denied', e.error); }
+      /* the microphone may be fine while the browser has speech recognition itself switched off (iPhone without 音声入力, some browsers) */
+      else if (e.error === 'service-not-allowed' || e.error === 'language-not-supported') { this.want = false; clearTimeout(this.dog); this.set('service', e.error); }
       /* some phones give the microphone to one listener only: keep speech recognition, drop the loudness meter */
-      else if (e.error === 'audio-capture') { if (Level.ok) { Level.stop(); Level.failed = true; } else { this.want = false; clearTimeout(this.dog); this.set('nomic'); } }
+      else if (e.error === 'audio-capture') { if (Level.ok) { Level.stop(); Level.failed = true; } else { this.want = false; clearTimeout(this.dog); this.set('nomic', e.error); } }
+      /* the browser's recognizer works online: say so, and keep retrying */
+      else if (e.error === 'network') this.set('net', e.error);
     };
     r.onend = () => {
       if (this.rec !== r) return;
