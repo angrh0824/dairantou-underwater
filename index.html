@@ -236,6 +236,10 @@ body:not(.portrait) #voice.up{bottom:calc(env(safe-area-inset-bottom,0px) + 72px
 #v-text{flex:1 1 auto;min-width:0;height:36px;border-radius:10px;border:1px solid var(--line);background:rgba(0,0,0,.25);color:var(--foam);font:inherit;font-weight:700;font-size:16px;padding:0 10px;-webkit-user-select:text;user-select:text;touch-action:manipulation}
 #vsay{position:fixed;left:0;top:0;z-index:14;pointer-events:none;font-weight:900;font-size:13px;padding:5px 11px;border-radius:14px;background:var(--pc,var(--p1));color:var(--ink);white-space:nowrap;max-width:60vw;overflow:hidden;text-overflow:ellipsis}
 #vgrr{position:fixed;left:0;top:0;z-index:14;pointer-events:none;font-weight:900;font-size:13px;line-height:1.4;padding:6px 12px;border-radius:14px;background:#ffe1dc;color:var(--ink);border:2px solid var(--hurt);max-width:min(70vw,320px);text-align:center;text-wrap:balance}
+#vgrr[data-cat="pos"]{background:#dcffe9;border-color:var(--heal)}
+#vgrr[data-cat="pinch"]{background:#dcf2ff;border-color:var(--p1)}
+#vgrr[data-cat="idle"]{background:#eef3f6;border-color:var(--mist)}
+#vgrr[data-cat="soft"]{background:#fff6d6;border-color:var(--lamp)}
 @media (prefers-reduced-motion:reduce){#voice[data-st="on"] .v-mic i{animation:none}}
 
 /* チュートリアル: one order at a time, in a card under the HUD */
@@ -1741,6 +1745,7 @@ function dealHit(a, t, h) {
     if (h.d) h.d = Math.max(1, Math.round(h.d * a.pow));
     const k = 1 + (a.pow - 1) * 0.5; if (h.kx) h.kx *= k; if (h.kz) h.kz *= k;
   }
+  if (a && a === G.me && h.d >= 14 && !h.cx) Grumble.ev('nice');
   burst(t.x, 1.1, t.z, h.big ? 0xffd86e : 0xffffff, h.big ? 16 : 8, h.big ? 7 : 4.5);
   audio.hit(h.big);
   G.hitstop = Math.max(G.hitstop, h.big ? 0.085 : 0.04);
@@ -1801,6 +1806,7 @@ function applyHit(t, h, a) {
 function koFighter(f, why) {
   if (f.ko || (G.phase !== 'fight' && G.phase !== 'end')) return;
   if (G.type === 'tutorial') { tutRevive(f); return; }
+  if (f !== G.me && G.me && !G.me.ko) Grumble.ev('ko');
   f.ko = why; endMove(f); f.hitstun = 0; f.guarding = false; f.poison = 0;
   if (why === 'ring') { f.state = 'fall'; f.vy = 0.8; showBanner('🌊', '場外！', pname(f) + ' が深海へ落ちていく…', 'sys'); }
   else { f.state = 'ko'; f.vy = 6.5; }
@@ -2653,7 +2659,7 @@ const VKEYS = [
   ['bubble', ['泡', 'あわ', 'おまかせ', 'お任せ', 'はてな']],
   ['dance', ['踊', 'おど', '回れ', 'まわれ', '回って', 'まわって', 'ダンス', 'くるくる']],
   ['combo', ['連打', 'れんだ', '連続', 'れんぞく', 'ラッシュ', 'ボコボコ', 'めった']],
-  ['attack', ['攻撃', 'こうげき', '殴', 'なぐ', '叩', 'パンチ', 'キック', '蹴', '噛', 'かみつ', 'かじ', 'やっつけ', 'ぶつか', '体当たり', 'たいあたり', 'アタック', '突け', 'つつけ', 'ぶっ飛ば', 'ぶっとば', '倒せ', 'たおせ']],
+  ['attack', ['攻撃', 'こうげき', '殴', 'なぐ', '叩', 'たたけ', 'たたいて', 'パンチ', 'キック', '蹴', '噛', 'かみつ', 'かじ', 'やっつけ', 'ぶつか', '体当たり', 'たいあたり', 'アタック', '突け', 'つつけ', 'ぶっ飛ば', 'ぶっとば', '倒せ', 'たおせ']],
   ['fight', ['攻め', 'せめろ', 'せめて', '戦', 'たたか', '行け', 'いけ', 'やれ', 'かかれ', '突っ込', 'つっこ', '全力', 'ぜんりょく', '頑張', 'がんば', 'ファイト', 'ゴー', '狙', 'ねら', 'ターゲット']],
   ['approach', ['近づ', 'ちかづ', '寄れ', '寄って', '来い', '追え', '追いかけ', 'おいかけ', '前へ', '前に', '前進']],
   ['left', ['左', 'ひだり']],
@@ -2679,10 +2685,30 @@ function partSaid(n, name) {
   for (let i = 0; i + 4 <= m.length; i++) if (n.includes(m.slice(i, i + 4))) return true;
   return false;
 }
-/* 技名ギミック: the full, official move name comes out at once; part of it, or a plain word like 「攻撃」,
-   leaves the monster wondering which move you meant for a moment */
+/* 技の確信度: how sure the monster is which of its four moves you meant. The exact name is 100% and comes out at once;
+   the less sure it is, the longer it hesitates (1.2 s when the three attacking moves are about equally likely).
+   Jev returns these probabilities through the voice relay; without it they are guessed here from how much of each
+   move name was said and which plain words were used. */
 const MOVE_ACTS = new Set(['attack', 'combo', 'special', 'air', 'guard']);
-const hesitation = o => (!MOVE_ACTS.has(o.act) ? 0 : o.exact === 'full' ? 0 : o.exact === 'part' ? 0.35 : 1.0);
+const MOVE_KEYS = ['atk', 'def', 'sp', 'air'], MOVE_ACT = { atk: 'attack', def: 'guard', sp: 'special', air: 'air' };
+function bigramSet(s) { const b = new Set(); for (let i = 0; i + 2 <= s.length; i++) b.add(s.slice(i, i + 2)); return b; }
+/* share of a move name's two-letter pieces that were said */
+function saidShare(n, name) { const b = bigramSet(vnorm(name)); if (!b.size) return 0; let c = 0; for (const x of b) if (n.includes(x)) c++; return c / b.size; }
+const famSaid = (n, k) => ((VKEYS.find(x => x[0] === k) || [0, []])[1]).some(w => n.includes(w));
+function moveProbs(n, f) {
+  const mv = f.ch.mv, names = [mv.atk, mv.def, mv.sp, mv.air];
+  const exact = names.findIndex(nm => fullSaid(n, nm));
+  if (exact >= 0) return MOVE_KEYS.map((_, i) => (i === exact ? 1 : 0));
+  const s = names.map(nm => 0.08 + saidShare(n, nm) * 2.5);
+  if (famSaid(n, 'attack') || famSaid(n, 'combo')) { s[0] += 0.5; s[2] += 0.35; s[3] += 0.35; }
+  if (famSaid(n, 'special')) s[2] += 1.3;
+  if (famSaid(n, 'air')) s[3] += 1.3;
+  if (famSaid(n, 'guard')) s[1] += 1.3;
+  const sum = s.reduce((a, b) => a + b, 0);
+  return s.map(x => x / sum);
+}
+const latencyOf = p => Math.round(1.2 * clamp((0.95 - p) / 0.65, 0, 1) * 100) / 100;
+const hesitation = o => (!MOVE_ACTS.has(o.act) ? 0 : latencyOf(o.conf === undefined ? (o.exact === 'full' ? 1 : 0.4) : o.conf));
 function targetSaid(raw, n, f) {
   const fs = foes(f);
   for (const t of fs) {
@@ -2708,16 +2734,33 @@ function parseOrder(text, f) {
   for (const [k, nm] of named) if (fullSaid(n, nm)) { act = k; exact = 'full'; break; }
   if (!act) for (const [k, nm] of named) if (partSaid(n, nm)) { act = k; exact = 'part'; break; }
   if (!act) for (const [k, ws] of VKEYS) if (ws.some(w => n.includes(w))) { act = k; break; }
+  /* a shortened move name (「議事録」 for 「横歩き議事録」): enough of its two-letter pieces were said */
+  if (!act) {
+    let best = 0, bk = null;
+    for (const [k, nm] of named) { const s = saidShare(n, nm); if (s > best) { best = s; bk = k; } }
+    if (best >= 0.4) { act = bk; exact = 'part'; }
+  }
   if (act === 'jump' && /よけ|避け|かわ/.test(n)) act = /左|ひだり/.test(n) ? 'left' : /右|みぎ/.test(n) ? 'right' : act;
   if (act &&/(しないで|するな|ないで|るな)$/.test(n)) act = act === 'flee' || act === 'wait' || act === 'guard' ? 'fight' : 'wait';
   const target = targetSaid(raw, n, f);
   if (!act && target) act = 'fight';
-  return act ? { act, target, exact } : null;
+  /* a move order: pick the move it most likely means, and remember how sure that is */
+  let conf;
+  if (MOVE_ACTS.has(act)) {
+    const pr = moveProbs(n, f); let bi = 0;
+    for (let i = 1; i < 4; i++) if (pr[i] > pr[bi]) bi = i;
+    conf = Math.round(pr[bi] * 100) / 100;
+    const top = MOVE_ACT[MOVE_KEYS[bi]];
+    if (!(act === 'combo' && top === 'attack')) act = top;
+  }
+  return act ? { act, target, exact, conf } : null;
 }
 function newVoice() { return { stance: 'wait', act: null, target: null, ask: 0, cpu: Object.assign(newBrain(), { calm: true, noSp: true, noBub: true }) }; }
 function replyFor(f, act, t) {
   const mv = f.ch.mv;
   if (t && (act === 'fight' || act === 'approach')) return pickOne([pname(t) + 'だな！', pname(t) + 'に行く！']);
+  /* plain orders are answered in the character's own way about half the time */
+  if (!MOVE_ACTS.has(act) && Math.random() < 0.5) return pickOne(personaOf(f).ok);
   return pickOne({
     attack: ['えいっ！', 'いくよ！', mv.atk + '！'], combo: ['うおおお！', 'ラッシュだ！'], special: [mv.sp + '！'], air: [mv.air + '！'],
     guard: [mv.def + '！', 'まもる！'], jump: ['ぴょん！', 'よっ！'], flee: ['にげる〜！', 'ひぃ〜！'], wait: ['待機します', 'はい…'],
@@ -2736,7 +2779,7 @@ function applyOrder(f, v, o) {
   v.n = (v.n || 0) + 1;
   if (o.target) v.target = o.target;
   if (STANCES.has(o.act)) { v.stance = o.act; v.act = null; }
-  else v.act = { k: o.act, t: o.act === 'special' ? Math.max(ACT_T.special, f.spCd + 2) : ACT_T[o.act] || 2, n: o.act === 'combo' ? 5 : 2, jumped: false, dir: dirFor(o.act), ph: 0, wait: hesitation(o), t0: performance.now() };
+  else v.act = { k: o.act, t: o.act === 'special' ? Math.max(ACT_T.special, f.spCd + 2) : ACT_T[o.act] || 2, n: o.act === 'combo' ? 5 : 2, jumped: false, dir: dirFor(o.act), ph: 0, wait: hesitation(o), t0: performance.now(), conf: o.conf };
   /* 声の大きさ: every order sets how fired up the monster is for the next few seconds */
   f.pow = o.pow || 1; f.powT = v.act ? Math.max(3, v.act.t + v.act.wait) : 3;
   inp.sx = inp.sz = 0; inp.guardT = false; v.cpu.t = 0; v.cpu.guardT = 0;
@@ -2745,19 +2788,24 @@ function giveOrder(f, v, o, say, via) {
   let line = say || '';
   const wait = hesitation(o);
   if (o.act === 'special' && f.spCd > 1.2 && !line) line = 'まだ溜まってない！';
-  if (wait >= 1 && !line) line = pickOne(['えっと…どれだっけ', 'えーっと…どの技？', 'どれのこと…？']);
+  if (wait >= 0.6 && !line) line = pickOne(['えっと…どれだっけ', 'えーっと…どの技？', 'どれのこと…？']);
   if (tut) tut.exact = o.exact;
   applyOrder(f, v, o);
   Grumble.order(o.act);
-  if (wait >= 1) Grumble.ev('vague');
+  if (MOVE_ACTS.has(o.act) && hesitation(o) >= 0.6) Grumble.ev('vague');
   else if (o.act === 'special' && f.spCd > 1.2) Grumble.ev('nocharge');
   else if (f.pow <= 0.9) Grumble.ev('whisper');
   sayLine(f, line || replyFor(f, o.act, o.target));
   const p = f.pow, px = '×' + p.toFixed(2);
   if (p >= 1.05) floater('気合 ' + px, f.x, 3.4, f.z, 'call sp', 1.1, 0, 0.6, '#ffd86e');
   else if (p <= 0.95) floater('ひそひそ ' + px, f.x, 3.4, f.z, 'call', 1.0, 0, 0.6, '#94bbd0');
-  setPlan('→ ' + (ACT_LABEL[o.act] || o.act) + (v.target ? '　🎯' + pname(v.target) : '') + (wait ? '　⏳迷い' + wait + '秒' : MOVE_ACTS.has(o.act) ? '　⚡技名' : '') +
-    (p !== 1 ? '　' + (p > 1 ? '💥' : '🤫') + px : '') + (via === 'ai' ? '　(AI)' : ''));
+  setPlan(planText(f, v, o, wait, via));
+}
+function planText(f, v, o, wait, via) {
+  const p = f.pow, conf = o.conf === undefined ? null : Math.round(o.conf * 100);
+  return '→ ' + (ACT_LABEL[o.act] || o.act) + (v.target ? '　🎯' + pname(v.target) : '') +
+    (MOVE_ACTS.has(o.act) ? (wait ? '　⏳迷い' + wait.toFixed(2) + '秒' : '　⚡即') + (conf !== null ? '（確信' + conf + '%）' : '') : '') +
+    (p !== 1 ? '　' + (p > 1 ? '💥' : '🤫') + '×' + p.toFixed(2) : '') + (via === 'ai' ? '　(AI)' : via === 'jev' ? '　(Jev)' : '');
 }
 function confused(f, v, say) {
   sayLine(f, say || pickOne(['え、なんて？', '？？？', 'もう一回言って！', f.ch.think]));
@@ -2775,8 +2823,35 @@ function hearOrder(alts, typed) {
   if (!v || !f || f.ko || !['vs', 'count', 'fight'].includes(G.phase)) return;
   Grumble.lastText = list[0]; Grumble.lastOrder = performance.now(); Grumble.silent = false;
   const pow = typed ? typedPow(list[0]) : Level.pow(2500);
-  for (const t of list) { const o = parseOrder(t, f); if (o) { o.pow = pow; v.ask++; giveOrder(f, v, o); return; } }
+  for (const t of list) {
+    const o = parseOrder(t, f);
+    if (!o) continue;
+    o.pow = pow; v.ask++; giveOrder(f, v, o);
+    if (VOICE_AI && MOVE_ACTS.has(o.act) && o.conf < 0.95) refineMove(t, f, v, o);
+    return;
+  }
   askAI(list[0], f, v, pow);
+}
+/* while the monster hesitates, Jev (through the relay) gives the real probabilities for which move you meant:
+   the move may change, and the hesitation is set from Jev's certainty minus the time already spent */
+async function refineMove(text, f, v, o) {
+  const a = v.act; if (!a) return;
+  let r = null;
+  const ctl = new AbortController(), tm = setTimeout(() => ctl.abort(), 1500);
+  try {
+    const res = await fetch(VOICE_AI, { method: 'POST', headers: { 'Content-Type': 'text/plain' }, signal: ctl.signal,
+      body: JSON.stringify({ kind: 'move', text: text.slice(0, 60), me: f.ch.name, moves: [f.ch.mv.atk, f.ch.mv.def, f.ch.mv.sp, f.ch.mv.air] }) });
+    if (res.ok) r = await res.json();
+  } catch (e) { r = null; }
+  clearTimeout(tm);
+  if (!r || !r.probs || v.act !== a || !(a.wait > 0) || G.voice !== v) return;
+  const ps = MOVE_KEYS.map(k => Math.max(0, Number(r.probs[k]) || 0)), sum = ps.reduce((x, y) => x + y, 0);
+  if (sum <= 0 || (Number(r.probs.none) || 0) > 0.6) return;
+  let bi = 0; for (let i = 1; i < 4; i++) if (ps[i] > ps[bi]) bi = i;
+  const conf = Math.round(ps[bi] / sum * 100) / 100, top = MOVE_ACT[MOVE_KEYS[bi]];
+  if (top !== a.k && !(a.k === 'combo' && top === 'attack')) { a.k = top; a.t = top === 'special' ? Math.max(ACT_T.special, f.spCd + 2) : ACT_T[top] || 2; }
+  a.conf = conf; a.wait = Math.max(0, latencyOf(conf) - (performance.now() - a.t0) / 1000);
+  setPlan(planText(f, v, Object.assign({}, o, { act: a.k, conf }), latencyOf(conf), 'jev'));
 }
 /* words still being spoken: act early on short, clear orders, and on a full move name as soon as it is complete */
 function quickOrder(t) {
@@ -2802,7 +2877,7 @@ async function askAI(text, f, v, pow) {
   if (seq !== v.ask || G.voice !== v || f.ko) return;
   if (!r || !r.act || r.act === 'unknown' || !(Number(r.conf) >= 0.35)) { confused(f, v, r && cleanSay(r.say)); return; }
   const t = r.target ? foes(f).find(x => pname(x) === r.target) || null : null;
-  giveOrder(f, v, { act: r.act, target: t, exact: 'part', pow }, cleanSay(r.say), 'ai');
+  giveOrder(f, v, { act: r.act, target: t, exact: 'part', conf: Math.max(0.4, Math.min(1, Number(r.conf) || 0.6)), pow }, cleanSay(r.say), 'ai');
 }
 function steer(inp, x, z) { const m = hyp(x, z); if (m < 1e-3) { inp.sx = inp.sz = 0; return; } inp.sx = x / m; inp.sz = z / m; }
 function voiceThink(f, dt, v) {
@@ -2869,7 +2944,7 @@ function voiceThink(f, dt, v) {
     }
     if (done) {
       /* ぼやき: your attack order ended without touching anyone */
-      if (f === G.me && (a.k === 'attack' || a.k === 'combo') && !(f.move && f.move.kind === 'atk') && !(f.hitAt > a.t0)) Grumble.ev('miss');
+      if (f === G.me && (a.k === 'attack' || a.k === 'combo')) Grumble.judge(a.t0, a.conf);
       v.act = null; inp.sx = inp.sz = 0; inp.guardT = false; v.cpu.t = 0;
     }
     return;
@@ -2895,7 +2970,7 @@ function voiceThink(f, dt, v) {
    orders a player can say, and it reacts to danger only after about the time it takes to shout. */
 function newCpuVoice() { return { t: 0.8 + Math.random() * 0.8, think: 0, react: 0, v: newVoice() }; }
 /* CPUs play the same gimmicks: they mostly know their move names but sometimes say just 「攻撃」, and they shout now and then */
-const cpuSay = () => ({ exact: Math.random() < 0.75 ? 'full' : '', pow: Math.round(clamp(1.03 + (Math.random() + Math.random() + Math.random() - 1.5) * 0.24, 0.8, 1.5) * 100) / 100 });
+const cpuSay = () => ({ conf: Math.random() < 0.75 ? 1 : Math.round((0.35 + Math.random() * 0.55) * 100) / 100, pow: Math.round(clamp(1.03 + (Math.random() + Math.random() + Math.random() - 1.5) * 0.24, 0.8, 1.5) * 100) / 100 });
 function cpuVoice(f, dt, b) {
   const v = b.v;
   if (!f.ko && G.phase === 'fight') {
@@ -3593,27 +3668,95 @@ function updateVoiceSay(dt) {
   el.style.transform = 'translate(' + p.x.toFixed(1) + 'px,' + p.y.toFixed(1) + 'px) translate(-50%,-100%)';
   el.hidden = !!p.behind;
 }
-/* ================= ぼやき: 3-5 times a match your monster grumbles about you =================
-   Triggered by what just happened (a vague order, a whiff, a whisper, silence...). The line comes from a light chat
-   model through the voice relay when it is set up (VOICE_AI), otherwise from the lines below. Only you see it. */
-const GRUMBLE = {
-  vague: ['どの技だよ…ちゃんと名前で言って', '「攻撃」って言われてもなぁ', '技名くらい覚えてよ、ご主人', '指示が曖昧だなぁ…'],
-  confused: ['今の、指示？独り言？', 'なに言ってんの…？', 'もうちょいハッキリ頼むよ', 'はぁ…聞き取れないって'],
-  whisper: ['声ちっさ…やる気ある？', 'もっと気合入れて言ってよ', 'ささやかれても困るんだけど'],
-  miss: ['しょーもない攻撃させるなよ…', '空振りじゃん。誰の指示だっけ', '今の、当たる距離じゃないって'],
-  hurt: ['ちょっと！見てないで指示してよ', '痛いんだけど！？', 'ご主人、寝てる？'],
-  silent: ['ねえ、何すればいいの？', '暇なんだけど…', '指示待ちってつらいなぁ'],
-  spam: ['聞こえてるって！', '何回言うの…', 'わかったってば、もう'],
-  nocharge: ['まだ溜まってないって言ったでしょ', '必殺、そんなに連発できないから'],
-  lowhp: ['もう無理…作戦考えて', 'こんなはずじゃ…ご主人のせいだよ', '体力ないって！逃げさせて'],
-  general: ['この作戦で本当に合ってる？', 'ご主人、もうちょい頭使ってこ', '指示する側は楽でいいよね'],
+/* ================= ひとこと: 3-5 times a match your monster says what it thinks of you =================
+   Each 潜水者 has its own character: rude ones grumble, loyal and friendly ones apologise, cheer and praise.
+   p = how it talks (sent to the chat model), mood = which moments it likes to speak up about,
+   lines = what it says when no chat model is set up: unclear (vague / unheard / whispered / repeated orders),
+   bad (whiffs, a special not charged yet, your plan in general), idle (you went quiet), pinch (it is getting hurt),
+   pos (a good order, a big hit, a KO, or just cheering you on), ok (answering an order). Only you see these. */
+const PERSONA = {
+  'whale-man': { mood: 'mixed', p: '丁寧な社会人敬語で遠回しに皮肉を言う、くたびれた会社員',
+    unclear: ['恐れ入りますが、技名でお願いします', '確認ですが…今のは指示ですか？'], bad: ['その采配、議事録に残しておきますね', '本件、成果ゼロで報告しておきます'],
+    idle: ['指示待ちです。定時まであと何秒ですか'], pinch: ['これ、労災おりますかね…'], pos: ['お見事です。稟議、通りましたね', '本日の業務、順調です'], ok: ['承知しました', 'かしこまりました'] },
+  'star-person': { mood: 'nice', p: 'すぐ謝る気弱で従順な性格。何かあると五方向に謝る',
+    unclear: ['すみません！どの技か分からなくて！', '聞き取れなくてごめんなさい！'], bad: ['外したのは私のせいです、すみません！', '五方向に謝ります！ごめんなさい！'],
+    idle: ['あの…何かしたほうが…すみません'], pinch: ['すみません、ちょっと痛いです…'], pos: ['ありがとうございます！ご主人のおかげです', '当たりました！すみません、うれしくて'], ok: ['はいっ、すみません！', 'わかりました！'] },
+  'mantis-count': { mood: 'rude', p: '尊大で芝居がかった貴族口調。拳の腕前にだけは絶対の自信がある',
+    unclear: ['この伯爵に曖昧な命令とは無礼な', '下々の言葉は聞き取れぬな'], bad: ['我が拳を無駄撃ちさせるでない', 'その采配、伯爵家の恥であるぞ'],
+    idle: ['伯爵を待たせるとは、いい度胸だ'], pinch: ['わ、我が拳が届かぬだと…'], pos: ['ふむ、悪くない采配だ。褒めてつかわす', '見たか、これが伯爵の拳よ'], ok: ['よかろう', '伯爵に任せよ'] },
+  'jelly-principal': { mood: 'mixed', p: '話の長い説教好きの校長先生。何でも朝礼の話にしたがる',
+    unclear: ['いいですか、指示というのはですね…', 'はい、今の指示、もう一度はっきりと'], bad: ['今の結果、反省文を書いてもらいます', '先生、そういう指示は感心しませんね'],
+    idle: ['皆さんが静かになるまで、待ちました'], pinch: ['校長先生、ちょっと保健室に…'], pos: ['大変よくできました。花丸です', 'いい指示ですね。全校で表彰しましょう'], ok: ['はい、よろしい', 'では始めましょう'] },
+  'shark-lost': { mood: 'mixed', p: '何でもすぐ忘れるぼんやり者。自分が何者かも忘れている',
+    unclear: ['え、なにしろって言われたっけ', 'ごめん、今の指示もう忘れた'], bad: ['あれ、なんで外したんだっけ', '必殺…の出し方、忘れてた'],
+    idle: ['ぼく、ここで何してるんだっけ'], pinch: ['痛い…けど、なんで痛いか忘れた'], pos: ['なんか当たった！ぼくすごい？', 'ご主人、名前なんだっけ…でもナイス'], ok: ['うん、たぶん', 'わかった…気がする'] },
+  'ink-pianist': { mood: 'rude', p: '気取った芸術家。何でも音楽にたとえて上から目線で評価する',
+    unclear: ['その指示、美しくないわね', '不協和音ね。技名で弾かせて'], bad: ['今の一撃、リズム感ゼロよ', 'わたくしの演奏を台無しにしないで'],
+    idle: ['休符が長すぎるのよ、ご主人'], pinch: ['わたくしの演奏会がめちゃくちゃ…'], pos: ['ブラボー！今のは名演だったわ', 'いい旋律の指示ね。認めてあげる'], ok: ['いいわ、弾いてあげる', '仕方ないわね'] },
+  'seahorse-manager': { mood: 'mixed', p: '責任を取りたくない中間管理職。何でも持ち帰って検討したがる',
+    unclear: ['その件、いったん持ち帰っていい？', '指示の根拠、資料でちょうだい'], bad: ['これ、上にどう説明すればいいの…', '責任の所在、はっきりさせとこうね'],
+    idle: ['会議まだ？こっちは遅刻寸前なんだけど'], pinch: ['これ…ぼくの責任になるやつ？'], pos: ['部長に報告しとくね、いい判断', 'その方針で決裁しましょう'], ok: ['了解、検討します', 'じゃあその方向で'] },
+  'puffer-gatekeeper': { mood: 'rude', p: '口が悪くて短気な門番。乱暴な言葉づかいだが根は真面目',
+    unclear: ['あぁ？ちゃんと言えや', '入場拒否するぞ、その指示'], bad: ['しょーもねぇ攻撃させんな', '溜まってねぇっつってんだろ'],
+    idle: ['黙ってんじゃねぇよ、主人'], pinch: ['ぜってぇ通さねぇ…いてぇけど'], pos: ['…まあ、今のは悪くねぇ', 'ちっ、やるじゃねぇか'], ok: ['へいへい', 'わーったよ'] },
+  'manta-house': { mood: 'mixed', p: '人付き合いが苦手で居留守を使いたがる引きこもり。やる気は低め',
+    unclear: ['いま留守ってことで…', 'その指示、ポストに入れといて'], bad: ['ほら、外に出るとろくなことない', 'もう帰って寝ていい？'],
+    idle: ['静かでいいね。ずっとこれで'], pinch: ['家に帰りたい…あ、ここ家か'], pos: ['お、外に出てよかったかも', 'たまには悪くないね'], ok: ['…はーい', 'しょうがないなあ'] },
+  'slug-fossil': { mood: 'mixed', p: '一億年しゃべらなかった無口な化石。三点リーダーと短い言葉だけで語る',
+    unclear: ['……？', '……（首をかしげている）'], bad: ['……ちがう', '……（ため息）'],
+    idle: ['……（一億年待つ構え）'], pinch: ['……ぐ'], pos: ['……よし', '……（小さくうなずく）'], ok: ['……ん', '……（うなずく）'] },
+  'octopus-snail': { mood: 'rude', p: 'そっけない既読無視キャラ。スマホのメッセージのような短い言葉で話す',
+    unclear: ['既読。', 'その指示、スルーで'], bad: ['通知切っとくね', 'はいはい、既読既読'],
+    idle: ['平和。既読つけなくていいし'], pinch: ['…殻にこもっていい？'], pos: ['今のは返信してあげる。ナイス', '（いいねスタンプ）'], ok: ['りょ', 'おけ'] },
+  'crab-meeting': { mood: 'nice', p: '何でも反省会にしたがる真面目な性格。つい自分を責めてしまう',
+    unclear: ['今の指示、反省会の議題にします', '曖昧な点、一緒に反省しましょう'], bad: ['今のは私の反省点ですね…', '本日の反省：空振り一回'],
+    idle: ['沈黙の時間も反省に使います'], pinch: ['本日の反省：とても痛い'], pos: ['反省点なし！良い会議でした', '議事録に「好判断」と書きます'], ok: ['承知しました、記録します', 'はい、議事録に'] },
+  'angler-note': { mood: 'nice', p: '直接話すのが苦手で、置き手紙でしか気持ちを伝えない控えめで優しい性格',
+    unclear: ['（置き手紙）技名でお願いします', '（置き手紙）聞き取れませんでした'], bad: ['（置き手紙）次は当てましょうね', '（置き手紙）まだ溜まっていません'],
+    idle: ['（置き手紙）指示をお待ちしています'], pinch: ['（置き手紙）助けてください'], pos: ['（置き手紙）今のは最高でした', '（置き手紙）ありがとう'], ok: ['（置き手紙）了解です', '（置き手紙）がんばります'] },
+  'otter-robot': { mood: 'mixed', p: 'カタカナで話す省エネのロボット。感情は少なめで効率にうるさい',
+    unclear: ['シジ ノ アイマイサ ヲ ケンシュツ', 'エラー：ワザメイ ガ ミツカリマセン'], bad: ['ムダナ エネルギー ショウヒ デス', 'コウリツ ノ ワルイ シジ デス'],
+    idle: ['タイキモード…ショウエネ チュウ'], pinch: ['ダメージ ケイホウ…ケイホウ…'], pos: ['サイテキナ シジ デス', 'ゴシュジン ノ スコア ヲ カサン'], ok: ['リョウカイ', 'ジッコウ シマス'] },
+  'garden-tower': { mood: 'nice', p: '明るく愛想のいい人気者。主人をいつもほめて励ます',
+    unclear: ['ドンマイ！次は技名でいこ〜', 'ちょっと聞こえなかった、もっかい♪'], bad: ['だいじょぶだいじょぶ！次いこ！', '惜しい〜！でもいい感じ！'],
+    idle: ['ご主人〜、声聞かせて〜'], pinch: ['いたた…でもまだいけるよ！'], pos: ['ナイス指示〜！最高〜！', 'ご主人、天才じゃない？'], ok: ['りょーかい♪', 'まかせて〜！'] },
+  'coelacanth-dream': { mood: 'mixed', p: 'いつも寝ぼけている古代魚。夢と現実の区別がついていない',
+    unclear: ['むにゃ…いま何億年…？', 'ん…夢の中の指示…？'], bad: ['あと四億年だけ寝かせて…', 'むにゃ…外れた夢を見た…'],
+    idle: ['すや…すや…'], pinch: ['はっ！痛い夢を見てた…'], pos: ['むにゃ…いい夢…', '…今のは起きててよかった'], ok: ['むにゃ…はい', 'ん…いく…'] },
+  'turtle-printer': { mood: 'mixed', p: '事務機のエラーメッセージ風に話すプリンター',
+    unclear: ['用紙サイズが合いません（指示が曖昧）', '紙詰まりです。技名を入れ直してください'], bad: ['印刷に失敗しました', 'インクの無駄遣いです'],
+    idle: ['スリープモードに入ります'], pinch: ['インク残量わずか…'], pos: ['両面カラーで刷れました！', '印刷完了。きれいに決まりました'], ok: ['受け付けました', '印刷を開始します'] },
+  'shrimp-cadet': { mood: 'nice', p: 'やる気満々で従順な体育会系の後輩。主人を先輩と呼ぶ',
+    unclear: ['はいっ！…でも、どの技っすか！？', '先輩、もう一回お願いしますっ！'], bad: ['すんません！次は当てるっす！', 'まだ揚がりきってないっす！'],
+    idle: ['先輩！指示まだっすか！'], pinch: ['まだまだ！衣は無事っす！'], pos: ['さすが先輩っす！', '一生ついていきます！'], ok: ['うっす！', 'はいっ、先輩！'] },
+  'clione-guard': { mood: 'mixed', p: '規則にうるさい真面目な警備員。何でも規則の条文を持ち出して注意する',
+    unclear: ['規則により、技名で指示してください', '指示は明瞭に。規則第三条です'], bad: ['その采配は規則違反です', '無駄な出動は報告書ものです'],
+    idle: ['巡回中。指示があれば報告を'], pinch: ['警備員への暴力は禁止されています'], pos: ['模範的な指示です', '規則どおり。よろしい'], ok: ['了解。出動します', '規則どおり対応します'] },
+  'sea-cucumber-ceo': { mood: 'rude', p: '偉そうな社長口調で、何でも決裁や経営にたとえる',
+    unclear: ['君ね、指示は簡潔に頼むよ', 'その件は保留だ。決裁を寝かせる'], bad: ['今の損失、君の給料から引いておく', '曖昧な指示は経営に悪いんだよ'],
+    idle: ['社長を待たせるとは、出世しないぞ'], pinch: ['…これは想定内の損失だ'], pos: ['ふむ、ボーナスを考えよう', '君、役員候補だな'], ok: ['よし、決裁しよう', '任せたまえ'] },
 };
+/* which kind of moment each event is, and how keen each mood is to speak up about it */
+const EVCAT = { vague: 'unclear', confused: 'unclear', whisper: 'unclear', spam: 'unclear', miss: 'bad', nocharge: 'bad', general: 'bad', silent: 'idle', hurt: 'pinch', lowhp: 'pinch', good: 'pos', nice: 'pos', ko: 'pos', cheer: 'pos' };
+const MOOD = {
+  rude: { unclear: 1, bad: 1, idle: 1, pinch: 0.8, pos: 0.35 },
+  nice: { unclear: 0.5, bad: 0.5, idle: 0.8, pinch: 0.9, pos: 1 },
+  mixed: { unclear: 0.8, bad: 0.8, idle: 0.9, pinch: 0.8, pos: 0.7 },
+};
+const personaOf = f => PERSONA[f.ch.id] || PERSONA['whale-man'];
 const Grumble = {
   left: 0, next: 0, busy: false, lastOrder: 0, lastText: '', silent: false, silentAt: 0, low: false, recent: [],
   reset() {
     const now = performance.now();
     this.left = G.voice && G.type !== 'tutorial' ? rnd(3, 5) : 0;
-    this.next = now + 6000; this.busy = false; this.lastOrder = now; this.lastText = ''; this.silent = false; this.silentAt = 0; this.low = false; this.recent = [];
+    this.next = now + 6000; this.busy = false; this.lastOrder = now; this.lastText = ''; this.silent = false; this.silentAt = 0; this.low = false; this.recent = []; this.later = null;
+  },
+  /* an attack order has run its course: did it land? The last swing may still be moving, so look again shortly */
+  later: null,
+  judge(t0, conf) {
+    const f = G.me;
+    if (f.hitAt > t0) { if (conf === 1) this.ev('good'); this.later = null; }
+    else this.later = { t0, conf, at: performance.now() + 600 };
   },
   /* an order was given: remember it, and notice the same order said over and over */
   order(act, text) {
@@ -3627,8 +3770,9 @@ const Grumble = {
     if (!f || f.ko || !G.voice || G.phase !== 'fight' || this.left <= 0 || this.busy) return;
     const now = performance.now();
     if (now < this.next) return;
-    /* spread them over the match: certain when time is running out for the ones left */
-    const chance = G.time < this.left * 14 ? 1 : kind === 'silent' || kind === 'spam' || kind === 'nocharge' ? 0.8 : 0.5;
+    /* spread them over the match: certain when time is running out for the ones left; otherwise as keen as the character is */
+    const cat = EVCAT[kind] || 'bad', keen = MOOD[personaOf(f).mood][cat];
+    const chance = G.time < this.left * 14 ? 1 : (kind === 'silent' || kind === 'spam' || kind === 'nocharge' ? 0.8 : 0.55) * keen;
     if (Math.random() > chance) return;
     this.left--; this.next = now + 10000;
     this.say(kind);
@@ -3637,34 +3781,43 @@ const Grumble = {
     const f = G.me;
     if (!f || f.ko || !G.voice || G.phase !== 'fight' || this.left <= 0) return;
     const now = performance.now();
+    if (this.later && now >= this.later.at) {
+      const l = this.later; this.later = null;
+      if (f.hitAt > l.t0) { if (l.conf === 1) this.ev('good'); } else this.ev('miss');
+    }
     /* silence: after 12 s without an order, and again every 15 s while it lasts */
     if (now - this.lastOrder > 12000 && now - this.silentAt > 15000) { this.silentAt = now; this.ev('silent'); }
     if (!this.low && f.hp < 25) { this.low = true; this.ev('lowhp'); }
     /* near the end, the ones still owed come out anyway, so every match has 3-5 */
-    if (now >= this.next && G.time < this.left * 10 + 5) this.ev(f.hp < 40 ? 'lowhp' : now - this.lastOrder > 6000 ? 'silent' : 'general');
+    if (now >= this.next && G.time < this.left * 10 + 5) this.ev(f.hp < 40 ? 'lowhp' : now - this.lastOrder > 6000 ? 'silent' : personaOf(f).mood === 'nice' ? 'cheer' : 'general');
   },
   async say(kind) {
-    const f = G.me, text = this.lastText;
+    const f = G.me, text = this.lastText, P = personaOf(f), cat = EVCAT[kind] || 'bad';
     this.busy = true;
     let line = null;
     if (VOICE_AI) line = await askGrumble(f, kind, text);
     this.busy = false;
     if (G.me !== f || f.ko || !G.voice) return;
-    grumbleLine(f, line || pickOne(GRUMBLE[kind] || GRUMBLE.confused));
+    /* a gentle character's complaints are worries or apologies, not anger */
+    grumbleLine(f, line || pickOne(P[cat] || P.bad), P.mood === 'nice' && (cat === 'unclear' || cat === 'bad') ? 'soft' : cat);
   },
 };
 async function askGrumble(f, kind, last) {
-  const ctl = new AbortController(), tm = setTimeout(() => ctl.abort(), 2500);
+  const ctl = new AbortController(), tm = setTimeout(() => ctl.abort(), 2500), P = personaOf(f);
   try {
     const res = await fetch(VOICE_AI, { method: 'POST', headers: { 'Content-Type': 'text/plain' }, signal: ctl.signal,
-      body: JSON.stringify({ kind: 'grumble', ev: kind, me: f.ch.name, sub: f.ch.sub, last: String(last || '').slice(0, 40), hp: Math.round(f.hp) }) });
+      body: JSON.stringify({ kind: 'grumble', ev: kind, me: f.ch.name, sub: f.ch.sub, persona: P.p, mood: P.mood, last: String(last || '').slice(0, 40), hp: Math.round(f.hp) }) });
     if (!res.ok) return null;
     const j = await res.json();
     return [...String(j.say || '')].filter(nameOk).join('').trim().slice(0, 32) || null;
   } catch (e) { return null; } finally { clearTimeout(tm); }
 }
 let grrT = 0;
-function grumbleLine(f, text) { const el = $('#vgrr'); el.textContent = '💢 ' + text; el.hidden = false; grrT = 3.8; audio.tick(); }
+const GRR_MARK = { unclear: '💢', bad: '💢', soft: '💭', idle: '💬', pinch: '💦', pos: '✨' };
+function grumbleLine(f, text, cat) {
+  const el = $('#vgrr');
+  el.textContent = (GRR_MARK[cat] || '💬') + ' ' + text; el.dataset.cat = cat || 'bad'; el.hidden = false; grrT = 3.8; audio.tick();
+}
 function updateGrumble(dt) {
   const el = $('#vgrr');
   if (grrT <= 0) return;
@@ -3712,7 +3865,7 @@ function tutSteps(me, dummy) {
     { t: '「待て」で止める', ex: '「待て」「ストップ」', hint: '止まっている間も、攻撃が来たら身を守ります', ok: () => v().stance === 'wait' && !v().act },
     { t: '「ジャンプ」でかわす', ex: '「ジャンプ」「よけて」', hint: '床を走る攻撃や、飛んでくる物をかわせます', ok: () => me.y > 0.4 },
     { t: '防御の技名で身を守る', ex: '「' + mv.def + '」「防御」', hint: mv.def + '：' + DEFK[me.ch.def].desc + '。「防御」だけだと、どの技か迷って少し遅れます', ok: () => me.guarding },
-    { t: '攻撃の技名を正しく叫ぶ', ex: '「' + mv.atk + '」', hint: '正式な技名ならすぐ出ます。「攻撃」でも出ますが、どの技か迷って1秒ほど遅れます。' + ATKK[me.ch.atk].desc,
+    { t: '攻撃の技名を正しく叫ぶ', ex: '「' + mv.atk + '」', hint: '一言一句正しい技名なら確信100%で、すぐ出ます。「攻撃」だけだと3つの攻撃技で迷って約1秒、うろ覚えの名前なら少しだけ遅れます。' + ATKK[me.ch.atk].desc,
       ok: () => me.move && me.move.kind === 'atk' && tut.exact === 'full' },
     { t: '必殺技の名前を叫ぶ', ex: '「' + mv.sp + '」', hint: '「必殺」だけだと迷って遅れます。一度使うと、しばらく溜まるまで出せません', setup: () => { me.spCd = 0; }, ok: () => me.move && me.move.kind === 'sp' },
     { t: '大きな声ほど強くなる', ex: micReady() ? '思いきり大声で「' + mv.atk + '！！」' : '「' + mv.atk + '！！」',
