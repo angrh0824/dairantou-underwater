@@ -3602,7 +3602,8 @@ function readKeys() {
 
 /* ================= 声で操作: microphone, panel, reply bubble ================= */
 const V_STATE = {
-  on: '聞いています。声で指示してください', start: 'マイクを準備しています…', off: 'マイク停止中（左のボタンで再開）',
+  on: '聞いています。声で指示してください', start: 'マイクを準備しています…（許可を聞かれたら「許可」を）', off: 'マイク停止中（左のボタンで再開）',
+  tap: 'マイクが動きません。左のマイクボタンを押してください（だめなら下の欄に文字で）',
   denied: 'マイクが許可されていません。ブラウザの設定で許可するか、文字で指示してください', nomic: 'マイクが見つかりません。文字で指示してください',
   nosr: 'このブラウザは音声認識に未対応です。文字で指示してください', nopage: 'このページではマイクが使えません。文字で指示してください',
 };
@@ -3623,7 +3624,7 @@ const Level = {
       if (ac.state === 'suspended') { try { await ac.resume(); } catch (e) {} }
       const an = ac.createAnalyser(); an.fftSize = 1024;
       ac.createMediaStreamSource(s).connect(an);
-      Object.assign(this, { ac, an, stream: s, buf: new Float32Array(an.fftSize), ok: true });
+      Object.assign(this, { ac, an, stream: s, buf: new Float32Array(an.fftSize), ok: true, at: performance.now() });
     } catch (e) { this.failed = true; }
     this.busy = false;
   },
@@ -3656,23 +3657,36 @@ const Level = {
     return Math.round(clamp(1 + (a - b) * 0.045, 0.8, 1.5) * 100) / 100;
   },
 };
+/* one recognizer at a time: a new one each time listening is (re)started, so one that never got going cannot block the next */
 const Voice = {
-  rec: null, want: false, live: false, st: 'off', used: new Set(), startedAt: 0,
+  rec: null, want: false, live: false, st: 'off', used: new Set(), startedAt: 0, dog: 0, tries: 0,
   set(st) { this.st = st; const p = $('#voice'); p.dataset.st = st; $('#v-state').textContent = V_STATE[st] || ''; },
   make() {
     const r = new SpeechRec();
     r.lang = 'ja-JP'; r.continuous = true; r.interimResults = true; r.maxAlternatives = 3;
-    r.onstart = () => { this.live = true; this.used.clear(); this.startedAt = performance.now(); if (!this.want) { try { r.abort(); } catch (e) {} return; } this.set('on'); };
+    const begin = () => {
+      if (this.rec !== r || this.live) return;
+      this.live = true; this.used.clear(); this.startedAt = performance.now(); clearTimeout(this.dog); this.tries = 0;
+      if (!this.want) { try { r.abort(); } catch (e) {} return; }
+      this.set('on');
+      /* the loudness meter opens its own microphone stream only once speech recognition is running */
+      setTimeout(() => { if (this.want && this.live && this.rec === r) Level.start(); }, 1200);
+    };
+    r.onstart = begin; r.onaudiostart = begin;
     r.onerror = e => {
-      if (e.error === 'not-allowed' || e.error === 'service-not-allowed') { this.want = false; this.set('denied'); }
+      if (this.rec !== r) return;
+      if (e.error === 'not-allowed' || e.error === 'service-not-allowed') { this.want = false; clearTimeout(this.dog); this.set('denied'); }
       /* some phones give the microphone to one listener only: keep speech recognition, drop the loudness meter */
-      else if (e.error === 'audio-capture') { if (Level.ok) { Level.stop(); Level.failed = true; } else { this.want = false; this.set('nomic'); } }
+      else if (e.error === 'audio-capture') { if (Level.ok) { Level.stop(); Level.failed = true; } else { this.want = false; clearTimeout(this.dog); this.set('nomic'); } }
     };
     r.onend = () => {
+      if (this.rec !== r) return;
       this.live = false;
+      /* speech recognition stopped right after the loudness meter opened: they share the microphone badly here */
+      if (Level.ok && performance.now() - Level.at < 4000) { Level.stop(); Level.failed = true; }
       if (!this.want) { if (this.st === 'on' || this.st === 'start') this.set('off'); return; }
       const quick = performance.now() - this.startedAt < 1500;
-      setTimeout(() => { if (this.want && !this.live) { try { r.start(); } catch (e) {} } }, quick ? 1500 : 250);
+      setTimeout(() => { if (this.want && !this.live && this.rec === r) { try { r.start(); } catch (e) { this.start(true); } } }, quick ? 1500 : 250);
     };
     r.onresult = e => {
       for (let i = e.resultIndex; i < e.results.length; i++) {
@@ -3684,16 +3698,28 @@ const Voice = {
     };
     return r;
   },
-  start() {
+  start(fresh) {
     if (!micReady()) { this.set(MIC_OK ? 'nosr' : 'nopage'); return; }
-    this.want = true; Level.start();
-    if (this.live) { this.set('on'); return; }
-    this.set('start');
-    try { if (!this.rec) this.rec = this.make(); this.rec.start(); } catch (e) {}
+    this.want = true;
+    if (this.live && !fresh) { this.set('on'); return; }
+    if (this.rec) { const old = this.rec; this.rec = null; try { old.abort(); } catch (e) {} }
+    this.live = false; this.set('start');
+    this.rec = this.make();
+    try { this.rec.start(); } catch (e) {}
+    clearTimeout(this.dog); this.dog = setTimeout(() => this.stuck(), 5000);
   },
-  stop() { this.want = false; Level.stop(); if (this.rec && this.live) { try { this.rec.abort(); } catch (e) {} } if (micReady()) this.set('off'); },
-  /* ask for the microphone while the player is still tapping a menu button */
-  prime() { if (!micReady() || this.live) return; try { if (!this.rec) this.rec = this.make(); this.rec.start(); } catch (e) {} },
+  /* nothing happened: try once more by itself, then hand over to the mic button (some phones only start on a tap) */
+  stuck() {
+    if (!this.want || this.live) return;
+    if (this.tries++ < 1) { this.start(true); return; }
+    this.want = false; if (this.rec) { try { this.rec.abort(); } catch (e) {} }
+    this.set('tap');
+  },
+  stop() {
+    this.want = false; clearTimeout(this.dog); Level.stop();
+    if (this.rec) { try { this.rec.abort(); } catch (e) {} }
+    this.live = false; if (micReady()) this.set('off');
+  },
 };
 function showHeard(t, interim) { if (tut) tut.heard = true; const el = $('#v-heard'); el.textContent = '「' + String(t).trim().slice(0, 60) + '」'; el.classList.toggle('interim', !!interim); }
 function setPlan(t) { $('#v-plan').textContent = t; }
@@ -3919,7 +3945,8 @@ function voicePanel(on, up) {
   $('#v-text').placeholder = micReady() ? '文字でも指示できます（例: 必殺）' : 'ここに指示を打ち込む（例: 必殺）';
   $('#v-heard').textContent = ''; $('#v-heard').classList.remove('interim'); setPlan('「攻撃」「必殺」「ジャンプ」「逃げろ」など');
 }
-$('#v-mic').addEventListener('click', () => { audio.init(); if (Voice.want) Voice.stop(); else Voice.start(); });
+/* the mic button: stops it when it is listening; otherwise (off, stuck, refused before) starts a fresh one from this tap */
+$('#v-mic').addEventListener('click', () => { audio.init(); if (Voice.want && Voice.live) Voice.stop(); else { Voice.tries = 0; Voice.start(true); } });
 $('#v-form').addEventListener('submit', e => {
   e.preventDefault();
   const el = $('#v-text'), t = el.value.trim(); if (!t) return;
@@ -4241,7 +4268,7 @@ document.addEventListener('visibilitychange', () => { if (document.hidden && G.t
 
 /* title */
 $$('[data-go]').forEach(b => b.addEventListener('click', () => {
-  audio.init(); Voice.prime(); const go = b.dataset.go;
+  audio.init(); const go = b.dataset.go;
   if (go === 'online') { G.type = 'online'; G.phase = 'online'; $('#on-status').textContent = ''; show('s-online'); voiceNotes(); Lobby.start(); renderLobby(); }
   else if (go === 'tut') startTutorial();
   else openSelect(go);
