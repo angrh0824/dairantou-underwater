@@ -776,17 +776,21 @@ function kit() {
   const m = (color, o) => {
     const key = color + (o ? JSON.stringify(o) : '');
     if (cache.has(key)) return cache.get(key);
-    const mt = new THREE.MeshStandardMaterial(Object.assign({ color, roughness: 0.55, metalness: 0.04, flatShading: true }, o || {}));
+    const mt = new THREE.MeshStandardMaterial(Object.assign({ color, roughness: 0.55, metalness: 0.04 }, o || {}));
     mt.userData.e0 = mt.emissive.clone(); mt.userData.i0 = mt.emissiveIntensity;
     mats.push(mt); cache.set(key, mt); return mt;
   };
   return { mats, m };
 }
-const sph = (r, w, h) => new THREE.SphereGeometry(r, w || 14, h || 10);
-const cyl = (a, b, h, s) => new THREE.CylinderGeometry(a, b, h, s || 10);
+/* bodies: smooth shading (free) plus about 1.5x the segments of the old faceted look on the bigger parts, so outlines
+   are round while four fighters stay light enough for phones. Tiny parts (eyes, dots, crumbs) keep their old segments:
+   nobody can see their corners. The number of parts (draw calls) is unchanged. */
+const seg = (n, big) => (big ? Math.round(n * 1.5) : n);
+const sph = (r, w, h) => new THREE.SphereGeometry(r, seg(w || 14, r >= 0.15), seg(h || 10, r >= 0.15));
+const cyl = (a, b, h, s) => new THREE.CylinderGeometry(a, b, h, seg(s || 10, Math.max(a, b) >= 0.1));
 const box = (w, h, d) => new THREE.BoxGeometry(w, h, d);
-const cone = (r, h, s) => new THREE.ConeGeometry(r, h, s || 8);
-const torus = (r, t, a, b) => new THREE.TorusGeometry(r, t, a || 6, b || 20);
+const cone = (r, h, s) => new THREE.ConeGeometry(r, h, seg(s || 8, r >= 0.1));
+const torus = (r, t, a, b) => new THREE.TorusGeometry(r, t, seg(a || 6, r >= 0.15), seg(b || 20, r >= 0.15));
 function put(p, geo, mat, x, y, z) { const o = new THREE.Mesh(geo, mat); o.position.set(x || 0, y || 0, z || 0); p.add(o); return o; }
 function eyes(g, m, list, r) {
   for (const [x, y, z] of list) {
@@ -836,7 +840,7 @@ function buildMantis(g, m, P) {
 }
 function buildJelly(g, m, P) {
   const bellMat = m('#c86fb6', { transparent: true, opacity: 0.8, emissive: '#ff9fe6', emissiveIntensity: 0.35, side: THREE.DoubleSide, roughness: 0.25 });
-  P.bell = put(g, new THREE.SphereGeometry(0.95, 18, 10, 0, Math.PI * 2, 0, Math.PI / 2), bellMat, 0, 1.45, 0); P.bell.scale.y = 0.9; P.glow = bellMat;
+  P.bell = put(g, new THREE.SphereGeometry(0.95, 27, 15, 0, Math.PI * 2, 0, Math.PI / 2), bellMat, 0, 1.45, 0); P.bell.scale.y = 0.9; P.glow = bellMat;
   put(g, torus(0.93, 0.07, 6, 28), bellMat, 0, 1.45, 0).rotation.x = Math.PI / 2;
   put(g, sph(0.42, 12, 9), m('#ffd8f3', { emissive: '#ffb8ef', emissiveIntensity: 0.7, transparent: true, opacity: 0.85 }), 0, 1.62, 0);
   eyes(g, m, [[-0.3, 1.8, 0.68], [0.3, 1.8, 0.68]], 0.12);
@@ -908,7 +912,7 @@ function buildCrab(g, m, P) {
 }
 function buildTurtle(g, m, P) {
   const skin = m('#9cbd74');
-  put(g, new THREE.SphereGeometry(1.0, 14, 8, 0, Math.PI * 2, 0, Math.PI / 2), m('#5f8048'), 0, 0.5, 0).scale.set(1, 0.72, 1.12);
+  put(g, new THREE.SphereGeometry(1.0, 21, 12, 0, Math.PI * 2, 0, Math.PI / 2), m('#5f8048'), 0, 0.5, 0).scale.set(1, 0.72, 1.12);
   const rim = put(g, torus(0.98, 0.1, 6, 24), m('#465f35'), 0, 0.52, 0); rim.rotation.x = Math.PI / 2; rim.scale.set(1, 1.12, 1);
   put(g, cyl(0.95, 0.85, 0.22, 18), m('#cbbf8c'), 0, 0.42, 0).scale.set(1, 1, 1.1);
   const head = new THREE.Group(); head.position.set(0, 0.68, 1.08); g.add(head); P.head = head;
