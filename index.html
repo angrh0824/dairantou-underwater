@@ -2184,12 +2184,6 @@ const DEFK = {
   } },
 };
 for (const k in DEFK) DEFK[k] = Object.assign({}, DEF_BASE, DEFK[k]);
-/* the guard's effect in a word or two, for the 技パネル (防御 is called just 「防御」, it has no name to say) */
-const DEF_SHORT = {
-  spout: '押し返す', ambush: '五方向反撃', parry: '見切り', sting: '毒を返す', recall: '思い出す', inkcurtain: '墨で鈍らせる', anchor: '吹き飛ばない',
-  spikes: 'トゲ', mobile: '動ける', fossil: '化石', evade: 'すり抜け', hardshell: '固い甲羅', vanish: '置き逃げ', battery: '盾2倍',
-  burrow: '砂にもぐる', nap: '昼寝で回復', jam: '紙詰まり', stealth: '気配を消す', reflect: 'はね返す', shelve: 'ダメージ後払い',
-};
 /* timers behind the guards: parry window, recall, nap, burrow limit, deferred damage */
 function guardTick(f, dt) {
   const k = f.ch.def, was = f.guardFor > 0;
@@ -2756,9 +2750,7 @@ function moveProbs(n, f) {
   return s.map(x => x / sum);
 }
 const latencyOf = p => Math.round(1.2 * clamp((0.95 - p) / 0.65, 0, 1) * 100) / 100;
-/* only the three attacking moves have names to get right; 防御 needs no name and always comes at once */
-const NAMED_ACTS = new Set(['attack', 'combo', 'special', 'air']);
-const hesitation = o => (!NAMED_ACTS.has(o.act) ? 0 : latencyOf(o.conf === undefined ? (o.exact === 'full' ? 1 : 0.4) : o.conf));
+const hesitation = o => (!MOVE_ACTS.has(o.act) ? 0 : latencyOf(o.conf === undefined ? (o.exact === 'full' ? 1 : 0.4) : o.conf));
 function targetSaid(raw, n, f) {
   const fs = foes(f);
   for (const t of fs) {
@@ -2813,7 +2805,7 @@ function replyFor(f, act, t) {
   if (!MOVE_ACTS.has(act) && Math.random() < 0.5) return pickOne(personaOf(f).ok);
   return pickOne({
     attack: ['えいっ！', 'いくよ！', mv.atk + '！'], combo: ['うおおお！', 'ラッシュだ！'], special: [mv.sp + '！'], air: [mv.air + '！'],
-    guard: ['まもる！', '防御！'], jump: ['ぴょん！', 'よっ！'], flee: ['にげる〜！', 'ひぃ〜！'], wait: ['待機します', 'はい…'],
+    guard: [mv.def + '！', 'まもる！'], jump: ['ぴょん！', 'よっ！'], flee: ['にげる〜！', 'ひぃ〜！'], wait: ['待機します', 'はい…'],
     center: ['まんなか！'], bubble: ['泡、取ってくる！'], dance: ['♪〜', 'くるくる〜'], left: ['ひだり！'], right: ['みぎ！'],
     approach: ['いま行く！'], fight: ['いくぞ〜！', 'まかせて！'],
   }[act] || ['了解！']);
@@ -2842,7 +2834,7 @@ function giveOrder(f, v, o, say, via) {
   if (tut) tut.exact = o.exact;
   applyOrder(f, v, o);
   Grumble.order(o.act);
-  if (NAMED_ACTS.has(o.act) && hesitation(o) >= 0.6) Grumble.ev('vague');
+  if (MOVE_ACTS.has(o.act) && hesitation(o) >= 0.6) Grumble.ev('vague');
   else if (o.act === 'special' && f.spCd > 1.2) Grumble.ev('nocharge');
   else if (f.pow <= 0.9) Grumble.ev('whisper');
   sayLine(f, line || replyFor(f, o.act, o.target));
@@ -2854,7 +2846,7 @@ function giveOrder(f, v, o, say, via) {
 function planText(f, v, o, wait, via) {
   const p = f.pow, conf = o.conf === undefined ? null : Math.round(o.conf * 100);
   return '→ ' + (ACT_LABEL[o.act] || o.act) + (v.target ? '　🎯' + pname(v.target) : '') +
-    (NAMED_ACTS.has(o.act) ? (wait ? '　⏳迷い' + wait.toFixed(2) + '秒' : '　⚡即') + (conf !== null ? '（確信' + conf + '%）' : '') : o.act === 'guard' ? '　⚡即' : '') +
+    (MOVE_ACTS.has(o.act) ? (wait ? '　⏳迷い' + wait.toFixed(2) + '秒' : '　⚡即') + (conf !== null ? '（確信' + conf + '%）' : '') : '') +
     (p !== 1 ? '　' + (p > 1 ? '💥' : '🤫') + '×' + p.toFixed(2) : '') + (via === 'ai' ? '　(AI)' : via === 'jev' ? '　(Jev)' : '');
 }
 function confused(f, v, say) {
@@ -2890,7 +2882,7 @@ async function refineMove(text, f, v, o) {
   const ctl = new AbortController(), tm = setTimeout(() => ctl.abort(), 1500);
   try {
     const res = await fetch(VOICE_AI, { method: 'POST', headers: { 'Content-Type': 'text/plain' }, signal: ctl.signal,
-      body: JSON.stringify({ kind: 'move', text: text.slice(0, 60), me: f.ch.name, moves: [f.ch.mv.atk, '防御', f.ch.mv.sp, f.ch.mv.air] }) });
+      body: JSON.stringify({ kind: 'move', text: text.slice(0, 60), me: f.ch.name, moves: [f.ch.mv.atk, f.ch.mv.def, f.ch.mv.sp, f.ch.mv.air] }) });
     if (res.ok) r = await res.json();
   } catch (e) { r = null; }
   clearTimeout(tm);
@@ -2916,7 +2908,7 @@ function quickOrder(t) {
 async function askAI(text, f, v, pow) {
   if (!VOICE_AI) { confused(f, v); return; }
   const seq = ++v.ask; setPlan('🤔 考え中…');
-  const body = { text: text.slice(0, 60), me: f.ch.name, moves: [f.ch.mv.atk, '防御', f.ch.mv.sp, f.ch.mv.air], foes: foes(f).slice(0, 3).map(pname) };
+  const body = { text: text.slice(0, 60), me: f.ch.name, moves: [f.ch.mv.atk, f.ch.mv.def, f.ch.mv.sp, f.ch.mv.air], foes: foes(f).slice(0, 3).map(pname) };
   let r = null;
   const ctl = new AbortController(), tm = setTimeout(() => ctl.abort(), 5000);
   try {
@@ -3891,7 +3883,7 @@ const mvRows = {}; for (const li of $$('#moves li')) mvRows[li.dataset.k] = { li
 function movesPanel(on, up) {
   const p = $('#moves'); p.hidden = !on; p.classList.toggle('up', !!up);
   if (!on || !G.me) return;
-  const mv = G.me.ch.mv; mvRows.atk.n.textContent = mv.atk; mvRows.def.n.textContent = '「防御」で即（' + DEF_SHORT[G.me.ch.def] + '）'; mvRows.sp.n.textContent = mv.sp; mvRows.air.n.textContent = mv.air;
+  const mv = G.me.ch.mv; mvRows.atk.n.textContent = mv.atk; mvRows.def.n.textContent = mv.def; mvRows.sp.n.textContent = mv.sp; mvRows.air.n.textContent = mv.air;
 }
 function updateMoves() {
   const f = G.me, v = G.voice;
@@ -3952,7 +3944,7 @@ function tutSteps(me, dummy) {
     { t: '「攻めろ」で戦いはじめる', ex: '「攻めろ」', hint: '一度言えば、自分で近づいて攻め続けます。何も言わないと、その場で待っています', ok: () => v().stance === 'fight' },
     { t: '「待て」で止める', ex: '「待て」「ストップ」', hint: '止まっている間も、攻撃が来たら身を守ります', ok: () => v().stance === 'wait' && !v().act },
     { t: '「ジャンプ」でかわす', ex: '「ジャンプ」「よけて」', hint: '床を走る攻撃や、飛んでくる物をかわせます', ok: () => me.y > 0.4 },
-    { t: '「防御」で身を守る', ex: '「防御」「ガード」', hint: '防御は名前がいらないので、すぐ出ます。' + DEFK[me.ch.def].desc, ok: () => me.guarding },
+    { t: '防御の技名で身を守る', ex: '「' + mv.def + '」「防御」', hint: mv.def + '：' + DEFK[me.ch.def].desc + '。「防御」だけだと、どの技か少し迷います', ok: () => me.guarding },
     { t: '攻撃の技名を正しく叫ぶ', ex: '「' + mv.atk + '」', hint: '一言一句正しい技名なら確信100%で、すぐ出ます。「攻撃」だけだと3つの攻撃技で迷って約1秒、うろ覚えの名前なら少しだけ遅れます。' + ATKK[me.ch.atk].desc,
       ok: () => me.move && me.move.kind === 'atk' && tut.exact === 'full' },
     { t: '必殺技の名前を叫ぶ', ex: '「' + mv.sp + '」', hint: '「必殺」だけだと迷って遅れます。一度使うと、しばらく溜まるまで出せません', setup: () => { me.spCd = 0; }, ok: () => me.move && me.move.kind === 'sp' },
@@ -4052,7 +4044,7 @@ function detailHTML(c) {
     '<div class="stats">' + st.map(([k, v]) => '<span>' + k + '</span><span class="bar"><i style="width:' + Math.round(v / 30 * 100) + '%"></i></span><span class="v">' + v + '</span>').join('') + '</div>' +
     '<ul class="moves">' +
     '<li><span class="k">攻撃</span><span><b>' + c.mv.atk + '</b><small>' + ATKK[c.atk].desc + '</small></span></li>' +
-    '<li><span class="k">防御</span><span><b>「防御」「ガード」ですぐ出る（' + DEF_SHORT[c.def] + '）</b><small>' + DEFK[c.def].desc + (DEFK[c.def].sm > 0 ? '。守っている間は泡の盾もたまる（最大42）' : '') + '</small></span></li>' +
+    '<li><span class="k">防御</span><span><b>' + c.mv.def + '</b><small>' + DEFK[c.def].desc + (DEFK[c.def].sm > 0 ? '。守っている間は泡の盾もたまる（最大42）' : '') + '</small></span></li>' +
     '<li><span class="k">必殺</span><span><b>' + c.mv.sp + '</b><small>' + c.spDesc + '。使うと反動で自分も少し削れる</small></span></li>' +
     '<li><span class="k">空中</span><span><b>' + c.mv.air + '</b><small>「空中攻撃」「飛びかかれ」で、ジャンプして出す。' + AIR_DESC[c.air] + '</small></span></li>' +
     '<li><span class="k">おまかせ</span><span><b>？の泡に触れると発動</b><small>ときどき浮かぶ泡に触れると、18種類のおまかせ技のどれかが出る。「泡」と言うと取りに行く</small></span></li>' +
