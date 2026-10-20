@@ -227,13 +227,15 @@ body:not(.portrait) #voice.up{bottom:calc(env(safe-area-inset-bottom,0px) + 72px
 #v-state{font-size:11px;color:var(--mist)}
 .v-lv{position:relative;height:6px;margin:3px 0 1px;border-radius:3px;background:rgba(255,255,255,.08);overflow:hidden}
 .v-lv i{position:absolute;left:0;top:0;bottom:0;width:0;border-radius:3px;background:linear-gradient(90deg,var(--p1),var(--lamp) 70%,var(--hurt))}
-.v-lv b{position:absolute;top:0;bottom:0;width:2px;left:0;background:var(--foam);opacity:.85}
+.v-lv b,.v-lv s{position:absolute;top:0;bottom:0;width:2px;left:0;background:var(--foam);opacity:.85;text-decoration:none}
+.v-lv s{background:var(--lamp);opacity:1}
 #v-heard{font-weight:900;font-size:15px;line-height:1.35;overflow-wrap:anywhere;min-height:1.35em}
 #v-heard.interim{color:var(--mist)}
 #v-plan{font-size:12px;color:var(--lamp);min-height:1.4em}
 #v-form{display:flex;gap:6px}
 #v-text{flex:1 1 auto;min-width:0;height:36px;border-radius:10px;border:1px solid var(--line);background:rgba(0,0,0,.25);color:var(--foam);font:inherit;font-weight:700;font-size:16px;padding:0 10px;-webkit-user-select:text;user-select:text;touch-action:manipulation}
 #vsay{position:fixed;left:0;top:0;z-index:14;pointer-events:none;font-weight:900;font-size:13px;padding:5px 11px;border-radius:14px;background:var(--pc,var(--p1));color:var(--ink);white-space:nowrap;max-width:60vw;overflow:hidden;text-overflow:ellipsis}
+#vgrr{position:fixed;left:0;top:0;z-index:14;pointer-events:none;font-weight:900;font-size:13px;line-height:1.4;padding:6px 12px;border-radius:14px;background:#ffe1dc;color:var(--ink);border:2px solid var(--hurt);max-width:min(70vw,320px);text-align:center;text-wrap:balance}
 @media (prefers-reduced-motion:reduce){#voice[data-st="on"] .v-mic i{animation:none}}
 
 /* チュートリアル: one order at a time, in a card under the HUD */
@@ -319,11 +321,12 @@ body:not(.portrait) #voice.up{bottom:calc(env(safe-area-inset-bottom,0px) + 72px
 <div id="voice" hidden data-st="off">
   <div class="v-top">
     <button type="button" class="v-mic" id="v-mic" aria-label="マイクの開始・停止"><i></i></button>
-    <div class="v-txt"><p id="v-state"></p><div class="v-lv" id="v-lv" hidden title="声の大きさ（白い線がいつもの声）"><i></i><b></b></div><p id="v-heard" aria-live="polite"></p><p id="v-plan"></p></div>
+    <div class="v-txt"><p id="v-state"></p><div class="v-lv" id="v-lv" hidden title="声の大きさ（白い線がいつもの声、黄色い線がさっきの指示）"><i></i><b></b><s hidden></s></div><p id="v-heard" aria-live="polite"></p><p id="v-plan"></p></div>
   </div>
   <form id="v-form" autocomplete="off"><input id="v-text" maxlength="40" placeholder="文字でも指示できます（例: 必殺）" enterkeyhint="send" aria-label="文字で指示"><button type="submit" class="ghost sm">送る</button></form>
 </div>
 <div id="vsay" hidden></div>
+<div id="vgrr" hidden></div>
 <div id="tut" hidden role="status" aria-live="polite">
   <p id="tut-n"></p>
   <p id="tut-say"></p>
@@ -1733,6 +1736,7 @@ let shotNow = null;
 function dealHit(a, t, h) {
   if (shotNow) h.pj = 1;
   /* 気合: a shouted order hits harder and further for a few seconds (a whisper, a little softer) */
+  if (a && a === G.me && h.d && !h.cx) a.hitAt = performance.now();
   if (a && a.powT > 0 && a.pow && a.pow !== 1 && !h.cx) {
     if (h.d) h.d = Math.max(1, Math.round(h.d * a.pow));
     const k = 1 + (a.pow - 1) * 0.5; if (h.kx) h.kx *= k; if (h.kz) h.kz *= k;
@@ -1775,6 +1779,7 @@ function applyHit(t, h, a) {
   if (def && def.counter && !h.cx && !h.pj && nearFoe(t, a)) def.counter(t, a);
   const abs = Math.min(t.shield, d); t.shield -= abs;
   const hpd = d - abs; t.hp = Math.max(0, t.hp - hpd);
+  if (t === G.me && hpd >= 10 && performance.now() - Grumble.lastOrder > 4000) Grumble.ev('hurt');
   if (abs > 0) bubbles(t.x, 1.0, t.z, 3);
   const armor = t.move && t.move.armor;
   if (kx || kz || ky) {
@@ -2136,7 +2141,7 @@ function guardTick(f, dt) {
   const k = f.ch.def, was = f.guardFor > 0;
   f.guardFor = f.guarding ? (f.guardFor || 0) + dt : 0;
   for (const c of ['evadeCd', 'vanishCd', 'ambushCd', 'burrowCd', 'recallT', 'powT']) if (f[c] > 0) f[c] -= dt;
-  if (f.powT > 0 && f.pow >= 1.15 && Math.random() < dt * 12 * (f.pow - 1)) burst(f.x + (Math.random() - 0.5), 0.4 + Math.random() * 1.4, f.z + (Math.random() - 0.5), 0xffb35c, 1, 2.2);
+  if (f.powT > 0 && f.pow >= 1.05 && Math.random() < dt * 14 * (f.pow - 1)) burst(f.x + (Math.random() - 0.5), 0.4 + Math.random() * 1.4, f.z + (Math.random() - 0.5), 0xffb35c, 1, 2.2);
   if (f.defer > 0) { f.deferT -= dt; if (f.deferT <= 0) { const x = Math.min(f.defer, 5 * dt); f.defer -= x; f.hp = Math.max(1, f.hp - x); } }
   if (!f.guarding) { f.evadeReady = false; return; }
   if (!was && k === 'evade' && !(f.evadeCd > 0)) f.evadeReady = true;
@@ -2731,7 +2736,7 @@ function applyOrder(f, v, o) {
   v.n = (v.n || 0) + 1;
   if (o.target) v.target = o.target;
   if (STANCES.has(o.act)) { v.stance = o.act; v.act = null; }
-  else v.act = { k: o.act, t: o.act === 'special' ? Math.max(ACT_T.special, f.spCd + 2) : ACT_T[o.act] || 2, n: o.act === 'combo' ? 5 : 2, jumped: false, dir: dirFor(o.act), ph: 0, wait: hesitation(o) };
+  else v.act = { k: o.act, t: o.act === 'special' ? Math.max(ACT_T.special, f.spCd + 2) : ACT_T[o.act] || 2, n: o.act === 'combo' ? 5 : 2, jumped: false, dir: dirFor(o.act), ph: 0, wait: hesitation(o), t0: performance.now() };
   /* 声の大きさ: every order sets how fired up the monster is for the next few seconds */
   f.pow = o.pow || 1; f.powT = v.act ? Math.max(3, v.act.t + v.act.wait) : 3;
   inp.sx = inp.sz = 0; inp.guardT = false; v.cpu.t = 0; v.cpu.guardT = 0;
@@ -2743,16 +2748,21 @@ function giveOrder(f, v, o, say, via) {
   if (wait >= 1 && !line) line = pickOne(['えっと…どれだっけ', 'えーっと…どの技？', 'どれのこと…？']);
   if (tut) tut.exact = o.exact;
   applyOrder(f, v, o);
+  Grumble.order(o.act);
+  if (wait >= 1) Grumble.ev('vague');
+  else if (o.act === 'special' && f.spCd > 1.2) Grumble.ev('nocharge');
+  else if (f.pow <= 0.9) Grumble.ev('whisper');
   sayLine(f, line || replyFor(f, o.act, o.target));
-  const p = f.pow;
-  if (p >= 1.15) floater('気合 ×' + p.toFixed(2).replace(/0$/, ''), f.x, 3.4, f.z, 'call sp', 1.1, 0, 0.6, '#ffd86e');
-  else if (p <= 0.9) floater('ひそひそ ×' + p.toFixed(2).replace(/0$/, ''), f.x, 3.4, f.z, 'call', 1.0, 0, 0.6, '#94bbd0');
+  const p = f.pow, px = '×' + p.toFixed(2);
+  if (p >= 1.05) floater('気合 ' + px, f.x, 3.4, f.z, 'call sp', 1.1, 0, 0.6, '#ffd86e');
+  else if (p <= 0.95) floater('ひそひそ ' + px, f.x, 3.4, f.z, 'call', 1.0, 0, 0.6, '#94bbd0');
   setPlan('→ ' + (ACT_LABEL[o.act] || o.act) + (v.target ? '　🎯' + pname(v.target) : '') + (wait ? '　⏳迷い' + wait + '秒' : MOVE_ACTS.has(o.act) ? '　⚡技名' : '') +
-    (p !== 1 ? '　' + (p > 1 ? '💥' : '🤫') + '×' + p.toFixed(2).replace(/0$/, '') : '') + (via === 'ai' ? '　(AI)' : ''));
+    (p !== 1 ? '　' + (p > 1 ? '💥' : '🤫') + px : '') + (via === 'ai' ? '　(AI)' : ''));
 }
 function confused(f, v, say) {
   sayLine(f, say || pickOne(['え、なんて？', '？？？', 'もう一回言って！', f.ch.think]));
   setPlan('→ ？ よくわからなかった');
+  Grumble.ev('confused');
   if (Math.random() < 0.35) v.act = { k: Math.random() < 0.5 ? 'dance' : 'jump', t: 1.2, n: 0, jumped: false, dir: null, ph: 0 };
 }
 /* final words (and typed orders): local match first, then the AI relay */
@@ -2763,6 +2773,7 @@ function hearOrder(alts, typed) {
   if (!list.length) return;
   showHeard(list[0], false);
   if (!v || !f || f.ko || !['vs', 'count', 'fight'].includes(G.phase)) return;
+  Grumble.lastText = list[0]; Grumble.lastOrder = performance.now(); Grumble.silent = false;
   const pow = typed ? typedPow(list[0]) : Level.pow(2500);
   for (const t of list) { const o = parseOrder(t, f); if (o) { o.pow = pow; v.ask++; giveOrder(f, v, o); return; } }
   askAI(list[0], f, v, pow);
@@ -2774,6 +2785,7 @@ function quickOrder(t) {
   if (!v || !f || f.ko || G.phase !== 'fight') return false;
   const o = parseOrder(t, f);
   if (!o || !QUICK.has(o.act) || o.target || (vnorm(t).length > 8 && o.exact !== 'full')) return false;
+  Grumble.lastText = t; Grumble.lastOrder = performance.now(); Grumble.silent = false;
   o.pow = Level.pow(1500); v.ask++; giveOrder(f, v, o); return true;
 }
 async function askAI(text, f, v, pow) {
@@ -2855,7 +2867,11 @@ function voiceThink(f, dt, v) {
         break;
       default: done = true;
     }
-    if (done) { v.act = null; inp.sx = inp.sz = 0; inp.guardT = false; v.cpu.t = 0; }
+    if (done) {
+      /* ぼやき: your attack order ended without touching anyone */
+      if (f === G.me && (a.k === 'attack' || a.k === 'combo') && !(f.move && f.move.kind === 'atk') && !(f.hitAt > a.t0)) Grumble.ev('miss');
+      v.act = null; inp.sx = inp.sz = 0; inp.guardT = false; v.cpu.t = 0;
+    }
     return;
   }
   if (v.stance === 'fight') { cpuThink(f, o, dt, v.cpu); return; }
@@ -2879,7 +2895,7 @@ function voiceThink(f, dt, v) {
    orders a player can say, and it reacts to danger only after about the time it takes to shout. */
 function newCpuVoice() { return { t: 0.8 + Math.random() * 0.8, think: 0, react: 0, v: newVoice() }; }
 /* CPUs play the same gimmicks: they mostly know their move names but sometimes say just 「攻撃」, and they shout now and then */
-const cpuSay = () => ({ exact: Math.random() < 0.75 ? 'full' : '', pow: (r => (r < 0.6 ? 1 : r < 0.85 ? 1.15 + Math.round(Math.random() * 4) * 0.05 : 0.9))(Math.random()) });
+const cpuSay = () => ({ exact: Math.random() < 0.75 ? 'full' : '', pow: Math.round(clamp(1.03 + (Math.random() + Math.random() + Math.random() - 1.5) * 0.24, 0.8, 1.5) * 100) / 100 });
 function cpuVoice(f, dt, b) {
   const v = b.v;
   if (!f.ko && G.phase === 'fight') {
@@ -3492,15 +3508,24 @@ const Level = {
     this.hist.push([now, this.lv]); while (this.hist.length && now - this.hist[0][0] > 3000) this.hist.shift();
   },
   normal() { return this.base.length >= 3 ? this.base.slice().sort((x, y) => x - y)[1] : null; },
-  /* how loud the order just heard was → power 0.85 (whisper) .. 1.5 (shout) */
+  /* the order's loudness: the average dB of the voiced part of the last ms (frames within 20 dB of its loudest moment) */
+  level(ms) {
+    const now = performance.now(), fr = []; let peak = -120;
+    for (const [t, d] of this.hist) if (now - t <= ms) { fr.push(d); if (d > peak) peak = d; }
+    if (peak < -75) return null;
+    let s = 0, n = 0; for (const d of fr) if (d > peak - 20) { s += d; n++; }
+    return s / n;
+  },
+  last: null,
+  /* how loud the order just heard was, on a smooth scale: 0.80 (whisper) .. 1.00 (your normal voice) .. 1.50 (shout, about +11 dB) */
   pow(ms) {
     if (!this.ok) return 1;
-    const now = performance.now(); let p = -120;
-    for (const [t, d] of this.hist) if (now - t <= ms && d > p) p = d;
-    if (p < -75) return 1;
+    const a = this.level(ms);
+    if (a === null) return 1;
+    this.last = a;
     const b = this.normal();
-    if (b === null) { this.base.push(p); return 1; }
-    return Math.round(clamp(1 + (p - b) * 0.05, 0.85, 1.5) * 20) / 20;
+    if (b === null) { this.base.push(a); return 1; }
+    return Math.round(clamp(1 + (a - b) * 0.045, 0.8, 1.5) * 100) / 100;
   },
 };
 const Voice = {
@@ -3547,7 +3572,7 @@ function setPlan(t) { $('#v-plan').textContent = t; }
 let vsayT = 0;
 function sayLine(f, text) { const el = $('#vsay'); el.textContent = text; el.style.setProperty('--pc', PCOL[f.idx]); el.hidden = false; vsayT = 2.4; }
 /* the loudness meter: -70 dB .. -10 dB across the bar, a white line at your normal voice */
-const lvEl = $('#v-lv'), lvBar = $('#v-lv i'), lvBase = $('#v-lv b');
+const lvEl = $('#v-lv'), lvBar = $('#v-lv i'), lvBase = $('#v-lv b'), lvLast = $('#v-lv s');
 const lvX = db => clamp((db + 70) / 60, 0, 1) * 100;
 function updateLevel() {
   Level.tick();
@@ -3556,6 +3581,7 @@ function updateLevel() {
   if (!show) return;
   lvBar.style.width = lvX(Level.lv).toFixed(1) + '%';
   const b = Level.normal(); lvBase.hidden = b === null; if (b !== null) lvBase.style.left = lvX(b).toFixed(1) + '%';
+  lvLast.hidden = Level.last === null; if (Level.last !== null) lvLast.style.left = lvX(Level.last).toFixed(1) + '%';
 }
 function updateVoiceSay(dt) {
   const el = $('#vsay');
@@ -3567,9 +3593,91 @@ function updateVoiceSay(dt) {
   el.style.transform = 'translate(' + p.x.toFixed(1) + 'px,' + p.y.toFixed(1) + 'px) translate(-50%,-100%)';
   el.hidden = !!p.behind;
 }
+/* ================= ぼやき: 3-5 times a match your monster grumbles about you =================
+   Triggered by what just happened (a vague order, a whiff, a whisper, silence...). The line comes from a light chat
+   model through the voice relay when it is set up (VOICE_AI), otherwise from the lines below. Only you see it. */
+const GRUMBLE = {
+  vague: ['どの技だよ…ちゃんと名前で言って', '「攻撃」って言われてもなぁ', '技名くらい覚えてよ、ご主人', '指示が曖昧だなぁ…'],
+  confused: ['今の、指示？独り言？', 'なに言ってんの…？', 'もうちょいハッキリ頼むよ', 'はぁ…聞き取れないって'],
+  whisper: ['声ちっさ…やる気ある？', 'もっと気合入れて言ってよ', 'ささやかれても困るんだけど'],
+  miss: ['しょーもない攻撃させるなよ…', '空振りじゃん。誰の指示だっけ', '今の、当たる距離じゃないって'],
+  hurt: ['ちょっと！見てないで指示してよ', '痛いんだけど！？', 'ご主人、寝てる？'],
+  silent: ['ねえ、何すればいいの？', '暇なんだけど…', '指示待ちってつらいなぁ'],
+  spam: ['聞こえてるって！', '何回言うの…', 'わかったってば、もう'],
+  nocharge: ['まだ溜まってないって言ったでしょ', '必殺、そんなに連発できないから'],
+  lowhp: ['もう無理…作戦考えて', 'こんなはずじゃ…ご主人のせいだよ', '体力ないって！逃げさせて'],
+  general: ['この作戦で本当に合ってる？', 'ご主人、もうちょい頭使ってこ', '指示する側は楽でいいよね'],
+};
+const Grumble = {
+  left: 0, next: 0, busy: false, lastOrder: 0, lastText: '', silent: false, silentAt: 0, low: false, recent: [],
+  reset() {
+    const now = performance.now();
+    this.left = G.voice && G.type !== 'tutorial' ? rnd(3, 5) : 0;
+    this.next = now + 6000; this.busy = false; this.lastOrder = now; this.lastText = ''; this.silent = false; this.silentAt = 0; this.low = false; this.recent = [];
+  },
+  /* an order was given: remember it, and notice the same order said over and over */
+  order(act, text) {
+    const now = performance.now();
+    this.lastOrder = now; this.silent = false; if (text) this.lastText = text;
+    this.recent = this.recent.filter(r => now - r[0] < 4000); this.recent.push([now, act]);
+    if (this.recent.filter(r => r[1] === act).length >= 3) { this.recent = []; this.ev('spam'); }
+  },
+  ev(kind) {
+    const f = G.me;
+    if (!f || f.ko || !G.voice || G.phase !== 'fight' || this.left <= 0 || this.busy) return;
+    const now = performance.now();
+    if (now < this.next) return;
+    /* spread them over the match: certain when time is running out for the ones left */
+    const chance = G.time < this.left * 14 ? 1 : kind === 'silent' || kind === 'spam' || kind === 'nocharge' ? 0.8 : 0.5;
+    if (Math.random() > chance) return;
+    this.left--; this.next = now + 10000;
+    this.say(kind);
+  },
+  tick() {
+    const f = G.me;
+    if (!f || f.ko || !G.voice || G.phase !== 'fight' || this.left <= 0) return;
+    const now = performance.now();
+    /* silence: after 12 s without an order, and again every 15 s while it lasts */
+    if (now - this.lastOrder > 12000 && now - this.silentAt > 15000) { this.silentAt = now; this.ev('silent'); }
+    if (!this.low && f.hp < 25) { this.low = true; this.ev('lowhp'); }
+    /* near the end, the ones still owed come out anyway, so every match has 3-5 */
+    if (now >= this.next && G.time < this.left * 10 + 5) this.ev(f.hp < 40 ? 'lowhp' : now - this.lastOrder > 6000 ? 'silent' : 'general');
+  },
+  async say(kind) {
+    const f = G.me, text = this.lastText;
+    this.busy = true;
+    let line = null;
+    if (VOICE_AI) line = await askGrumble(f, kind, text);
+    this.busy = false;
+    if (G.me !== f || f.ko || !G.voice) return;
+    grumbleLine(f, line || pickOne(GRUMBLE[kind] || GRUMBLE.confused));
+  },
+};
+async function askGrumble(f, kind, last) {
+  const ctl = new AbortController(), tm = setTimeout(() => ctl.abort(), 2500);
+  try {
+    const res = await fetch(VOICE_AI, { method: 'POST', headers: { 'Content-Type': 'text/plain' }, signal: ctl.signal,
+      body: JSON.stringify({ kind: 'grumble', ev: kind, me: f.ch.name, sub: f.ch.sub, last: String(last || '').slice(0, 40), hp: Math.round(f.hp) }) });
+    if (!res.ok) return null;
+    const j = await res.json();
+    return [...String(j.say || '')].filter(nameOk).join('').trim().slice(0, 32) || null;
+  } catch (e) { return null; } finally { clearTimeout(tm); }
+}
+let grrT = 0;
+function grumbleLine(f, text) { const el = $('#vgrr'); el.textContent = '💢 ' + text; el.hidden = false; grrT = 3.8; audio.tick(); }
+function updateGrumble(dt) {
+  const el = $('#vgrr');
+  if (grrT <= 0) return;
+  grrT -= dt;
+  const f = G.me;
+  if (grrT <= 0 || !f || !G.voice) { grrT = 0; el.hidden = true; return; }
+  const p = project(f.x, f.y + 3.9, f.z);
+  el.style.transform = 'translate(' + p.x.toFixed(1) + 'px,' + p.y.toFixed(1) + 'px) translate(-50%,-100%)';
+  el.hidden = !!p.behind;
+}
 function voicePanel(on, up) {
   const p = $('#voice'); p.hidden = !on; p.classList.toggle('up', !!up);
-  if (!on) { vsayT = 0; $('#vsay').hidden = true; return; }
+  if (!on) { vsayT = 0; $('#vsay').hidden = true; grrT = 0; $('#vgrr').hidden = true; return; }
   $('#v-mic').hidden = !micReady();
   $('#v-text').placeholder = micReady() ? '文字でも指示できます（例: 必殺）' : 'ここに指示を打ち込む（例: 必殺）';
   $('#v-heard').textContent = ''; $('#v-heard').classList.remove('interim'); setPlan('「攻撃」「必殺」「ジャンプ」「逃げろ」など');
@@ -3801,6 +3909,7 @@ function startMatch(chars, ctrls, ids, nms) {
   layoutShowcase('none'); layoutPads(); setupHUD();
   show(null); $('#hud').hidden = false; $('#hud2').hidden = F.length <= 2; $('#pads').hidden = true;
   if (G.voice) { voicePanel(true, F.length > 2); Voice.start(); }
+  Grumble.reset();
   const vs = $('#vs'); vs.textContent = ''; vs.classList.toggle('many', F.length > 2);
   F.forEach((f, i) => {
     if (i) { const mid = document.createElement('div'); mid.className = 'mid'; mid.textContent = 'VS'; vs.append(mid); }
@@ -4079,6 +4188,7 @@ function stepGame(rdt) {
   bubbleTick(dt);
   if (G.phase === 'fight' && G.type === 'tutorial') tutTick(dt);
   else if (G.phase === 'fight') {
+    Grumble.tick();
     G.time -= dt;
     if (G.time <= 0) { G.time = 0; showBanner('⏱️', '時間切れ', '水圧判定に入ります', 'sys'); beginEnd(); }
     else intruderTick(dt);
@@ -4221,6 +4331,7 @@ function frame(now) {
     updateThink();
     updateTags();
     updateVoiceSay(rdt);
+    updateGrumble(rdt);
     updateLevel();
     renderer.render(scene, camera);
   } catch (err) { console.error(err); }

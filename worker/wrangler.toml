@@ -12,6 +12,8 @@ workers_dev = true
 #   Jev Router（文章）:    API = "chat"      / MODEL = "typesafe/jev-router"
 API = "decisions"
 MODEL = "typesafe/jev-1.14"
+# 試合中のぼやき（1試合3〜5回）を書く軽い文章モデル
+GRUMBLE_MODEL = "deepseek/deepseek-v4.1-flash-1017"
 ALLOWED_ORIGINS = "https://angrh0824.github.io,http://localhost:8765,http://127.0.0.1:8765"
 RATE_PER_MIN = "30"
 TIMEOUT_MS = "6000"
