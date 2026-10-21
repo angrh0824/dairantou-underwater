@@ -945,8 +945,13 @@ function buildJelly(g, m, P) {
 function buildPuffer(g, m, P) {
   const pf = new THREE.Group(); pf.position.set(0, 1.0, 0); g.add(pf); P.puff = pf;
   put(pf, sph(0.85, 16, 12), m('#e2bd47'), 0, 0, 0);
-  put(pf, sph(0.8, 14, 10), m('#f5ecd2'), 0, -0.14, 0.08).scale.set(0.95, 0.72, 0.95);
-  for (const [x, y, z] of [[-0.3, 0.6, -0.4], [0.35, 0.55, -0.35], [0, 0.75, -0.1], [-0.55, 0.35, -0.5], [0.55, 0.3, -0.55]]) put(pf, sph(0.12, 8, 6), m('#9a7a26'), x, y, z).scale.set(1, 0.4, 1);
+  /* a cream belly as a patch of the body's own skin (a second sphere poking through it left a ragged edge) */
+  eggCap(pf, m('#f5ecd2'), [0, 0, 0], [0.837, 0.837, 0.837], 0.018, [0, -0.866, 0.5], 0.84);
+  /* spots lie on the back, flattened along the skin */
+  for (const [x, y, z] of [[-0.3, 0.6, -0.4], [0.35, 0.55, -0.35], [0, 0.75, -0.1], [-0.55, 0.35, -0.5], [0.55, 0.3, -0.55]]) {
+    const d = new THREE.Vector3(x, y, z).normalize(), sp = put(pf, sph(0.12, 8, 6), m('#9a7a26'), d.x * 0.83, d.y * 0.83, d.z * 0.83);
+    sp.quaternion.setFromUnitVectors(UPV, d); sp.scale.set(1, 0.4, 1);
+  }
   P.spikes = [];
   const sm = m('#f3e7b5'), up = new THREE.Vector3(0, 1, 0), N = 28;
   for (let i = 0; i < N; i++) {
@@ -960,14 +965,14 @@ function buildPuffer(g, m, P) {
   put(pf, torus(0.11, 0.05, 6, 12), m('#f08f4a'), 0, -0.08, 0.84);
   for (const s of [-1, 1]) put(pf, sph(0.25, 8, 6), m('#f2cf5c'), s * 0.86, -0.05, 0.05).scale.set(0.25, 0.7, 0.6);
   P.tailFin = put(pf, cone(0.3, 0.42, 6), m('#f2cf5c'), 0, 0.05, -0.98); P.tailFin.rotation.x = Math.PI / 2; P.tailFin.scale.set(1, 1, 0.35);
-  put(pf, cyl(0.4, 0.44, 0.26, 14), m('#2b3d6b'), 0, 0.8, -0.02);
-  put(pf, box(0.56, 0.05, 0.32), m('#18213a'), 0, 0.68, 0.32);
-  put(pf, box(0.14, 0.12, 0.03), m('#e8c35a', { metalness: 0.5 }), 0, 0.82, 0.41);
+  put(pf, cyl(0.4, 0.44, 0.26, 14), m('#2b3d6b'), 0, 0.78, -0.02);
+  put(pf, box(0.56, 0.05, 0.32), m('#18213a'), 0, 0.695, 0.34);
+  put(pf, box(0.14, 0.12, 0.03), m('#e8c35a', { metalness: 0.5 }), 0, 0.8, 0.425);
 }
 function buildCrab(g, m, P) {
   const red = m('#d35a46'), dred = m('#a63f33');
   put(g, sph(1, 16, 10), red, 0, 0.9, 0).scale.set(1.15, 0.5, 0.85);
-  put(g, sph(0.9, 12, 8), m('#f3c2a8'), 0, 0.78, 0.05).scale.set(1.1, 0.35, 0.8);
+  eggCap(g, m('#f3c2a8'), [0, 0.9, 0], [1.1328, 0.4925, 0.8373], 0.015, [0, -1, 0.2], 0.95);
   for (const p of [[-0.4, 1.3, -0.1], [0.4, 1.3, -0.1], [0, 1.36, 0.2], [0, 1.3, -0.4]]) put(g, sph(0.13, 8, 6), dred, p[0], p[1], p[2]);
   for (const s of [-1, 1]) {
     put(g, cyl(0.05, 0.06, 0.36, 6), red, s * 0.26, 1.42, 0.56);
@@ -1075,24 +1080,34 @@ function buildSquid(g, m, P) {
 function buildSeahorse(g, m, P) {
   const gold = m('#d49b39'), lite = m('#ffe28c'), dark = m('#8a5f1d'), ink = m('#1b1b22'), tie = m('#3557a8');
   for (const [y, z, r] of [[1.95, 0.05, 0.3], [1.6, -0.06, 0.27], [1.25, 0.03, 0.38], [0.88, -0.02, 0.33], [0.58, -0.18, 0.24], [0.38, -0.32, 0.17]]) put(g, sph(r, 12, 9), gold, 0, y, z);
-  P.pouch = new THREE.Group(); P.pouch.position.set(0, 1.12, 0.22); g.add(P.pouch);
-  put(P.pouch, sph(0.3, 10, 8), lite, 0, 0, 0).scale.set(0.85, 1.1, 0.6);
+  /* the pouch bulges clearly out of the body (just touching it left a ragged edge), and the necktie hangs over it */
+  P.pouch = new THREE.Group(); P.pouch.position.set(0, 1.1, 0.3); g.add(P.pouch);
+  put(P.pouch, sph(0.3, 10, 8), lite, 0, 0, 0).scale.set(0.85, 1.05, 0.6);
+  const QR = [0.251, 0.31, 0.177];
+  put(P.pouch, eggSkin([0, 0, 0], QR, 0.012, 2, 10, (u, v) => { const la = -0.4 + v * 1.25, hw = v < 0.2 ? 0.07 * v / 0.2 : 0.07 - 0.035 * (v - 0.2) / 0.8; return [la, (u * 2 - 1) * hw / (QR[0] * Math.cos(la))]; }), tie);
+  const kn = eggAt([0, 0, 0], QR, 0.92, 0, 0.02), knot = put(P.pouch, sph(0.05, 8, 6), tie, kn.p.x, kn.p.y, kn.p.z);
+  knot.quaternion.setFromUnitVectors(UPV, kn.up); knot.scale.set(1.4, 0.9, 0.6);
   put(g, torus(0.15, 0.065, 6, 16), gold, 0, 0.3, -0.3).rotation.y = Math.PI / 2;
   put(g, cyl(0.06, 0.1, 0.5, 8), gold, 0, 1.86, 0.4).rotation.x = Math.PI / 2 + 0.25;
   for (let i = 0; i < 3; i++) put(g, cone(0.06, 0.2, 5), dark, 0, 2.22 - i * 0.06, -0.08 - i * 0.12).rotation.x = -0.5 - i * 0.25;
-  for (let i = 0; i < 5; i++) put(g, cone(0.045, 0.14, 4), dark, 0, 1.55 - i * 0.24, -0.36 + i * 0.03).rotation.x = -1.7;
+  /* the ridge down the back: each spine stands on the back of whichever body ball reaches furthest back at its height */
+  const balls = [[1.95, 0.05, 0.3], [1.6, -0.06, 0.27], [1.25, 0.03, 0.38], [0.88, -0.02, 0.33], [0.58, -0.18, 0.24], [0.38, -0.32, 0.17]];
+  for (let i = 0; i < 5; i++) {
+    const y = 1.55 - i * 0.24; let best = null;
+    for (const [by, bz, br] of balls) { const r = br * 0.985, dy = y - by; if (Math.abs(dy) < r) { const z = bz - Math.sqrt(r * r - dy * dy); if (!best || z < best.z) best = { z, n: new THREE.Vector3(0, dy, z - bz).normalize() }; } }
+    const sp = put(g, cone(0.045, 0.14, 4), dark, 0, y + best.n.y * 0.06, best.z + best.n.z * 0.06); sp.quaternion.setFromUnitVectors(UPV, best.n);
+  }
   /* eyes a little to the sides of the head, the glasses following its curve */
   const HC = [0, 1.95, 0.05], HR = [0.2955, 0.2955, 0.2955];
   for (const s of [-1, 1]) eyeOn(g, m, HC, HR, 0.2, s * 0.85, 0.09, 0.025);
   glassesOn(g, ink, HC, HR, 0.2, 0.85, 0.11, 0.018, 0.047);
-  put(g, box(0.1, 0.08, 0.05), tie, 0, 1.5, 0.24); put(g, cone(0.08, 0.36, 4), tie, 0, 1.32, 0.4).rotation.x = Math.PI - 0.2;
   P.fin = put(g, sph(0.28, 8, 6), lite, 0, 1.25, -0.42); P.fin.scale.set(0.12, 0.8, 0.6);
   P.lift = 0.08;
 }
 function buildManta(g, m, P) {
   const blue = m('#437d93'), belly = m('#e8f1f4');
   put(g, sph(1, 18, 10), blue, 0, 0.8, 0).scale.set(0.72, 0.28, 0.95);
-  put(g, sph(0.95, 16, 8), belly, 0, 0.73, 0.03).scale.set(0.68, 0.2, 0.86);
+  eggCap(g, belly, [0, 0.8, 0], [0.7092, 0.2758, 0.9358], 0.012, [0, -1, 0.05], 1.05);
   for (const s of [-1, 1]) {
     const w = new THREE.Group(); w.position.set(s * 0.55, 0.8, 0); g.add(w); P[s < 0 ? 'wingL' : 'wingR'] = w;
     const wing = put(w, sph(0.72, 12, 6), blue, s * 0.55, 0, -0.1); wing.scale.set(1, 0.14, 0.62); wing.rotation.y = s * 0.35;
@@ -1192,7 +1207,7 @@ function buildEels(g, m, P) {
     const hd = new THREE.Group(); hd.position.y = h; e.add(hd);
     put(hd, sph(0.13, 10, 8), mt, 0, 0.03, 0.04).scale.set(0.9, 1, 1.15);
     for (const s of [-1, 1]) put(hd, sph(0.035, 6, 5), m('#141820'), s * 0.08, 0.08, 0.12);
-    if (i % 2 === 0) for (let k = 0; k < 4; k++) put(e, sph(0.03, 4, 3), spot, Math.sin(k * 2.1) * 0.105, h * (0.2 + k * 0.18), Math.cos(k * 2.1) * 0.105);
+    if (i % 2 === 0) for (let k = 0; k < 4; k++) { const f = 0.2 + k * 0.18, rr = 0.11 - 0.01 * f + 0.012; put(e, sph(0.03, 4, 3), spot, Math.sin(k * 2.1) * rr, h * f, Math.cos(k * 2.1) * rr); }
     if (i === 0) { put(hd, sph(0.16, 10, 6), hat, 0, 0.13, 0.02).scale.y = 0.55; put(hd, cyl(0.21, 0.21, 0.02, 12), hat, 0, 0.1, 0.02); }
     P.eels.push(e);
   });
@@ -1213,7 +1228,13 @@ function buildCoela(g, m, P) {
   put(tail, sph(0.22, 8, 6), body, 0, 0, -0.1).scale.set(0.5, 0.7, 1);
   for (const r of [-0.6, 0, 0.6]) { const t = put(tail, sph(0.25, 8, 6), lite, 0, Math.sin(r) * 0.35, -0.38 - Math.cos(r) * 0.12); t.scale.set(0.12, 0.45, 0.8); t.rotation.x = r; }
   const d = put(g, cone(0.25, 0.6, 4), body, 0, 1.78, -0.25); d.scale.z = 0.4; d.rotation.x = -0.4;
-  for (const s of [-1, 1]) { put(g, sph(0.12, 10, 8), body, s * 0.38, 1.22, 0.86); put(g, new THREE.TorusGeometry(0.075, 0.016, 4, 10, Math.PI), dark, s * 0.38, 1.22, 0.98).rotation.z = Math.PI; }
+  /* sleepy closed eyes: a lid bump on the skin with a dark arc lying on it */
+  for (const s of [-1, 1]) {
+    const e = eggAt([0, 1.0, 0], [0.611, 0.709, 1.33], 0.3, s * 0.62, 0.02), k = 0.115;
+    put(g, sph(0.12, 10, 8), body, e.p.x, e.p.y, e.p.z);
+    const lid = put(g, new THREE.TorusGeometry(0.075, 0.018, 5, 12, Math.PI), dark, e.p.x + e.n.x * k, e.p.y + e.n.y * k, e.p.z + e.n.z * k);
+    lid.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(new THREE.Vector3().crossVectors(e.up, e.n), e.up, e.n)); lid.rotateZ(Math.PI);
+  }
   const cap = new THREE.Group(); cap.position.set(0, 1.62, 0.5); cap.rotation.set(-0.45, 0, 0.3); g.add(cap);
   put(cap, cone(0.3, 0.75, 10), m('#7f8bd6'), 0, 0.36, 0); put(cap, torus(0.29, 0.07, 6, 16), lite, 0, 0, 0).rotation.x = Math.PI / 2; put(cap, sph(0.1, 8, 6), lite, 0, 0.74, 0);
   P.zz = new THREE.Group(); P.zz.position.set(0.45, 2.2, 0.3); g.add(P.zz);
@@ -1237,7 +1258,10 @@ function buildShrimp(g, m, P) {
   P.fan = new THREE.Group(); P.fan.position.set(0, 0.38, -0.92); g.add(P.fan);
   for (const r of [-0.6, 0, 0.6]) { const f = put(P.fan, sph(0.22, 8, 6), m('#d2452e'), Math.sin(r) * 0.18, -0.04, -0.12); f.scale.set(0.45, 0.12, 1); f.rotation.y = r; }
   const cap = new THREE.Group(); cap.position.set(0, 1.82, 0.36); cap.rotation.x = 0.2; g.add(cap);
-  put(cap, cyl(0.24, 0.22, 0.16, 12), m('#2d3b6b'), 0, 0, 0); put(cap, box(0.32, 0.03, 0.16), m('#1b2340'), 0, -0.07, 0.22); put(cap, sph(0.05, 6, 5), m('#e8c35a', { metalness: 0.5 }), 0, 0.02, 0.24);
+  put(cap, cyl(0.24, 0.22, 0.16, 12), m('#2d3b6b'), 0, 0, 0); put(cap, sph(0.05, 6, 5), m('#e8c35a', { metalness: 0.5 }), 0, 0.02, 0.24);
+  /* the visor lies on the forehead, under the front of the cap */
+  const vz = eggAt([0, 1.42, 0.42], [0.4137, 0.4137, 0.4137], 0.93, 0, 0.03), vis = put(g, box(0.26, 0.022, 0.15), m('#1b2340'), vz.p.x, vz.p.y, vz.p.z);
+  vis.quaternion.setFromUnitVectors(UPV, vz.n); vis.rotateX(-0.12);
 }
 function buildClione(g, m, P) {
   const glass = m('#edf4ff', { transparent: true, opacity: 0.72, emissive: '#cfe3ff', emissiveIntensity: 0.25, roughness: 0.2 }), core = m('#ff7a5c', { emissive: '#ff6a4a', emissiveIntensity: 0.5 });
