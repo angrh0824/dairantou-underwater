@@ -251,7 +251,7 @@ ruby rt{font-size:.6em;font-weight:700;letter-spacing:0;opacity:.85}
 #res-log{color:var(--mist);font-size:13px;line-height:1.7}
 
 /* ---------- HUD ---------- */
-#hud{position:fixed;left:0;right:0;top:0;z-index:15;pointer-events:none;display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);gap:12px;align-items:start;
+#hud{position:fixed;left:0;right:0;top:0;z-index:15;pointer-events:none;display:grid;grid-template-columns:minmax(0,1fr) auto auto minmax(0,1fr);gap:12px;align-items:start;
   padding-top:calc(env(safe-area-inset-top,0px) + 8px);padding-left:max(16px, env(safe-area-inset-left,0px));padding-right:max(16px, env(safe-area-inset-right,0px))}
 .side{display:grid;gap:4px;min-width:0}
 .side .who{display:flex;gap:6px;align-items:center;font-weight:900;font-size:13px;min-width:0}
@@ -282,9 +282,17 @@ ruby rt{font-size:.6em;font-weight:700;letter-spacing:0;opacity:.85}
 @media (prefers-reduced-motion:reduce){.mpb.full i{animation:none}}
 .side.me .tag{box-shadow:0 0 0 2px var(--foam)}
 .side.out{opacity:.4}
-/* players 3-4: bottom strip between the stick and the buttons (landscape), second row under the top bar (portrait) */
-#hud2{position:fixed;z-index:15;pointer-events:none;left:50%;bottom:calc(env(safe-area-inset-bottom,0px) + 6px);transform:translateX(-64%);width:min(290px,40vw);display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px}
-body.portrait #hud2{bottom:auto;top:calc(env(safe-area-inset-top,0px) + 66px);left:0;right:0;transform:none;width:auto;padding:0 max(16px, env(safe-area-inset-left,0px))}
+/* players 3-4: a second row under 1P and 2P, the same size */
+#hud .side.p1{grid-column:1}
+#hud .clock{grid-column:2/4}
+#hud .side.p2{grid-column:4}
+#hud .side.p3{grid-row:2;grid-column:1}
+#hud .side.p4{grid-row:2;grid-column:4}
+/* upright phones: the row under the timer is free, so P3/P4 take half the width each */
+body.portrait #hud .side.p3{grid-column:1/3}
+body.portrait #hud .side.p4{grid-column:3/5}
+body:not(.hud4) #hud .side.p3,body:not(.hud4) #hud .side.p4{display:none}
+body.hud4 #banner{top:calc(env(safe-area-inset-top,0px) + 126px)}
 .side.low .hp{animation:lowhp .8s infinite alternate}
 @keyframes lowhp{to{border-color:var(--hurt);box-shadow:0 0 10px rgba(255,111,111,.6)}}
 .clock{display:flex;flex-direction:column;align-items:center;gap:4px}
@@ -492,8 +500,6 @@ body:not(.portrait) #moves.up{bottom:calc(env(safe-area-inset-bottom,0px) + 72px
     <div class="sh"><i></i></div>
     <div class="mpb"><i></i></div>
   </div>
-</div>
-<div id="hud2" hidden>
   <div class="side p3">
     <div class="who"><span class="tag">P3</span><span class="sym"></span><span class="nm"></span><span class="tox" hidden>ちくちく</span><span class="slw" hidden>のろのろ</span></div>
     <div class="hp"><i class="lag"></i><i class="cur"></i></div>
@@ -5561,7 +5567,7 @@ function clearMatch() {
   clearFloaters(); $('#banner').hidden = true; bannerT = 0; $('#think').hidden = true; $('#vs').hidden = true; $('#count').hidden = true;
   G.paused = false;
 }
-function hideFightUI() { $('#hud').hidden = true; $('#hud2').hidden = true; $('#pads').hidden = true; clearInputs(); }
+function hideFightUI() { $('#hud').hidden = true; document.body.classList.remove('hud4'); $('#pads').hidden = true; clearInputs(); }
 function tagFor(f) {
   if (G.type === 'tutorial') return f === G.me ? 'あなた' : '練習相手';
   if (G.type === 'cpu') return f.ctrl === 'cpu' ? (G.fighters.length > 2 ? 'CPU' + f.idx : 'CPU') : 'あなた';
@@ -5599,7 +5605,7 @@ function startMatch(chars, ctrls, ids, nms, looks) {
   G.time = MATCH_SEC; G.hitstop = 0; G.slowT = 0; endCut(); G.intrT = 10 + Math.random() * 5; G.shake = 0; G.endT = 0; G.bubT = 5;
   G.camYaw = G.me ? G.me.face : 0;
   layoutShowcase('none'); layoutPads(); setupHUD();
-  show(null); $('#hud').hidden = false; $('#hud2').hidden = F.length <= 2; $('#pads').hidden = true;
+  show(null); $('#hud').hidden = false; document.body.classList.toggle('hud4', F.length > 2); $('#pads').hidden = true;
   if (G.voice) { voicePanel(true, F.length > 2); Voice.start(); }
   Grumble.reset();
   const vs = $('#vs'); vs.textContent = ''; vs.classList.toggle('many', F.length > 2);
@@ -5631,7 +5637,7 @@ function decide() {
 function showResult() {
   const r = decide(), n = G.fighters.length; G.phase = 'result';
   Voice.stop(); voicePanel(false);
-  $('#pads').hidden = true; $('#hud').hidden = true; $('#hud2').hidden = true; clearInputs(); $('#think').hidden = true;
+  $('#pads').hidden = true; $('#hud').hidden = true; document.body.classList.remove('hud4'); clearInputs(); $('#think').hidden = true;
   $('#res-reason').textContent = { ko: 'KNOCKOUT', ring: 'RING OUT', time: 'TIME UP', double: 'DOUBLE KO', last: 'LAST ONE STANDING', left: 'DISCONNECTED' }[r.reason] || 'RESULT';
   $('#res-sym').textContent = r.w ? r.w.ch.sym : '🌊';
   $('#res-title').textContent = r.w ? pname(r.w) + (r.w.nm ? '（' + r.w.ch.name + '）' : '') + ' の勝ち' : '引き分け';
