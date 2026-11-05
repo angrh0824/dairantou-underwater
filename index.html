@@ -80,7 +80,7 @@ body.portrait .rotate-hint{display:flex}
 /* select */
 #s-select{justify-content:flex-end;align-items:stretch;overflow:hidden}
 .sel-panel{width:min(450px,54vw);max-height:100%;overflow-y:auto;touch-action:pan-y;background:var(--panel);border:1px solid var(--line);border-radius:20px;padding:14px;display:flex;flex-direction:column;gap:12px;-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px)}
-.sel-panel header{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+.sel-panel header{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;padding-right:64px}
 .sel-panel h2{font-family:var(--display);font-weight:400;font-size:20px}
 .roster{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
 .tile{display:flex;flex-direction:column;align-items:center;gap:2px;padding:8px 4px;border-radius:12px;border:1px solid var(--line);background:rgba(255,255,255,.03);min-width:0}
@@ -111,9 +111,40 @@ body.portrait .rotate-hint{display:flex}
 .seg select{min-height:36px;max-width:12em;padding:0 8px;border-radius:10px;border:1px solid var(--line);background:rgba(3,18,31,.65);color:var(--foam);font:inherit;font-size:13px;font-weight:700;color-scheme:dark}
 .seg select option{background:#03121f;color:#eaf8ff}
 @media (orientation:portrait){
-  #s-select{align-items:flex-end}
+  #s-select,#s-bag{align-items:flex-end}
   .sel-panel{width:100%;max-height:64%}
 }
+/* collection: coins, 潜水者 not yet unlocked, looks, the capsule */
+#s-bag{justify-content:flex-end;align-items:stretch;overflow:hidden}
+.wallet{display:inline-flex;align-items:baseline;gap:6px;font-family:var(--display);font-size:15px;color:var(--lamp);font-variant-numeric:tabular-nums}
+.wallet small{font-family:var(--body);font-size:11px;color:var(--mist)}
+.bonus{font-size:13px;line-height:1.6;color:var(--lamp);background:rgba(255,216,110,.1);border:1px solid rgba(255,216,110,.35);border-radius:12px;padding:8px 12px}
+.tile{position:relative}
+.tile.locked .s,.tile.locked .n{opacity:.45}
+.tile.locked::after{content:'🔒';position:absolute;top:3px;right:4px;font-size:11px}
+.lockbar{display:flex;flex-direction:column;gap:8px;padding:10px 12px;border-radius:12px;border:1px dashed rgba(255,216,110,.5);background:rgba(255,216,110,.06)}
+.lockbar b{color:var(--lamp);font-size:13px}
+.lockbar small{color:var(--mist);font-size:12px;line-height:1.6}
+.lockbar .go{min-height:40px;font-size:14px}
+.reveal{display:flex;align-items:center;gap:12px;padding:12px;border-radius:14px;border:1px solid var(--rc,var(--line));background:rgba(255,255,255,.05);animation:pop .35s ease-out}
+.reveal .rs{font-size:34px;line-height:1}
+.reveal b{display:block;font-family:var(--display);font-weight:400;font-size:17px}
+.reveal small{display:block;color:var(--mist);font-size:12px;line-height:1.6}
+.reveal .rr{color:var(--rc);font-weight:900;font-size:12px}
+@keyframes pop{0%{transform:scale(.6);opacity:0}70%{transform:scale(1.06)}100%{transform:scale(1);opacity:1}}
+@media (prefers-reduced-motion:reduce){.reveal{animation:none}}
+.loot{display:flex;flex-direction:column;gap:10px}
+.loot h4{margin:0 0 6px;font-size:12px;color:var(--mist);font-weight:700}
+.loot ul{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px}
+.loot li{display:flex;flex-direction:column;align-items:center;gap:2px;padding:6px 2px;border-radius:10px;border:1px solid var(--line);font-size:10px;text-align:center;line-height:1.25;min-width:0}
+.loot li i{font-style:normal;font-size:20px}
+.loot li.no{opacity:.35}
+.loot li.r1{border-color:#9fd8ff}
+.loot li.r2{border-color:var(--lamp)}
+.odds{font-size:12px;color:var(--mist);line-height:1.7}
+.odds summary{cursor:pointer;color:var(--foam)}
+#res-coins{font-family:var(--display);color:var(--lamp);font-size:15px}
+#res-coins small{font-family:var(--body);color:var(--mist);font-size:12px;margin-left:6px}
 
 /* room */
 .code{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
@@ -400,7 +431,10 @@ body:not(.portrait) #moves.up{bottom:calc(env(safe-area-inset-bottom,0px) + 72px
       <button class="cta primary" type="button" data-go="cpu"><b>CPUと対戦</b><small>深海CPU 1〜3体と乱闘。CPUも同じく指示で動く。たまに考えすぎる</small></button>
       <button class="cta" type="button" data-go="online"><b>オンライン対戦</b><small>部屋コードで2〜4人がつながって乱闘</small></button>
       <button class="cta" type="button" data-go="tut"><b>あそびかた</b><small>もう一度、指示の出し方を練習する</small></button>
+      <button class="cta" type="button" data-go="bag"><b>コレクション</b><small>遊んでたまるコインで、カプセルを回して着せ替えを集める</small></button>
     </div>
+    <p class="wallet" id="title-coins"></p>
+    <p class="bonus" id="title-bonus" hidden></p>
     <p class="rules"><span>🎤 声だけで指示して戦う</span><span>90秒・体力100</span><span>場外に落ちたら負け</span><span>？の泡でおまかせ</span><span>おじゃま乱入あり</span></p>
     <p class="rotate-hint"><i></i>スマホを横向きにすると遊びやすくなります</p>
   </div>
@@ -417,6 +451,19 @@ body:not(.portrait) #moves.up{bottom:calc(env(safe-area-inset-bottom,0px) + 72px
     <div class="seg" id="sel-lv" role="group" aria-label="CPUの強さ"><span>強さ</span><button type="button" data-lv="0">よわい</button><button type="button" data-lv="1">ふつう</button><button type="button" data-lv="2">つよい</button><small id="sel-lv-note"></small></div>
     <p class="vnote" id="sel-voice" hidden></p>
     <div class="row"><button class="ghost" id="sel-back" type="button">もどる</button><button class="go" id="sel-ok" type="button">この潜水者で</button></div>
+  </div>
+</section>
+
+<section class="screen" id="s-bag" hidden>
+  <div class="sel-panel">
+    <header><p class="eyebrow">COLLECTION</p><h2>コレクション</h2><span class="wallet" id="bag-coins"></span></header>
+    <p class="note">着せ替えは見た目だけで、強さは変わりません。いまの<span id="bag-who"></span>に着せて見せています。</p>
+    <button class="go" id="bag-pull" type="button"></button>
+    <div class="reveal" id="bag-reveal" hidden></div>
+    <p class="note" id="bag-day"></p>
+    <div class="loot" id="bag-list"></div>
+    <details class="odds"><summary>カプセルから出る確率</summary><div id="bag-odds"></div></details>
+    <div class="row"><button class="ghost" id="bag-back" type="button">もどる</button><button class="go" id="bag-dress" type="button">キャラ選択で着せ替える</button></div>
   </div>
 </section>
 
@@ -457,6 +504,7 @@ body:not(.portrait) #moves.up{bottom:calc(env(safe-area-inset-bottom,0px) + 72px
     <p class="eyebrow" id="res-reason">KNOCKOUT</p>
     <div class="res-head"><span class="res-sym" id="res-sym"></span><div><p class="eyebrow" id="res-who" style="color:var(--lamp)"></p><h2 id="res-title"></h2></div></div>
     <p id="res-log"></p>
+    <p id="res-coins" hidden></p>
     <div class="row"><button class="go" id="res-again" type="button">もう一度</button><button class="ghost" id="res-select" type="button">キャラ選択</button><button class="ghost" id="res-home" type="button">タイトル</button></div>
   </div>
 </section>
@@ -1303,7 +1351,7 @@ const BUILDERS = {
   'coelacanth-dream': buildCoela, 'turtle-printer': buildTurtle, 'shrimp-cadet': buildShrimp, 'clione-guard': buildClione, 'sea-cucumber-ceo': buildCucumber,
 };
 
-function buildModel(ch, pcol) {
+function buildModel(ch, pcol, look) {
   const root = new THREE.Group(), inner = new THREE.Group(); root.add(inner);
   const { mats, m } = kit(), P = {};
   BUILDERS[ch.id](inner, m, P);
@@ -1312,7 +1360,9 @@ function buildModel(ch, pcol) {
   if (pcol) { ring = new THREE.Mesh(RING_GEO, new THREE.MeshBasicMaterial({ color: pcol, transparent: true, opacity: 0.9, depthWrite: false })); ring.rotation.x = -Math.PI / 2; ring.position.y = 0.035; root.add(ring); }
   const bubble = new THREE.Mesh(BUBBLE_GEO, new THREE.MeshStandardMaterial({ color: 0xbfefff, emissive: 0x4fc3ff, emissiveIntensity: 0.35, transparent: true, opacity: 0, roughness: 0.1, metalness: 0.1, depthWrite: false }));
   bubble.position.y = 1.05; bubble.visible = false; root.add(bubble);
-  return { root, inner, P, mats, ring, shadow, bubble, type: ch.id, phase: Math.random() * 6, lift: P.lift || 0, red: new THREE.Color(0xff3b3b), flashing: false };
+  const md = { root, inner, P, mats, ring, shadow, bubble, type: ch.id, phase: Math.random() * 6, lift: P.lift || 0, red: new THREE.Color(0xff3b3b), flashing: false };
+  if (look) dressModel(md, look, m);
+  return md;
 }
 function disposeModel(md) {
   scene.remove(md.root);
@@ -1320,6 +1370,155 @@ function disposeModel(md) {
     if (o.geometry && !(o.geometry.userData && o.geometry.userData.shared)) o.geometry.dispose();
     if (o.material && !(o.material.userData && o.material.userData.shared)) o.material.dispose();
   });
+}
+/* ================= 着せ替え: looks every 潜水者 can wear =================
+   col: the body in another colour (whites and blacks such as eyes and teeth keep theirs) · head: something floating over
+   the head · pet: a small companion swimming around. They only change how a 潜水者 looks, never how strong it is.
+   r: rarity 0 ふつう / 1 レア / 2 激レア */
+const LOOKS = [
+  { id: 'c-sakura', slot: 'col', r: 0, name: 'さくら色', sym: '🌸', hue: 0.94 },
+  { id: 'c-wakaba', slot: 'col', r: 0, name: 'わかば色', sym: '🌱', hue: 0.3 },
+  { id: 'c-yozora', slot: 'col', r: 0, name: 'よぞら色', sym: '🌌', hue: 0.69, lk: 0.75 },
+  { id: 'c-yuyake', slot: 'col', r: 0, name: 'ゆうやけ色', sym: '🌇', hue: 0.05 },
+  { id: 'c-yuki', slot: 'col', r: 1, name: 'ゆきしろ', sym: '❄️', snow: 1 },
+  { id: 'c-sumi', slot: 'col', r: 1, name: 'すみいろ', sym: '🖤', ink: 1 },
+  { id: 'c-kogane', slot: 'col', r: 1, name: 'こがね', sym: '🥇', gold: 1 },
+  { id: 'c-niji', slot: 'col', r: 2, name: 'にじいろ', sym: '🌈', rainbow: 1 },
+  { id: 'h-flower', slot: 'head', r: 0, name: 'おはな', sym: '🌼' },
+  { id: 'h-cloud', slot: 'head', r: 0, name: 'ちびぐも', sym: '☁️' },
+  { id: 'h-bubble', slot: 'head', r: 0, name: 'あわのわ', sym: '⭕' },
+  { id: 'h-heart', slot: 'head', r: 0, name: 'ハート', sym: '💗' },
+  { id: 'h-star', slot: 'head', r: 1, name: 'ほし', sym: '⭐' },
+  { id: 'h-halo', slot: 'head', r: 1, name: 'てんしのわ', sym: '😇' },
+  { id: 'h-crown', slot: 'head', r: 2, name: 'おうかん', sym: '👑' },
+  { id: 'p-fish', slot: 'pet', r: 0, name: 'こざかな', sym: '🐟' },
+  { id: 'p-bubbles', slot: 'pet', r: 0, name: 'あわトリオ', sym: '💧' },
+  { id: 'p-plankton', slot: 'pet', r: 0, name: 'ひかるプランクトン', sym: '✨' },
+  { id: 'p-jelly', slot: 'pet', r: 1, name: 'ちびクラゲ', sym: '🎐' },
+  { id: 'p-star', slot: 'pet', r: 1, name: 'ちびヒトデ', sym: '🌟' },
+  { id: 'p-shark', slot: 'pet', r: 2, name: 'ちびザメ', sym: '🦈' },
+];
+const LOOK = Object.fromEntries(LOOKS.map(x => [x.id, x])), SLOTS = ['col', 'head', 'pet'], SLOT_NAME = { col: 'カラー', head: 'あたま', pet: 'おとも' };
+/* anything from storage or another player is checked: unknown ids, or an item in the wrong slot, become nothing */
+function cleanLook(o) {
+  const L = { col: '', head: '', pet: '' };
+  if (o && typeof o === 'object') for (const sl of SLOTS) { const x = LOOK[o[sl]]; if (x && x.slot === sl) L[sl] = x.id; }
+  return L;
+}
+const HSL = { h: 0, s: 0, l: 0 };
+/* the body's colours: each keeps its place relative to the main colour (the first one built), moved to the look's */
+function recolor(md, it, time) {
+  const k = md.look;
+  for (const mt of k.body) {
+    const c0 = mt.userData.c0; if (!c0) continue;
+    c0.getHSL(HSL);
+    if (HSL.s < 0.12 || HSL.l > 0.88 || HSL.l < 0.1) continue;
+    let h = HSL.h, s = HSL.s, l = HSL.l;
+    const d = h - k.h0;
+    if (it.hue !== undefined) { h = it.hue + d; s = Math.max(s, 0.42); l *= it.lk || 1; }
+    else if (it.snow) { s *= 0.2; l = 0.72 + l * 0.22; }
+    else if (it.ink) { s *= 0.55; l *= 0.42; }
+    else if (it.gold) { h = 0.12 + d * 0.25; s = Math.max(0.62, s); l = clamp(l, 0.42, 0.62); mt.metalness = 0.6; mt.roughness = 0.3; }
+    else if (it.rainbow) h = time * 0.08 + d;
+    mt.color.setHSL(((h % 1) + 1) % 1, s, l);
+  }
+}
+/* where the head is: the top of the thick parts (thin stalks, antennae and glows don't count), in the middle */
+function headTop(inner) {
+  inner.updateMatrixWorld(true);
+  const b = new THREE.Box3(), sz = new THREE.Vector3(); let best = null;
+  inner.traverse(o => {
+    if (!o.isMesh || !o.geometry || o.material.isMeshBasicMaterial) return;
+    b.setFromObject(o); b.getSize(sz);
+    if (sz.x * sz.y * sz.z < 0.02 || Math.min(sz.x, sz.z) < 0.15) return;
+    if (!best || b.max.y > best.y) best = { y: b.max.y, z: (b.min.z + b.max.z) / 2 };
+  });
+  return best || { y: 2, z: 0 };
+}
+function starGeo(r, depth) {
+  const s = new THREE.Shape();
+  for (let i = 0; i < 10; i++) { const a = Math.PI / 2 + i / 10 * Math.PI * 2, q = i % 2 ? r * 0.45 : r; if (i) s.lineTo(Math.cos(a) * q, Math.sin(a) * q); else s.moveTo(Math.cos(a) * q, Math.sin(a) * q); }
+  const g = new THREE.ExtrudeGeometry(s, { depth, bevelEnabled: true, bevelThickness: depth * 0.4, bevelSize: r * 0.1, bevelSegments: 2 }); g.center(); return g;
+}
+function heartGeo(r, depth) {
+  const s = new THREE.Shape(); s.moveTo(0, -r);
+  s.bezierCurveTo(r * 1.25, -r * 0.15, r * 0.85, r * 0.95, 0, r * 0.38); s.bezierCurveTo(-r * 0.85, r * 0.95, -r * 1.25, -r * 0.15, 0, -r);
+  const g = new THREE.ExtrudeGeometry(s, { depth, bevelEnabled: true, bevelThickness: depth * 0.4, bevelSize: r * 0.1, bevelSegments: 2, curveSegments: 10 }); g.center(); return g;
+}
+/* the head pieces, about 0.4 across, built around their own centre */
+function buildHead(id, g, m) {
+  const gold = m('#ffd25a', { metalness: 0.6, roughness: 0.3, emissive: '#7a5200', emissiveIntensity: 0.3 });
+  if (id === 'h-flower') {
+    for (let i = 0; i < 5; i++) { const a = i / 5 * Math.PI * 2; put(g, sph(0.075, 10, 8), m('#ff9cc8'), Math.cos(a) * 0.09, 0, Math.sin(a) * 0.09).scale.set(1, 0.45, 1); }
+    put(g, sph(0.06, 10, 8), m('#ffd84a'), 0, 0.02, 0);
+  } else if (id === 'h-cloud') {
+    for (const [x, y, r] of [[-0.13, -0.01, 0.1], [0, 0.03, 0.13], [0.13, 0, 0.1]]) put(g, sph(r, 10, 8), m('#f4f8ff', { roughness: 0.9 }), x, y, 0);
+  } else if (id === 'h-bubble') {
+    const bm = m('#bfefff', { transparent: true, opacity: 0.55, roughness: 0.1, emissive: '#4fc3ff', emissiveIntensity: 0.25 });
+    for (let i = 0; i < 7; i++) { const a = i / 7 * Math.PI * 2; put(g, sph(0.045 + (i % 3) * 0.012, 10, 8), bm, Math.cos(a) * 0.18, Math.sin(i * 1.7) * 0.03, Math.sin(a) * 0.18); }
+  } else if (id === 'h-heart') put(g, heartGeo(0.15, 0.06), m('#ff4f7a', { emissive: '#ff2f5a', emissiveIntensity: 0.25 }));
+  else if (id === 'h-star') put(g, starGeo(0.17, 0.06), m('#ffd84a', { emissive: '#ffb800', emissiveIntensity: 0.4 }));
+  else if (id === 'h-halo') put(g, torus(0.2, 0.032, 8, 28), m('#fff3a8', { emissive: '#ffe066', emissiveIntensity: 0.9 })).rotation.x = Math.PI / 2;
+  else if (id === 'h-crown') {
+    put(g, new THREE.CylinderGeometry(0.17, 0.15, 0.13, 18, 1, true), m('#ffd25a', { metalness: 0.6, roughness: 0.3, emissive: '#7a5200', emissiveIntensity: 0.3, side: THREE.DoubleSide }), 0, 0, 0);
+    for (let i = 0; i < 5; i++) { const a = i / 5 * Math.PI * 2; put(g, cone(0.04, 0.09, 8), gold, Math.cos(a) * 0.16, 0.1, Math.sin(a) * 0.16); put(g, sph(0.025, 8, 6), m('#ff4f7a', { roughness: 0.2 }), Math.cos(a + 0.63) * 0.163, 0, Math.sin(a + 0.63) * 0.163); }
+  }
+}
+/* the companions, about 0.3 long and facing +z (the way they swim) */
+function buildPet(id, g, m) {
+  if (id === 'p-fish') {
+    put(g, sph(0.1, 10, 8), m('#ff9a3c'), 0, 0, 0).scale.set(0.7, 0.85, 1.3);
+    put(g, cone(0.08, 0.12, 8), m('#ff7a2c'), 0, 0, -0.17).rotation.x = Math.PI / 2;
+    for (const s of [-1, 1]) put(g, sph(0.022, 6, 5), m('#141820'), s * 0.055, 0.03, 0.08);
+  } else if (id === 'p-bubbles') {
+    const bm = m('#bfefff', { transparent: true, opacity: 0.55, roughness: 0.1, emissive: '#4fc3ff', emissiveIntensity: 0.3 });
+    for (const [x, y, z, r] of [[0, 0, 0, 0.08], [0.07, 0.11, -0.05, 0.055], [-0.05, 0.19, 0.03, 0.04]]) put(g, sph(r, 10, 8), bm, x, y, z);
+  } else if (id === 'p-plankton') {
+    put(g, sph(0.06, 10, 8), new THREE.MeshBasicMaterial({ color: 0xa8fff0 }), 0, 0, 0);
+    put(g, sph(0.14, 10, 8), new THREE.MeshBasicMaterial({ color: 0x5fffe0, transparent: true, opacity: 0.25, blending: THREE.AdditiveBlending, depthWrite: false }), 0, 0, 0);
+  } else if (id === 'p-jelly') {
+    const jm = m('#ffa8e6', { transparent: true, opacity: 0.75, emissive: '#ff8fe0', emissiveIntensity: 0.4, side: THREE.DoubleSide });
+    put(g, new THREE.SphereGeometry(0.11, 14, 7, 0, Math.PI * 2, 0, Math.PI / 2), jm, 0, 0, 0).scale.y = 0.85;
+    for (let i = 0; i < 4; i++) { const a = i / 4 * Math.PI * 2 + 0.4; put(g, cyl(0.012, 0.006, 0.18, 4), jm, Math.cos(a) * 0.06, -0.09, Math.sin(a) * 0.06); }
+  } else if (id === 'p-star') {
+    const st = put(g, starGeo(0.13, 0.05), m('#ff9b6b')); st.rotation.x = -0.5;
+    for (const s of [-1, 1]) put(st, sph(0.02, 6, 5), m('#141820'), s * 0.035, 0.02, 0.04);
+  } else if (id === 'p-shark') {
+    put(g, sph(0.1, 12, 9), m('#6f8fa3'), 0, 0, 0).scale.set(0.6, 0.6, 1.6);
+    put(g, cone(0.05, 0.1, 4), m('#6f8fa3'), 0, 0.07, -0.02).scale.z = 0.35;
+    put(g, cone(0.06, 0.1, 4), m('#6f8fa3'), 0, 0, -0.19).rotation.x = Math.PI / 2;
+    for (const s of [-1, 1]) put(g, sph(0.02, 6, 5), m('#141820'), s * 0.045, 0.025, 0.1);
+  }
+}
+/* put a look on a freshly built model; the colour change only touches the body built before it */
+function dressModel(md, look, m) {
+  const L = cleanLook(look); if (!L.col && !L.head && !L.pet) return;
+  const body = md.mats.filter(mt => mt.color && !mt.userData.shared);
+  for (const mt of body) { mt.userData.c0 = mt.color.clone(); }
+  const main = body.find(mt => { mt.color.getHSL(HSL); return HSL.s >= 0.15 && HSL.l > 0.1 && HSL.l < 0.88; });
+  if (main) main.color.getHSL(HSL);
+  const k = md.look = { L, body, h0: main ? HSL.h : 0, rainbow: L.col === 'c-niji' };
+  if (L.col) recolor(md, LOOK[L.col], 0);
+  if (L.head) {
+    const top = headTop(md.inner), g = new THREE.Group(); g.position.set(0, top.y + 0.24, top.z); g.scale.setScalar(1.5); md.inner.add(g);
+    buildHead(L.head, g, m); k.head = g; k.hy = g.position.y;
+  }
+  if (L.pet) {
+    md.inner.updateMatrixWorld(true);
+    const box = new THREE.Box3().setFromObject(md.inner), g = new THREE.Group(); md.root.add(g);
+    buildPet(L.pet, g, m); k.pet = g; k.ps = 1.5;
+    k.pr = Math.max(1.15, Math.max(box.max.x - box.min.x, box.max.z - box.min.z) / 2 + 0.45); k.py = Math.max(0.7, box.max.y * 0.55);
+  }
+}
+function lookAnim(md, s, time) {
+  const k = md.look;
+  if (k.rainbow) recolor(md, LOOK['c-niji'], time);
+  if (k.head) { k.head.position.y = k.hy + Math.sin(time * 2.2 + md.phase) * 0.05; k.head.rotation.y = time * 0.9; }
+  if (k.pet) {
+    const a = time * 1.3 + md.phase;
+    k.pet.position.set(Math.sin(a) * k.pr, k.py + Math.sin(time * 3.1) * 0.12, Math.cos(a) * k.pr);
+    k.pet.rotation.y = a + Math.PI / 2; k.pet.visible = !s.ko; k.pet.scale.setScalar(k.ps * Math.max(0.001, 1 - (s.fade || 0)));
+  }
 }
 const IDLE = { moving: false, guard: false, atkP: 0, spP: 0, shake: 0, flash: 0, ko: false, spin: 0, shield: 0, puff: 0, charge: 0, raise: 0, squash: 0, away: false, fade: 0, air: false, airK: '', airP: 0 };
 function animModel(md, s, time) {
@@ -1452,6 +1651,7 @@ function animModel(md, s, time) {
   if (s.airK === 'stomp' || s.airK === 'dive') inn.rotation.x += 0.6;
   else if (s.airK === 'spin') inn.rotation.y += s.airP * Math.PI * 4;
   if (s.fade > 0) inn.scale.multiplyScalar(Math.max(0.001, 1 - s.fade));
+  if (md.look) lookAnim(md, s, time);
   const fl = s.flash || 0;
   if (fl > 0 || md.flashing) {
     md.flashing = fl > 0;
@@ -1854,9 +2054,9 @@ function derive(c) {
   };
 }
 class Fighter {
-  constructor(idx, ch, ctrl, n) {
+  constructor(idx, ch, ctrl, n, look) {
     this.idx = idx; this.ch = ch; this.ctrl = ctrl; this.d = derive(ch); this.id = ''; this.nm = ''; this.left = false;
-    this.model = buildModel(ch, PCOL[idx]); scene.add(this.model.root);
+    this.model = buildModel(ch, PCOL[idx], look); scene.add(this.model.root);
     this.input = blankInput(); this.s = Object.assign({}, IDLE);
     const a = -Math.PI / 2 + idx * Math.PI * 2 / (n || 2), r = (n || 2) > 2 ? 4.6 : 4;
     this.x = Math.sin(a) * r; this.z = Math.cos(a) * r; this.y = 0; this.vx = 0; this.vz = 0; this.vy = 0;
@@ -3484,7 +3684,7 @@ const Net = {
     const room = await this.getRoom();
     this.pub = !!pub;
     this.backend = room ? await roomBackend(room, code) : await peerBackend(code, create, { busy: () => this.pub && ['vs', 'count', 'fight', 'end'].includes(G.phase) });
-    this.code = code; this.hits = []; this.goSeen = ''; this.me = { v: 2, ph: 'lobby', ch: G.roomPick, rdy: !!pub, nm: G.myName }; this.dirty = true; this.push(true);
+    this.code = code; this.hits = []; this.goSeen = ''; this.me = { v: 2, ph: 'lobby', ch: G.roomPick, lk: Bag.look(ROSTER[G.roomPick]), rdy: !!pub, nm: G.myName }; this.dirty = true; this.push(true);
   },
   async leave() { const b = this.backend; this.backend = null; this.code = ''; if (b) { try { await b.leave(); } catch (e) {} } },
   set(p) { Object.assign(this.me, p); this.dirty = true; },
@@ -3592,7 +3792,8 @@ function hostTryStart(list) {
   const ids = Net.order(list).slice(0, MAXP);
   const chs = ids.map(id => ((id === Net.id() ? Net.me : list.find(e => e.id === id).presence).ch | 0));
   const nms = ids.map(id => cleanName((id === Net.id() ? Net.me : list.find(e => e.id === id).presence).nm));
-  const go = { s: ++Net.goSeq, ids, chs, nms };
+  const lks = ids.map(id => cleanLook((id === Net.id() ? Net.me : list.find(e => e.id === id).presence).lk));
+  const go = { s: ++Net.goSeq, ids, chs, nms, lks };
   Net.set({ go }); beginOnline(go, Net.id());
 }
 function guestTryStart(list) {
@@ -3610,7 +3811,8 @@ function beginOnline(go, hostId) {
   for (const e of Net.list()) { const p = e.presence; Net.seen[e.id] = { a: p.a | 0, h: maxSeq(p.hits), e: p.ev ? p.ev.s | 0 : 0, i: p.ix ? p.ix.s | 0 : 0 }; }
   Net.set({ ph: 'fight', rdy: false, ko: 0 }); Net.push(true);
   const nms = ids.map((_, i) => cleanName(Array.isArray(go.nms) ? go.nms[i] : '') || 'P' + (i + 1));
-  startMatch(chs.map(c => ROSTER[c] || ROSTER[0]), ids.map(id => (id === Net.id() ? 'human' : 'remote')), ids, nms);
+  const looks = ids.map((_, i) => cleanLook(Array.isArray(go.lks) ? go.lks[i] : null));
+  startMatch(chs.map(c => ROSTER[c] || ROSTER[0]), ids.map(id => (id === Net.id() ? 'human' : 'remote')), ids, nms, looks);
 }
 function playerLeft(f) {
   if (f.left) return;
@@ -4310,7 +4512,7 @@ function tutRevive(f) {
 function startTutorial() {
   G.type = 'tutorial';
   const mine = ROSTER[G.picks[0] | 0], other = ROSTER.find(c => c.id === (mine.id === 'sea-cucumber-ceo' ? 'crab-meeting' : 'sea-cucumber-ceo'));
-  startMatch([mine, other], ['human', 'cpu']);
+  startMatch([mine, other], ['human', 'cpu'], null, null, [Bag.look(mine), null]);
   const d = G.fighters[1]; d.brain = null;
   tut = { i: -1, steps: tutSteps(G.me, d), dummy: d, heard: false, gotBub: false, okT: 0, n0: 0, done: false };
   G.bubT = 1e9; G.intrT = 1e9;
@@ -4340,7 +4542,9 @@ function tutTick(dt) {
   }
 }
 function tutEnd() {
+  const first = lsGet('uw3d-tut') !== '1';
   tut.done = true; lsSet('uw3d-tut', '1'); syncTitleMenu();
+  if (first) { Bag.gift(TUT_GIFT); syncWallet(); }
   $('#tut').classList.remove('ok');
   $('#tut-n').textContent = 'おつかれさま！';
   $('#tut-say').textContent = 'これで準備OK。あとは乱闘で試してみよう';
@@ -4360,12 +4564,125 @@ function syncTitleMenu() {
 }
 syncTitleMenu();
 
+/* ================= コレクション: coins, 仲間 and looks, kept on this device for now (nothing is sold yet) =================
+   Coins come from playing (more against stronger CPUs and in bigger fights, at most DAY_CAP a day) and a daily login bonus.
+   They make a 潜水者 your 仲間 (you pick which; STARTERS are yours from the start) and turn the capsule (a random look).
+   A 潜水者 that is not yet yours can be tried once in a CPU fight, and CPUs show off looks now and then. */
+const STARTERS = ['whale-man', 'shark-lost', 'jelly-principal', 'puffer-gatekeeper', 'octopus-snail', 'shrimp-cadet'];
+const PRICE = { char: 1200, capsule: 100 }, DAY_CAP = 600, LOGIN = { first: 300, daily: 100 }, TUT_GIFT = 200;
+/* capsule odds by rarity, and the coins back for one you already have */
+const RARE = [{ name: 'ふつう', p: 0.7, back: 30, c: '#94bbd0' }, { name: 'レア', p: 0.25, back: 60, c: '#9fd8ff' }, { name: '激レア', p: 0.05, back: 100, c: '#ffd86e' }];
+const dayKey = () => { const d = new Date(); return d.getFullYear() + '-' + (d.getMonth() + 1) + '-' + d.getDate(); };
+const Bag = {
+  s: null,
+  load() {
+    let s = null; try { s = JSON.parse(lsGet('uw3d-bag') || 'null'); } catch (e) { s = null; }
+    const ids = new Set(ROSTER.map(c => c.id)), arr = (a, ok) => (Array.isArray(a) ? [...new Set(a.filter(ok))] : []);
+    s = s && typeof s === 'object' ? s : {};
+    this.s = {
+      coins: Math.max(0, Math.floor(+s.coins || 0)), own: arr(s.own, x => ids.has(x)), tried: arr(s.tried, x => ids.has(x)),
+      items: arr(s.items, x => !!LOOK[x]), wear: {}, day: String(s.day || ''), dayEarn: Math.max(0, +s.dayEarn || 0), login: String(s.login || ''),
+    };
+    if (s.wear && typeof s.wear === 'object') for (const id of ids) if (s.wear[id]) this.s.wear[id] = cleanLook(s.wear[id]);
+  },
+  save() { lsSet('uw3d-bag', JSON.stringify(this.s)); },
+  owns(ch) { return STARTERS.includes(ch.id) || this.s.own.includes(ch.id); },
+  has(id) { return this.s.items.includes(id); },
+  /* what this 潜水者 wears, keeping only items you have */
+  look(ch) { const L = cleanLook(this.s.wear[ch.id]); for (const sl of SLOTS) if (L[sl] && !this.has(L[sl])) L[sl] = ''; return L; },
+  wear(ch, slot, id) { const L = this.look(ch); L[slot] = id && this.has(id) && LOOK[id].slot === slot ? id : ''; this.s.wear[ch.id] = L; this.save(); },
+  /* coins from playing count against today's cap; gifts (login, tutorial) do not */
+  room() { if (this.s.day !== dayKey()) { this.s.day = dayKey(); this.s.dayEarn = 0; } return Math.max(0, DAY_CAP - this.s.dayEarn); },
+  earn(n) { const got = Math.min(Math.max(0, Math.round(n)), this.room()); this.s.dayEarn += got; this.s.coins += got; this.save(); return got; },
+  gift(n) { this.s.coins += n; this.save(); },
+  spend(n) { if (this.s.coins < n) return false; this.s.coins -= n; this.save(); return true; },
+  unlock(ch) { if (this.owns(ch) || !this.spend(PRICE.char)) return false; this.s.own.push(ch.id); this.save(); return true; },
+  tryOnce(ch) { if (this.owns(ch) || this.s.tried.includes(ch.id)) return false; this.s.tried.push(ch.id); this.save(); return true; },
+  canTry(ch) { return !this.owns(ch) && !this.s.tried.includes(ch.id); },
+  /* one capsule: a rarity by the odds, then any item of that rarity; one you have already turns into coins */
+  pull() {
+    if (!this.spend(PRICE.capsule)) return null;
+    let r = 0, x = Math.random(); for (let i = 0; i < RARE.length; i++) { if (x < RARE[i].p) { r = i; break; } x -= RARE[i].p; r = i; }
+    const pool = LOOKS.filter(it => it.r === r), it = pool[Math.floor(Math.random() * pool.length)], dup = this.has(it.id);
+    if (dup) this.s.coins += RARE[r].back; else this.s.items.push(it.id);
+    this.save(); return { it, dup, back: dup ? RARE[r].back : 0 };
+  },
+  /* the login bonus: once a day, more the very first time (enough for three capsules) */
+  login() { const t = dayKey(); if (this.s.login === t) return 0; const n = this.s.login ? LOGIN.daily : LOGIN.first; this.s.login = t; this.gift(n); return n; },
+};
+Bag.load();
+const coinsTxt = n => '🪙 ' + n.toLocaleString('ja-JP');
+/* coins for the fight that just ended (CPU or online; the tutorial and trials of other modes give none) */
+function matchCoins(r) {
+  if (G.type !== 'cpu' && G.type !== 'online') return 0;
+  const res = !r.w ? 'draw' : r.w === G.me ? 'win' : 'lose', n = G.fighters.length;
+  if (G.type === 'online') return { win: 80, draw: 40, lose: 30 }[res];
+  return { win: 60, draw: 30, lose: 20 }[res] * [0.5, 1, 1.6][G.cpuLv] * (1 + 0.25 * (n - 2));
+}
+/* CPUs wear something now and then, so you see what the capsule holds */
+function cpuLook() {
+  const L = { col: '', head: '', pet: '' };
+  if (Math.random() < 0.5) for (const sl of SLOTS) if (Math.random() < 0.5) { const pool = LOOKS.filter(x => x.slot === sl); L[sl] = pool[Math.floor(Math.random() * pool.length)].id; }
+  return L;
+}
+function syncWallet() {
+  $('#title-coins').textContent = coinsTxt(Bag.s.coins) + ' コイン';
+  const b = $('#bag-coins'); if (b) b.textContent = coinsTxt(Bag.s.coins);
+}
+/* testing on this device only: #debug-coins in the address gives 5,000 coins (there is no money in this version) */
+if (/debug-coins/.test(location.hash)) { Bag.gift(5000); try { history.replaceState(null, '', location.pathname + location.search); } catch (e) {} }
+{
+  const n = Bag.login(), el = $('#title-bonus');
+  if (n) { el.hidden = false; el.textContent = 'ログインボーナス +' + n + 'コイン' + (n >= LOGIN.first ? '（カプセル3回分）。「コレクション」で回せます' : '。また明日も来てね'); }
+  syncWallet();
+}
+
+/* the collection screen: turn the capsule, see what you have and what it can hold */
+let bagLast = null;
+function openBag() {
+  G.phase = 'bag'; bagLast = null; $('#bag-reveal').hidden = true;
+  renderBag(); show('s-bag'); bagPreview();
+}
+function bagPreview(id) {
+  const i = G.picks[0] | 0, L = Bag.look(ROSTER[i]);
+  if (id) L[LOOK[id].slot] = id;
+  redressShowcase(i, L); layoutShowcase('select', i);
+}
+function renderBag() {
+  syncWallet();
+  $('#bag-who').textContent = ROSTER[G.picks[0] | 0].name;
+  const pull = $('#bag-pull'); pull.textContent = 'カプセルを回す（' + PRICE.capsule + 'コイン）'; pull.disabled = Bag.s.coins < PRICE.capsule;
+  const room = Bag.room();
+  $('#bag-day').textContent = (Bag.s.coins < PRICE.capsule ? 'コインが足りません。' : '') + '今日は対戦であと ' + room + 'コイン（1日' + DAY_CAP + 'まで）かせげます。CPUが強いほど、人数が多いほど多くもらえます。';
+  $('#bag-list').innerHTML = SLOTS.map(sl => {
+    const its = LOOKS.filter(x => x.slot === sl), got = its.filter(x => Bag.has(x.id)).length;
+    return '<div><h4>' + SLOT_NAME[sl] + '（' + got + '/' + its.length + '）</h4><ul>' + its.map(x => Bag.has(x.id)
+      ? '<li class="r' + x.r + '"><i>' + x.sym + '</i>' + x.name + '</li>' : '<li class="no r' + x.r + '"><i>？</i>' + RARE[x.r].name + '</li>').join('') + '</ul></div>';
+  }).join('');
+  const per = r => LOOKS.filter(x => x.r === r).length;
+  $('#bag-odds').innerHTML = RARE.map((R, r) => R.name + ' ' + Math.round(R.p * 100) + '%（' + per(r) + '種、1つあたり ' + (R.p / per(r) * 100).toFixed(2) + '%）。持っているものが出たら ' + R.back + 'コインもどる').join('<br>') + '<br>コインはお金では買えません（遊んでためるだけ）。';
+}
+$('#bag-pull').addEventListener('click', () => {
+  const got = Bag.pull(); if (!got) { renderBag(); return; }
+  audio.tick(); bagLast = got.it;
+  const rv = $('#bag-reveal'), R = RARE[got.it.r];
+  rv.hidden = false; rv.style.setProperty('--rc', R.c); rv.style.animation = 'none'; void rv.offsetWidth; rv.style.animation = '';
+  rv.innerHTML = '<span class="rs">' + got.it.sym + '</span><span><span class="rr">' + R.name + '・' + SLOT_NAME[got.it.slot] + '</span><b>' + got.it.name + '</b><small>' +
+    (got.dup ? 'もう持っていたので ' + got.back + 'コインもどりました' : 'NEW！ キャラ選択で着せられます。いまは試しに着せています') + '</small></span>';
+  renderBag(); bagPreview(got.it.id);
+});
+function bagRestore() { const i = G.picks[0] | 0; redressShowcase(i, Bag.look(ROSTER[i])); }
+$('#bag-back').addEventListener('click', () => { bagRestore(); goTitle(); });
+$('#bag-dress').addEventListener('click', () => { audio.tick(); bagRestore(); openSelect('cpu'); });
+
 /* ================= screens & flow ================= */
-function show(id) { $$('.screen').forEach(s => { s.hidden = s.id !== id; }); $('#top-actions').hidden = !(id === 's-title' || id === 's-select' || id === 's-online' || id === 's-room'); }
+function show(id) { $$('.screen').forEach(s => { s.hidden = s.id !== id; }); $('#top-actions').hidden = !(id === 's-title' || id === 's-select' || id === 's-online' || id === 's-room' || id === 's-bag'); }
 /* showcase models are built on first use; the title ring shows 8 of the 20 at random */
 const showcase = [];
 let titleSet = [];
-function showModel(i) { if (!showcase[i]) { const md = buildModel(ROSTER[i], null); scene.add(md.root); showcase[i] = md; } return showcase[i]; }
+function showModel(i, look) { if (!showcase[i]) { const md = buildModel(ROSTER[i], null, look || Bag.look(ROSTER[i])); scene.add(md.root); showcase[i] = md; } return showcase[i]; }
+/* rebuilt to show another look (a new item, a change of clothes) */
+function redressShowcase(i, look) { const old = showcase[i], rot = old ? old.root.rotation.y : 0.5; if (old) disposeModel(old); showcase[i] = null; const md = showModel(i, look); md.root.rotation.y = rot; return md; }
 function pickTitleSet() { titleSet = ROSTER.map((_, i) => i).sort(() => Math.random() - 0.5).slice(0, 8); }
 function layoutShowcase(mode, sel) {
   for (const md of showcase) if (md) md.root.visible = false;
@@ -4424,6 +4741,32 @@ function cpuLineup(mine) {
   const used = new Set([mine, ...pick]), pool = ROSTER.map((_, i) => i).filter(i => !used.has(i)).sort(() => Math.random() - 0.5);
   return pick.map(i => (i >= 0 ? i : pool.pop()));
 }
+/* above the details: how to make this 潜水者 yours, or (when it is) what it wears */
+function collectHTML(c) {
+  const coins = '<span class="wallet">' + coinsTxt(Bag.s.coins) + '<small>コイン</small></span>';
+  if (!Bag.owns(c)) {
+    const can = Bag.s.coins >= PRICE.char;
+    return '<div class="lockbar"><b>🔒 まだ仲間ではありません</b>' + coins +
+      '<button class="go" type="button" data-unlock="' + c.id + '"' + (can ? '' : ' disabled') + '>' + PRICE.char.toLocaleString('ja-JP') + 'コインで仲間にする</button>' +
+      '<small>' + (can ? '' : 'あと ' + (PRICE.char - Bag.s.coins).toLocaleString('ja-JP') + 'コイン。CPU戦やオンライン対戦でたまります。') +
+      (Bag.canTry(c) ? 'CPU戦で1回だけお試しできます。' : 'お試しは使いました。') + '</small></div>';
+  }
+  if (G.type !== 'cpu') return '';
+  const w = Bag.look(c), any = Bag.s.items.length;
+  return '<div class="seg"><span>着せ替え</span>' + SLOTS.map(sl => '<select data-slot="' + sl + '" aria-label="' + SLOT_NAME[sl] + '"' + (any ? '' : ' disabled') + '><option value="">' + SLOT_NAME[sl] + '：なし</option>' +
+    LOOKS.filter(x => x.slot === sl && Bag.has(x.id)).map(x => '<option value="' + x.id + '"' + (w[sl] === x.id ? ' selected' : '') + '>' + x.sym + ' ' + x.name + '</option>').join('') + '</select>').join('') +
+    (any ? '' : '<small>「コレクション」のカプセルで集めると着せられます</small>') + coins + '</div>';
+}
+$('#detail').addEventListener('click', e => {
+  const b = e.target.closest('[data-unlock]'); if (!b) return;
+  const c = ROSTER.find(x => x.id === b.dataset.unlock);
+  if (c && Bag.unlock(c)) { audio.tick(); renderSelect(); syncWallet(); }
+});
+$('#detail').addEventListener('change', e => {
+  const sl = e.target.closest('select[data-slot]'); if (!sl) return;
+  const c = ROSTER[G.selIdx]; Bag.wear(c, sl.dataset.slot, sl.value); audio.tick();
+  redressShowcase(G.selIdx, Bag.look(c)); layoutShowcase('select', G.selIdx); renderSelect();
+});
 function renderSelect() {
   const c = ROSTER[G.selIdx];
   $('#sel-count').hidden = $('#sel-foes').hidden = $('#sel-lv').hidden = G.type !== 'cpu';
@@ -4434,16 +4777,18 @@ function renderSelect() {
   $('#sel-count-note').textContent = 'CPU ' + (G.cpuN - 1) + '体と乱闘';
   $('#sel-who').textContent = G.type === 'cpu' ? 'あなたの潜水者' : (G.picker === 0 ? '1P がえらぶ' : '2P がえらぶ');
   $('#sel-who').style.color = G.picker === 1 ? 'var(--p2)' : 'var(--p1)';
-  $$('#roster .tile').forEach((b, i) => b.setAttribute('aria-pressed', String(i === G.selIdx)));
-  const d = $('#detail'); d.style.setProperty('--c', c.glow); d.innerHTML = detailHTML(c);
-  $('#sel-ok').textContent = G.type === 'local' && G.picker === 0 ? 'つぎは2P' : 'この潜水者で';
+  $$('#roster .tile').forEach((b, i) => { b.setAttribute('aria-pressed', String(i === G.selIdx)); b.classList.toggle('locked', !Bag.owns(ROSTER[i])); });
+  const d = $('#detail'); d.style.setProperty('--c', c.glow); d.innerHTML = collectHTML(c) + detailHTML(c);
+  const ok = $('#sel-ok'), mine = Bag.owns(c) || G.type !== 'cpu';
+  ok.textContent = G.type === 'local' && G.picker === 0 ? 'つぎは2P' : mine ? 'この潜水者で' : Bag.canTry(c) ? 'お試しで戦う（1回だけ）' : '仲間にすると使えます';
+  ok.disabled = !mine && !Bag.canTry(c);
   voiceNotes();
 }
 function openSelect(type) {
   clearMatch(); hideFightUI();
   G.type = type; G.picker = 0; G.phase = 'select';
   G.selIdx = G.picks[0] | 0;
-  renderSelect(); show('s-select'); layoutShowcase('select', G.selIdx); layoutPads();
+  renderSelect(); show('s-select'); redressShowcase(G.selIdx, Bag.look(ROSTER[G.selIdx])); layoutShowcase('select', G.selIdx); layoutPads();
 }
 $('#roster').addEventListener('click', e => {
   const b = e.target.closest('.tile'); if (!b) return;
@@ -4453,8 +4798,10 @@ $('#sel-ok').addEventListener('click', () => {
   G.picks[G.picker] = G.selIdx;
   if (G.type === 'local' && G.picker === 0) { G.picker = 1; G.selIdx = G.picks[1] | 0; renderSelect(); layoutShowcase('select', G.selIdx); return; }
   if (G.type === 'cpu') {
+    const mine = ROSTER[G.picks[0]];
+    if (!Bag.owns(mine) && !Bag.tryOnce(mine)) return;
     const cpus = cpuLineup(G.picks[0]);
-    startMatch([G.picks[0], ...cpus].map(i => ROSTER[i]), ['human', ...cpus.map(() => 'cpu')]);
+    startMatch([G.picks[0], ...cpus].map(i => ROSTER[i]), ['human', ...cpus.map(() => 'cpu')], null, null, [Bag.look(mine), ...cpus.map(cpuLook)]);
     return;
   }
   startMatch([ROSTER[G.picks[0]], ROSTER[G.picks[1]]], ['human', 'human']);
@@ -4490,10 +4837,10 @@ function setupHUD() {
   $('#pause-btn').setAttribute('aria-label', G.type === 'online' ? '退出' : '一時停止');
   $('#view-btn').hidden = G.type === 'local'; syncViewBtn();
 }
-function startMatch(chars, ctrls, ids, nms) {
+function startMatch(chars, ctrls, ids, nms, looks) {
   clearMatch();
-  G.chars = chars; G.ctrls = ctrls;
-  G.fighters = chars.map((c, i) => new Fighter(i, c, ctrls[i], chars.length));
+  G.chars = chars; G.ctrls = ctrls; G.looks = looks || null;
+  G.fighters = chars.map((c, i) => new Fighter(i, c, ctrls[i], chars.length, looks && looks[i]));
   const F = G.fighters;
   if (ids) F.forEach((f, i) => { f.id = ids[i]; f.nm = nms ? nms[i] : ''; });
   clearInputs();
@@ -4560,11 +4907,18 @@ function showResult() {
   $('#res-again').textContent = G.type === 'online' ? (Net.pub ? 'もう一度（同じ部屋）' : 'もう一度（準備OKで待つ）') : 'もう一度';
   $('#res-select').textContent = G.type === 'online' ? (Net.pub ? 'ほかの相手をさがす' : '部屋にもどる') : 'キャラ選択';
   if (G.type === 'online') { Net.set({ ph: 'result', rdy: false }); G.autoBack = 8; }
+  /* coins for this fight (today's cap applies) */
+  const want = Math.round(matchCoins(r)), rc = $('#res-coins');
+  rc.hidden = !want;
+  if (want) { const got = Bag.earn(want), left = Bag.room(); rc.innerHTML = ''; rc.append('+' + got + ' コイン'); const sm = document.createElement('small'); sm.textContent = got < want ? '今日のかせぎは上限（' + DAY_CAP + '）に達しました' : '今日はあと ' + left + 'コイン・持っている ' + Bag.s.coins.toLocaleString('ja-JP'); rc.append(sm); }
+  if (G.type === 'cpu' && G.chars && !Bag.owns(G.chars[0])) $('#res-again').textContent = '仲間にして続ける';
   show('s-result');
 }
 $('#res-again').addEventListener('click', () => {
   if (G.type === 'online') { Net.set({ ph: 'lobby', rdy: true }); clearMatch(); toRoom(); return; }
-  startMatch(G.chars, G.ctrls);
+  /* a trial is one fight: to go again, make it your 仲間 first */
+  if (G.type === 'cpu' && G.chars && !Bag.owns(G.chars[0])) { openSelect('cpu'); return; }
+  startMatch(G.chars, G.ctrls, null, null, G.looks);
 });
 $('#res-select').addEventListener('click', () => {
   if (G.type === 'online' && Net.pub) { clearMatch(); hideFightUI(); show('s-online'); layoutShowcase('title'); Net.leave().then(randomMatch); return; }
@@ -4576,7 +4930,7 @@ function goTitle() {
   clearMatch(); hideFightUI();
   if (G.type === 'online') Net.leave();
   Lobby.stop();
-  G.type = null; G.phase = 'title'; pickTitleSet(); layoutShowcase('title'); show('s-title'); layoutPads();
+  G.type = null; G.phase = 'title'; pickTitleSet(); layoutShowcase('title'); show('s-title'); layoutPads(); syncWallet();
 }
 
 /* pause */
@@ -4608,9 +4962,11 @@ document.addEventListener('visibilitychange', () => { if (document.hidden && G.t
 /* title */
 $$('[data-go]').forEach(b => b.addEventListener('click', () => {
   audio.init(); const go = b.dataset.go;
-  if (go === 'online') { G.type = 'online'; G.phase = 'online'; $('#on-status').textContent = ''; show('s-online'); voiceNotes(); Lobby.start(); renderLobby(); }
+  if (go === 'online') { if (!Bag.owns(ROSTER[G.roomPick])) G.roomPick = Math.max(0, ROSTER.findIndex(c => Bag.owns(c))); G.type = 'online'; G.phase = 'online'; $('#on-status').textContent = ''; show('s-online'); voiceNotes(); Lobby.start(); renderLobby(); }
   else if (go === 'tut') startTutorial();
+  else if (go === 'bag') openBag();
   else openSelect(go);
+  $('#title-bonus').hidden = true;
 }));
 /* name: saved on this device; a random 潜水者 number until the player picks one */
 G.myName = cleanName(lsGet('uw3d-name')) || '潜水者' + rnd(100, 999);
@@ -4727,7 +5083,7 @@ function renderRoom(list) {
     $('small', el).textContent = !p ? '—' : (c ? c.sym + ' ' + c.name + ' ・ ' : '') + (p.ph === 'fight' ? '試合中' : p.ph === 'result' ? 'リザルト中' : p.rdy ? '準備OK' : '選択中');
     el.classList.toggle('ready', !!(p && p.rdy)); el.classList.toggle('empty', !p);
   });
-  $$('#room-roster .tile').forEach((b, i) => { b.setAttribute('aria-pressed', String(i === (Net.me.ch | 0))); b.disabled = !!Net.me.rdy && !Net.pub; });
+  $$('#room-roster .tile').forEach((b, i) => { const mine = Bag.owns(ROSTER[i]); b.setAttribute('aria-pressed', String(i === (Net.me.ch | 0))); b.classList.toggle('locked', !mine); b.disabled = (!!Net.me.rdy && !Net.pub) || !mine; });
   $('#room-ready').textContent = Net.me.rdy ? '準備OKを取り消す' : '準備OK';
 }
 $('#on-create').addEventListener('click', () => enterRoom(String(rnd(1000, 9999)), true));
@@ -4740,7 +5096,8 @@ $('#on-code').addEventListener('keydown', e => { if (e.key === 'Enter') $('#on-j
 $('#on-back').addEventListener('click', goTitle);
 $('#room-roster').addEventListener('click', e => {
   const b = e.target.closest('.tile'); if (!b || (Net.me.rdy && !Net.pub)) return;
-  G.roomPick = +b.dataset.i; Net.set({ ch: G.roomPick }); G.roomSig = ''; audio.tick();
+  if (!Bag.owns(ROSTER[+b.dataset.i])) return;
+  G.roomPick = +b.dataset.i; Net.set({ ch: G.roomPick, lk: Bag.look(ROSTER[G.roomPick]) }); G.roomSig = ''; audio.tick();
 });
 $('#room-ready').addEventListener('click', () => { Net.set({ rdy: !Net.me.rdy, ph: 'lobby' }); audio.tick(); });
 $('#room-leave').addEventListener('click', goTitle);
@@ -4873,7 +5230,7 @@ function updateThink() {
 /* 背後視点: the camera sits behind your fighter and looks toward the nearest foe; the stick becomes camera-relative */
 function chaseOn() { return G.view === 'chase' && G.type !== 'local' && G.me && !G.me.ko && ['vs', 'count', 'fight', 'end'].includes(G.phase); }
 function updateCamera(dt) {
-  const ph = G.phase, portrait = isPortrait(), F = G.fighters;
+  const ph = G.phase === 'bag' ? 'select' : G.phase, portrait = isPortrait(), F = G.fighters;
   let rate = ph === 'select' ? 5 : 3;
   if (F.length >= 2 && chaseOn()) {
     const me = G.me, t = aimOf(me);
@@ -4927,7 +5284,7 @@ function frame(now) {
     updateEnv(rdt);
     updateFX(rdt);
     if (G.fighters.length >= 2) for (const f of G.fighters) renderFighter(f, T, rdt);
-    else for (const md of showcase) { if (!md || !md.root.visible) continue; if (G.phase === 'select') md.root.rotation.y += rdt * 0.7; animModel(md, IDLE, T); }
+    else for (const md of showcase) { if (!md || !md.root.visible) continue; if (G.phase === 'select' || G.phase === 'bag') md.root.rotation.y += rdt * 0.7; animModel(md, IDLE, T); }
     updateCamera(rdt);
     updateHUD();
     updateFloaters(rdt);
