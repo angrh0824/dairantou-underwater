@@ -5,7 +5,8 @@
    - お金は Stripe Checkout だけで受け取る。カード番号はこのサーバーにもゲームにも来ない。
      支払いが済んだかは Stripe からの通知（webhook、署名を確かめる）か、Stripe に直接問い合わせて確かめてから渡す。
    - 引き継ぎ: 24時間だけ使えるコードで、別の端末に同じアカウントを移す（元の端末の合言葉は使えなくなる）。
-   - 配信者・キャンペーン用のコード: 表 codes に入れておくと、入力した人に全キャラなどを渡す。 */
+   - 配信者・キャンペーン用のコード: 表 codes に入れておくと、入力した人に全キャラなどを渡す。
+   - 広告: 最後まで見た人にコイン（1日の回数と間隔に上限）。広告そのものはゲームのページが出す。 */
 import { CHARS, CHAR_NAMES, STARTERS, LOOKS, SLOT_OF, COIN, SKUS } from './catalog.js';
 
 const DAY = 86400000;
@@ -50,7 +51,7 @@ async function view(env, id) {
   return {
     id: p.id, coins: p.coins, own: [...new Set([...STARTERS, ...of('ch')])], tried: of('tried'), items: of('look'), wear,
     room: Math.max(0, COIN.dayCap - (p.day === today ? p.day_earn : 0)), loginToday: p.login === today, tut: !!p.tut,
-    aiUntil: p.ai_until, now: Date.now(),
+    adLeft: Math.max(0, COIN.adMax - (p.ad_day === today ? p.ad_n : 0)), now: Date.now(),
     price: { char: COIN.char, capsule: COIN.capsule, dayCap: COIN.dayCap },
     skus: Object.fromEntries(Object.entries(SKUS).map(([k, s]) => [k, { name: s.name, amount: s.amount }])),
     shop: !!(env.STRIPE_SECRET_KEY && env.GAME_URL),
@@ -94,7 +95,6 @@ async function grant(env, sess) {
   else if (row.sku === 'chall') { for (const c of CHARS) if (!STARTERS.includes(c)) await give(env, id, 'ch', c, 'buy'); }
   else if (row.sku.startsWith('look:')) await give(env, id, 'look', row.sku.slice(5), 'buy');
   if (s && s.looks) for (const l of s.looks) await give(env, id, 'look', l, 'buy');
-  if (s && s.aiDays) await run(env, 'UPDATE players SET ai_until = MAX(ai_until, ?) + ? WHERE id = ?', Date.now(), s.aiDays * DAY, id);
   return true;
 }
 async function webhook(req, env) {
@@ -104,13 +104,6 @@ async function webhook(req, env) {
   const o = ev.data && ev.data.object;
   if ((ev.type === 'checkout.session.completed' || ev.type === 'checkout.session.async_payment_succeeded') && o && o.payment_status === 'paid') await grant(env, o);
   return new Response(JSON.stringify({ received: true }), { status: 200, headers: { 'Content-Type': 'application/json' } });
-}
-
-/* the AI pass: may this caller use the voice AI relay? */
-export async function aiAllowed(req, env) {
-  if (!env.DB) return false;
-  const p = await auth(req, env);
-  return !!(p && p.ai_until > Date.now() && !limited('ai:' + p.id, Number(env.AI_PER_MIN) || 40));
 }
 
 export async function handleApi(req, env, cors, path) {
@@ -192,15 +185,27 @@ export async function handleApi(req, env, cors, path) {
       if (!isChar(c) || await ownsChar(env, id, c)) return J({ ok: false, me: await view(env, id) });
       return J({ ok: !!(await give(env, id, 'tried', c, 'try')), me: await view(env, id) });
     }
-    /* カプセル: the draw happens here */
+    /* カプセル: the draw happens here; n = 1 or 5 at once (each one costs the same) */
     case '/api/pull': {
-      if (!(await run(env, 'UPDATE players SET coins = coins - ? WHERE id = ? AND coins >= ?', COIN.capsule, id, COIN.capsule))) return J({ error: 'coins' }, 400);
-      let r = 0, x = crypto.getRandomValues(new Uint32Array(1))[0] / 4294967296;
-      for (let i = 0; i < COIN.odds.length; i++) { r = i; if (x < COIN.odds[i]) break; x -= COIN.odds[i]; }
-      const pool = Object.keys(LOOKS).filter(l => LOOKS[l] === r), item = pool[crypto.getRandomValues(new Uint32Array(1))[0] % pool.length];
-      const dup = !(await give(env, id, 'look', item, 'capsule'));
-      if (dup) await addCoins(env, id, COIN.back[r]);
-      return J({ item, r, dup, back: dup ? COIN.back[r] : 0, me: await view(env, id) });
+      const n = inp.n === 5 ? 5 : 1, cost = COIN.capsule * n;
+      if (!(await run(env, 'UPDATE players SET coins = coins - ? WHERE id = ? AND coins >= ?', cost, id, cost))) return J({ error: 'coins' }, 400);
+      const results = [];
+      for (let k = 0; k < n; k++) {
+        let r = 0, x = crypto.getRandomValues(new Uint32Array(1))[0] / 4294967296;
+        for (let i = 0; i < COIN.odds.length; i++) { r = i; if (x < COIN.odds[i]) break; x -= COIN.odds[i]; }
+        const pool = Object.keys(LOOKS).filter(l => LOOKS[l] === r), item = pool[crypto.getRandomValues(new Uint32Array(1))[0] % pool.length];
+        const dup = !(await give(env, id, 'look', item, 'capsule'));
+        if (dup) await addCoins(env, id, COIN.back[r]);
+        results.push({ item, r, dup, back: dup ? COIN.back[r] : 0 });
+      }
+      return J({ results, ...results[0], me: await view(env, id) });
+    }
+    /* 広告を最後まで見た: coins, a few times a day */
+    case '/api/adreward': {
+      const used = p.ad_day === today ? p.ad_n : 0;
+      if (used >= COIN.adMax || now - p.last_ad < COIN.adGapMs) return J({ got: 0, me: await view(env, id) });
+      const ok = await run(env, 'UPDATE players SET coins = coins + ?, ad_day = ?, ad_n = ?, last_ad = ? WHERE id = ? AND last_ad = ?', COIN.ad, today, used + 1, now, id, p.last_ad);
+      return J({ got: ok ? COIN.ad : 0, me: await view(env, id) });
     }
     /* what each 潜水者 wears: only things you have */
     case '/api/wear': {
@@ -253,7 +258,7 @@ export async function handleApi(req, env, cors, path) {
       await run(env, 'INSERT INTO transfers (code, player, expires) VALUES (?, ?, ?)', c, id, exp);
       return J({ code: c.slice(0, 5) + '-' + c.slice(5), expires: exp });
     }
-    /* 配信者・キャンペーンのコード: kind is all (every 潜水者), coins:N, look:<id> or ai:<days> */
+    /* 配信者・キャンペーンのコード: kind is all (every 潜水者), coins:N or look:<id> */
     case '/api/redeem': {
       const c = normCode(inp.code), row = c && await one(env, 'SELECT * FROM codes WHERE code = ?', c);
       if (!row || (row.expires && row.expires < now) || row.uses >= row.max_uses) return J({ error: 'code' }, 404);
@@ -264,7 +269,6 @@ export async function handleApi(req, env, cors, path) {
       if (k === 'all') { for (const ch of CHARS) if (!STARTERS.includes(ch)) await give(env, id, 'ch', ch, 'code'); }
       else if (k === 'coins') await addCoins(env, id, Math.max(0, Math.min(10000, Math.floor(+v || 0))));
       else if (k === 'look' && isLook(v)) await give(env, id, 'look', v, 'code');
-      else if (k === 'ai') await run(env, 'UPDATE players SET ai_until = MAX(ai_until, ?) + ? WHERE id = ?', now, Math.max(0, Math.min(90, Math.floor(+v || 0))) * DAY, id);
       return J({ kind: row.kind, note: row.note, me: await view(env, id) });
     }
   }

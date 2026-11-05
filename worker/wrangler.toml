@@ -1,6 +1,6 @@
 # 声のAI中継 ＋ アカウント・持ち物・決済。デプロイ: このフォルダで npx wrangler deploy（手順は README.md）
 # 秘密の値はファイルに書かず、npx wrangler secret put で登録する:
-#   OPENROUTER_API_KEY     声のAI（AIパス）に使う OpenRouter のキー
+#   OPENROUTER_API_KEY     声のAI（使うときだけ）の OpenRouter のキー
 #   STRIPE_SECRET_KEY      Stripe のシークレットキー（テスト中は sk_test_ で始まるもの）
 #   STRIPE_WEBHOOK_SECRET  Stripe の webhook の署名シークレット（whsec_ で始まるもの）
 name = "dairantou-voice"
@@ -26,7 +26,5 @@ GRUMBLE_MODEL = "deepseek/deepseek-v4.1-flash-1017"
 ALLOWED_ORIGINS = "https://angrh0824.github.io,http://localhost:8765,http://127.0.0.1:8765"
 RATE_PER_MIN = "30"
 TIMEOUT_MS = "6000"
-# 声のAIはAIパスを持っている人だけ（"0" にすると誰でも使える）
-AI_NEEDS_PASS = "1"
 # 支払いが終わったあとに戻ってくるゲームのページ
 GAME_URL = "https://angrh0824.github.io/dairantou-underwater/"

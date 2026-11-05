@@ -126,12 +126,12 @@ body.portrait .rotate-hint{display:flex}
 .lockbar b{color:var(--lamp);font-size:13px}
 .lockbar small{color:var(--mist);font-size:12px;line-height:1.6}
 .lockbar .go{min-height:40px;font-size:14px}
-.reveal{display:flex;align-items:center;gap:12px;padding:12px;border-radius:14px;border:1px solid var(--rc,var(--line));background:rgba(255,255,255,.05);animation:pop .35s ease-out}
+.reveal{display:flex;align-items:center;gap:12px;padding:12px;border-radius:14px;border:1px solid var(--rc,var(--line));background:rgba(255,255,255,.05);animation:rpop .35s ease-out}
 .reveal .rs{font-size:34px;line-height:1}
 .reveal b{display:block;font-family:var(--display);font-weight:400;font-size:17px}
 .reveal small{display:block;color:var(--mist);font-size:12px;line-height:1.6}
 .reveal .rr{color:var(--rc);font-weight:900;font-size:12px}
-@keyframes pop{0%{transform:scale(.6);opacity:0}70%{transform:scale(1.06)}100%{transform:scale(1);opacity:1}}
+@keyframes rpop{0%{transform:scale(.6);opacity:0}70%{transform:scale(1.06)}100%{transform:scale(1);opacity:1}}
 @media (prefers-reduced-motion:reduce){.reveal{animation:none}}
 .loot{display:flex;flex-direction:column;gap:10px}
 .loot h4{margin:0 0 6px;font-size:12px;color:var(--mist);font-weight:700}
@@ -143,6 +143,8 @@ body.portrait .rotate-hint{display:flex}
 .loot li.r2{border-color:var(--lamp)}
 .odds{font-size:12px;color:var(--mist);line-height:1.7}
 .odds summary{cursor:pointer;color:var(--foam)}
+.adrow{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.adrow small{color:var(--mist);font-size:12px}
 .shop{display:flex;flex-direction:column;gap:8px}
 .shop h4{margin:0;font-size:12px;color:var(--mist);font-weight:700}
 .skus{list-style:none;margin:0;padding:0;display:grid;gap:6px}
@@ -152,6 +154,72 @@ body.portrait .rotate-hint{display:flex}
 .shop a,.acct a{color:var(--p1)}
 .acct{display:flex;flex-direction:column;gap:8px}
 .acct[open]{gap:8px}
+/* カプセルの演出: the machine turns, capsules drop (their colour is their real rarity), they burst open */
+#gacha{position:fixed;inset:0;z-index:40;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;overflow:hidden;background:radial-gradient(circle at 50% 45%,#0f3a5c 0%,#03121f 70%);
+  padding:calc(env(safe-area-inset-top,0px) + 16px) max(16px,env(safe-area-inset-right,0px)) calc(env(safe-area-inset-bottom,0px) + 16px) max(16px,env(safe-area-inset-left,0px));--gc:#7fe2ff}
+#gacha .g-rays{position:absolute;left:50%;top:45%;width:180vmax;height:180vmax;margin:-90vmax 0 0 -90vmax;opacity:0;pointer-events:none;
+  background:repeating-conic-gradient(from 0deg,color-mix(in srgb,var(--gc) 55%,transparent) 0deg 7deg,transparent 7deg 18deg);transition:opacity .4s;animation:gspin 14s linear infinite}
+#gacha.lit .g-rays{opacity:.55}
+#gacha.lit.r2 .g-rays{opacity:.8;animation-duration:6s}
+@keyframes gspin{to{transform:rotate(360deg)}}
+#gacha .g-flash{position:absolute;inset:0;background:var(--gc);opacity:0;pointer-events:none}
+#gacha .g-flash.on{animation:gflash .7s ease-out}
+@keyframes gflash{0%{opacity:.85}100%{opacity:0}}
+#gacha .g-tease{position:relative;font-family:var(--display);font-size:clamp(26px,7vw,46px);color:var(--gc);text-shadow:0 0 18px var(--gc),0 3px 0 rgba(0,0,0,.5);min-height:1.3em;text-align:center}
+#gacha .g-tease.on{animation:gtease .5s cubic-bezier(.2,1.6,.4,1)}
+@keyframes gtease{0%{transform:scale(.3) rotate(-8deg);opacity:0}100%{transform:none;opacity:1}}
+/* the machine */
+#gacha .g-machine{position:relative;width:min(200px,44vw,28vh);aspect-ratio:1/1.25;max-width:100%}
+#gacha.dropped .g-machine{display:none}
+#gacha .g-dome{position:absolute;left:8%;right:8%;top:0;height:58%;border-radius:50% 50% 18% 18%;background:radial-gradient(circle at 35% 30%,rgba(255,255,255,.45),rgba(160,230,255,.12) 45%,rgba(20,60,90,.5));border:3px solid rgba(220,245,255,.7);overflow:hidden}
+#gacha .g-dome i{position:absolute;width:24%;aspect-ratio:1;border-radius:50%;background:linear-gradient(180deg,var(--c) 50%,#f4f8ff 50%);box-shadow:inset -3px -4px 0 rgba(0,0,0,.18)}
+#gacha .g-body{position:absolute;left:4%;right:4%;top:54%;bottom:0;border-radius:16px 16px 22px 22px;background:linear-gradient(180deg,#ff5c8a,#d63d6b);border:3px solid #ffd0dc;box-shadow:0 10px 30px rgba(0,0,0,.4)}
+#gacha .g-handle{position:absolute;left:50%;top:22%;width:34%;aspect-ratio:1;margin-left:-17%;border-radius:50%;background:radial-gradient(circle,#fff7c2 0 22%,#ffd86e 23% 60%,#c99a1e 61%);border:3px solid #fff3b0}
+#gacha .g-handle::after{content:"";position:absolute;left:50%;top:6%;bottom:6%;width:16%;margin-left:-8%;border-radius:6px;background:#a8770e}
+#gacha .g-slot{position:absolute;left:30%;right:30%;bottom:10%;height:16%;border-radius:10px;background:#3b0f1f;box-shadow:inset 0 4px 8px rgba(0,0,0,.6)}
+#gacha.turn .g-handle{animation:gturn .9s ease-in-out}
+#gacha.turn .g-machine{animation:gshake .9s ease-in-out}
+@keyframes gturn{to{transform:rotate(540deg)}}
+@keyframes gshake{0%,100%{transform:none}20%{transform:translateX(-5px) rotate(-2deg)}40%{transform:translateX(5px) rotate(2deg)}60%{transform:translateX(-4px) rotate(-1deg)}80%{transform:translateX(3px)}}
+/* capsules that dropped */
+#gacha .g-caps{position:relative;display:flex;flex-wrap:wrap;justify-content:center;gap:12px;min-height:0;max-width:100%}
+#gacha .g-cap{position:relative;width:clamp(56px,15vw,84px);aspect-ratio:1;border:0;padding:0;background:none;cursor:pointer;animation:gdrop .7s cubic-bezier(.3,1.5,.5,1) both}
+#gacha.one .g-cap{width:clamp(96px,26vw,132px)}
+#gacha .g-cap::before,#gacha .g-cap::after{content:"";position:absolute;left:0;right:0;height:50%;border:3px solid rgba(255,255,255,.85);transition:transform .45s cubic-bezier(.5,-0.4,.5,1.4),opacity .45s}
+#gacha .g-cap::before{top:0;border-radius:999px 999px 0 0;border-bottom-width:1px;background:linear-gradient(160deg,color-mix(in srgb,var(--c) 70%,#fff),var(--c))}
+#gacha .g-cap::after{bottom:0;border-radius:0 0 999px 999px;border-top-width:1px;background:linear-gradient(180deg,#f4f8ff,#c9d7e6)}
+#gacha .g-cap.r1{filter:drop-shadow(0 0 12px var(--c))}
+#gacha .g-cap.r2{filter:drop-shadow(0 0 18px var(--c));animation:gdrop .7s cubic-bezier(.3,1.5,.5,1) both,gpulse .5s .7s ease-in-out infinite alternate}
+#gacha .g-cap.r2::before{background:conic-gradient(from 0deg,#ff6f6f,#ffd86e,#8dffb4,#7fe2ff,#b48cff,#ff6f6f)}
+#gacha .g-cap.wob{animation:gwob .45s ease-in-out}
+#gacha .g-cap.open::before{transform:translateY(-70%) rotate(-25deg);opacity:0}
+#gacha .g-cap.open::after{transform:translateY(60%) rotate(18deg);opacity:0}
+#gacha .g-cap .gi{position:absolute;inset:0;display:grid;place-items:center;font-size:clamp(30px,8vw,46px);opacity:0;transform:scale(.3);transition:transform .45s cubic-bezier(.2,1.6,.4,1),opacity .3s}
+#gacha.one .g-cap .gi{font-size:clamp(52px,14vw,72px)}
+#gacha .g-cap.open .gi{opacity:1;transform:none}
+@keyframes gdrop{0%{transform:translateY(-60vh) rotate(-200deg);opacity:0}60%{opacity:1}100%{transform:none}}
+@keyframes gpulse{to{transform:scale(1.08)}}
+@keyframes gwob{0%,100%{transform:none}25%{transform:rotate(-14deg)}50%{transform:rotate(12deg)}75%{transform:rotate(-8deg)}}
+/* what came out */
+#gacha .g-card{position:relative;display:flex;flex-direction:column;align-items:center;gap:2px;text-align:center;animation:gcard .45s cubic-bezier(.2,1.6,.4,1)}
+#gacha .g-card .st{font-size:22px;letter-spacing:.12em;color:var(--gc);text-shadow:0 0 10px var(--gc)}
+#gacha .g-card b{font-family:var(--display);font-weight:400;font-size:clamp(22px,6vw,32px);line-height:1.2}
+#gacha .g-card small{color:var(--mist);font-size:13px}
+#gacha .g-card .nw{display:inline-block;margin-top:2px;padding:1px 10px;border-radius:999px;background:var(--lamp);color:var(--ink);font-family:var(--display);font-size:13px}
+@keyframes gcard{0%{transform:scale(.4);opacity:0}100%{transform:none;opacity:1}}
+#gacha .g-sum{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px;width:min(460px,100%)}
+#gacha .g-sum div{display:flex;flex-direction:column;align-items:center;gap:2px;padding:6px 2px;border-radius:12px;border:1px solid var(--c);background:rgba(255,255,255,.05);font-size:10px;text-align:center;line-height:1.25;min-width:0}
+#gacha .g-sum div i{font-style:normal;font-size:24px}
+#gacha .g-sum div em{font-style:normal;color:var(--lamp);font-weight:900}
+#gacha .g-hint{color:var(--mist);font-size:13px;min-height:1.5em}
+#gacha .row{justify-content:center}
+#gacha .g-conf{position:absolute;inset:0;pointer-events:none;overflow:hidden}
+#gacha .g-conf i{position:absolute;top:-6vh;width:9px;height:14px;border-radius:2px;background:var(--c);animation:gconf var(--t,2.6s) linear var(--d,0s) forwards}
+@keyframes gconf{to{transform:translate(var(--x,0),112vh) rotate(var(--r,540deg))}}
+@media (prefers-reduced-motion:reduce){
+  #gacha .g-rays,#gacha .g-cap,#gacha .g-cap.r2,#gacha .g-card,#gacha .g-tease.on,#gacha.turn .g-handle,#gacha.turn .g-machine,#gacha .g-flash.on{animation:none}
+  #gacha .g-conf{display:none}
+}
 #res-coins{font-family:var(--display);color:var(--lamp);font-size:15px}
 #res-coins small{font-family:var(--body);color:var(--mist);font-size:12px;margin-left:6px}
 
@@ -200,6 +268,13 @@ body.portrait .rotate-hint{display:flex}
 .side.p2 .hp i,.side.p4 .hp i{left:auto;right:0}
 .side.p2 .sh,.side.p4 .sh{justify-self:end}
 .side.p2 .sh i,.side.p4 .sh i{left:auto;right:0}
+.mpb{position:relative;height:5px;border-radius:3px;background:rgba(0,0,0,.35);overflow:hidden;width:70%}
+.mpb i{position:absolute;top:0;bottom:0;left:0;background:#b48cff;box-shadow:0 0 6px #b48cff}
+.mpb.full i{background:linear-gradient(90deg,#b48cff,#ffd86e);animation:mpfull .6s ease-in-out infinite alternate}
+@keyframes mpfull{to{filter:brightness(1.5)}}
+.side.p2 .mpb,.side.p4 .mpb{justify-self:end}
+.side.p2 .mpb i,.side.p4 .mpb i{left:auto;right:0}
+@media (prefers-reduced-motion:reduce){.mpb.full i{animation:none}}
 .side.me .tag{box-shadow:0 0 0 2px var(--foam)}
 .side.out{opacity:.4}
 /* players 3-4: bottom strip between the stick and the buttons (landscape), second row under the top bar (portrait) */
@@ -372,12 +447,14 @@ body:not(.portrait) #moves.up{bottom:calc(env(safe-area-inset-bottom,0px) + 72px
     <div class="who"><span class="tag">1P</span><span class="sym"></span><span class="nm"></span><span class="tox" hidden>ちくちく</span><span class="slw" hidden>のろのろ</span></div>
     <div class="hp"><i class="lag"></i><i class="cur"></i></div>
     <div class="sh"><i></i></div>
+    <div class="mpb"><i></i></div>
   </div>
   <div class="clock"><span id="timer">90</span><div class="clock-btns"><button class="icon-btn" id="view-btn" type="button" aria-label="視点の切り替え">俯瞰</button><button class="icon-btn" id="pause-btn" type="button" aria-label="一時停止">II</button></div></div>
   <div class="side p2">
     <div class="who"><span class="tag">2P</span><span class="sym"></span><span class="nm"></span><span class="tox" hidden>ちくちく</span><span class="slw" hidden>のろのろ</span></div>
     <div class="hp"><i class="lag"></i><i class="cur"></i></div>
     <div class="sh"><i></i></div>
+    <div class="mpb"><i></i></div>
   </div>
 </div>
 <div id="hud2" hidden>
@@ -385,11 +462,13 @@ body:not(.portrait) #moves.up{bottom:calc(env(safe-area-inset-bottom,0px) + 72px
     <div class="who"><span class="tag">P3</span><span class="sym"></span><span class="nm"></span><span class="tox" hidden>ちくちく</span><span class="slw" hidden>のろのろ</span></div>
     <div class="hp"><i class="lag"></i><i class="cur"></i></div>
     <div class="sh"><i></i></div>
+    <div class="mpb"><i></i></div>
   </div>
   <div class="side p4">
     <div class="who"><span class="tag">P4</span><span class="sym"></span><span class="nm"></span><span class="tox" hidden>ちくちく</span><span class="slw" hidden>のろのろ</span></div>
     <div class="hp"><i class="lag"></i><i class="cur"></i></div>
     <div class="sh"><i></i></div>
+    <div class="mpb"><i></i></div>
   </div>
 </div>
 
@@ -424,6 +503,16 @@ body:not(.portrait) #moves.up{bottom:calc(env(safe-area-inset-bottom,0px) + 72px
   <div class="row"><button class="ghost sm" id="tut-skip" type="button">とばす</button><button class="ghost sm" id="tut-quit" type="button">やめる</button><button class="go" id="tut-cpu" type="button" hidden>CPUと対戦へ</button></div>
 </div>
 
+<div id="gacha" hidden role="dialog" aria-label="カプセル">
+  <div class="g-rays"></div><div class="g-flash" id="g-flash"></div><div class="g-conf" id="g-conf"></div>
+  <p class="g-tease" id="g-tease" aria-live="polite"></p>
+  <div class="g-machine"><div class="g-dome" id="g-dome"></div><div class="g-body"><div class="g-handle"></div><div class="g-slot"></div></div></div>
+  <div class="g-caps" id="g-caps"></div>
+  <div class="g-card" id="g-card" hidden aria-live="polite"></div>
+  <div class="g-sum" id="g-sum" hidden></div>
+  <p class="g-hint" id="g-hint"></p>
+  <div class="row"><button class="ghost" id="g-all" type="button" hidden>ぜんぶひらく</button><button class="go" id="g-ok" type="button" hidden>OK</button></div>
+</div>
 <div id="vs" hidden></div>
 <div id="count" hidden></div>
 
@@ -467,9 +556,10 @@ body:not(.portrait) #moves.up{bottom:calc(env(safe-area-inset-bottom,0px) + 72px
   <div class="sel-panel">
     <header><p class="eyebrow">COLLECTION</p><h2>コレクション</h2><span class="wallet" id="bag-coins"></span></header>
     <p class="note">着せ替えは見た目だけで、強さは変わりません。いまの<span id="bag-who"></span>に着せて見せています。</p>
-    <button class="go" id="bag-pull" type="button"></button>
+    <div class="row"><button class="go" id="bag-pull" type="button"></button><button class="go" id="bag-pull5" type="button"></button></div>
     <div class="reveal" id="bag-reveal" hidden></div>
     <p class="note" id="bag-day"></p>
+    <p class="adrow" id="bag-ad" hidden><button class="ghost sm" id="bag-ad-btn" type="button">📺 広告を見て +50コイン</button> <small id="bag-ad-note"></small></p>
     <div class="loot" id="bag-list"></div>
     <details class="odds"><summary>カプセルから出る確率</summary><div id="bag-odds"></div></details>
     <div class="shop" id="bag-shop" hidden></div>
@@ -548,6 +638,8 @@ if (!THREE) { $('#boot-err').hidden = false; return; }
 
 /* ================= data (from 大乱闘アンダーウォーター) ================= */
 const R = 9, MAXSH = 42, MATCH_SEC = 90, SPCD = 6, RNDCD = 14;
+/* MP: filled by chanting attack and air move names well; the 必殺 needs it full and empties it */
+const MP_MAX = 100;
 const GRAV = 20, JUMP_V = 8.2, LEAP_V = 10;
 const PCOL = ['#7fe2ff', '#ff9cc2', '#ffd86e', '#8dffb4'];
 const ROSTER = [
@@ -2114,7 +2206,7 @@ class Fighter {
     this.x = Math.sin(a) * r; this.z = Math.cos(a) * r; this.y = 0; this.vx = 0; this.vz = 0; this.vy = 0;
     this.face = this.faceT = Math.atan2(-this.x, -this.z);
     this.hp = 100; this.shield = 0; this.state = 'idle'; this.move = null;
-    this.atkCd = 0; this.spCd = 2; this.rndCd = 5; this.hitstun = 0; this.poison = 0; this.poisonT = 0;
+    this.atkCd = 0; this.spCd = SPCD; this.mp = 0; this.rndCd = 5; this.hitstun = 0; this.poison = 0; this.poisonT = 0;
     this.guarding = false; this.flash = 0; this.squash = 0; this.ko = null; this.spin = 0;
     this.animSeq = 0; this.animKind = ''; this.prevHp = 100; this.prevSh = 0; this.lagHp = 100;
     this.puff = 0; this.charge = 0; this.raise = 0; this.remote = null; this.callF = null;
@@ -2191,7 +2283,7 @@ function giveFx(a, t, h) {
 function applyHit(t, h, a) {
   if (t.ko) return;
   let d = h.d || 0, kx = h.kx || 0, kz = h.kz || 0, ky = h.ky || 0;
-  if (h.jm) { t.atkCd = Math.max(t.atkCd, 1.3); t.spCd = Math.min(SPCD, t.spCd + 1); tagFl(t, '紙詰まり'); }
+  if (h.jm) { t.atkCd = Math.max(t.atkCd, 1.3); t.mp = Math.max(0, (t.mp || 0) - 17); tagFl(t, '紙詰まり'); }
   if (h.gb && (t.guarding || t.shield > 0)) { t.shield = Math.max(0, t.shield - 14); burst(t.x, 1.1, t.z, 0xc8d6e0, 10, 5); tagFl(t, 'パキッ'); }
   const def = t.guarding && !h.ev && !h.gb ? DEFK[t.ch.def] : null;
   if (def) {
@@ -2266,7 +2358,7 @@ function startAttack(f, o) {
   callout(f, f.ch.mv.atk, false); audio.swing();
 }
 function startSpecial(f, o) {
-  f.spCd = SPCD; aimAt(f, o, 11);
+  f.mp = 0; f.spCd = SPCD; aimAt(f, o, 11);
   f.move = { kind: 'sp', t: 0, dur: SPDUR[f.ch.sp], hits: {}, armor: ARMORED.includes(f.ch.sp) };
   f.animSeq = ++G.animCounter; f.animKind = 'sp';
   const rec = Math.round(f.ch.st.rec * 0.5) + rnd(0, 3), abs = Math.min(f.shield, rec);
@@ -2938,7 +3030,7 @@ function intruderTick(dt) {
 function decayBuf(inp, dt) { inp.atkBuf = Math.max(0, inp.atkBuf - dt); inp.spBuf = Math.max(0, inp.spBuf - dt); inp.rndBuf = Math.max(0, inp.rndBuf - dt); inp.jumpBuf = Math.max(0, inp.jumpBuf - dt); }
 function updateFighter(f, o, dt) {
   const inp = f.input;
-  f.atkCd = Math.max(0, f.atkCd - dt); f.spCd = Math.max(0, f.spCd - dt); f.rndCd = Math.max(0, f.rndCd - dt); f.slowT = Math.max(0, f.slowT - dt);
+  f.atkCd = Math.max(0, f.atkCd - dt); f.spCd = f.mp >= MP_MAX ? 0 : SPCD * (1 - f.mp / MP_MAX); f.rndCd = Math.max(0, f.rndCd - dt); f.slowT = Math.max(0, f.slowT - dt);
   f.flash = Math.max(0, f.flash - dt * 4); f.squash *= Math.exp(-dt * 8);
   if (f.ko) { koPhysics(f, dt); decayBuf(inp, dt); return; }
   if (f.poison > 0) {
@@ -3060,9 +3152,8 @@ function cpuThink(f, o, dt, b) {
    The browser turns speech into text (Web Speech API). Short orders are matched here;
    anything else goes to the voice relay (a Cloudflare Worker that asks an AI) when VOICE_AI is set. */
 const VOICE_AI = '';
-/* with the game's server (SERVER, below), the voice AI comes with the AI pass: the same server checks it */
-const aiURL = () => VOICE_AI || (SERVER && Bag.aiOn() ? SERVER + '/' : '');
-const aiHeaders = () => Object.assign({ 'Content-Type': 'text/plain' }, !VOICE_AI && Bag.tok ? { Authorization: 'Bearer ' + Bag.tok } : {});
+const aiURL = () => VOICE_AI;
+const aiHeaders = () => ({ 'Content-Type': 'text/plain' });
 /* false where the page may not use the microphone at all (the Claude artifact build): orders are typed instead */
 const MIC_OK = true;
 const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition || null;
@@ -3177,6 +3268,18 @@ function nameAcc(heard, nm) {
 }
 /* the multiplier: the whole bonus when said exactly, less and less the worse it was heard, nothing at 40% or below */
 const nameMul = (nm, acc) => Math.round((1 + (nameMax(nm) - 1) * clamp((acc - 0.4) / 0.6, 0, 1)) * 100) / 100;
+/* MP for chanting a move name: the whole name said exactly gives the most (a longer name a little more, as it takes longer
+   to say), less the worse it was heard, none at 40% or below. A vague order such as 「攻撃」 names no move and gives none. */
+const mpOf = nm => Math.round(clamp(12 + 3 * moraOf(nm), 24, 50));
+const mpQ = acc => clamp((acc - 0.4) / 0.6, 0, 1);
+const MP_ACTS = new Set(['attack', 'combo', 'air']);
+function gainMP(f, n) {
+  if (!(n > 0) || f.ko) return;
+  const was = f.mp; f.mp = Math.min(MP_MAX, f.mp + n);
+  if (f !== G.me || f.mp <= was) return;
+  floater('MP +' + Math.round(f.mp - was), f.x, 3.1, f.z, 'call', 1.0, 0, 0.6, '#c9a8ff');
+  if (was < MP_MAX && f.mp >= MP_MAX) floater('必殺技 OK！', f.x, 3.7, f.z, 'call sp', 1.4, 0, 0.6, '#ffd86e');
+}
 const actName = (f, act) => ({ attack: f.ch.mv.atk, combo: f.ch.mv.atk, guard: f.ch.mv.def, special: f.ch.mv.sp, air: f.ch.mv.air })[act] || '';
 /* 言いかけ: the start of exactly one of the four names was heard, so the move comes out without waiting for the rest.
    At least four letters' worth (a kanji counts two: 「深海」 is enough). Returns { i, share of the name } or null. */
@@ -3273,11 +3376,12 @@ function applyOrder(f, v, o) {
   v.n = (v.n || 0) + 1;
   if (o.target) v.target = o.target;
   if (STANCES.has(o.act)) { v.stance = o.act; v.act = null; }
+  else if (o.act === 'special' && f.mp < MP_MAX) { /* not enough MP: it carries on as before */ }
   else v.act = { k: o.act, t: o.act === 'special' ? Math.max(ACT_T.special, f.spCd + 2) : ACT_T[o.act] || 2, n: o.act === 'combo' ? 5 : 2, jumped: false, dir: dirFor(o.act), ph: 0, wait: hesitation(o), t0: performance.now(), conf: o.conf };
   /* 声の大きさ: every order sets how fired up the monster is for the next few seconds */
   f.pow = o.pow || 1; f.powT = v.act ? Math.max(3, v.act.t + v.act.wait) : 3;
   /* a CPU says the whole name in its head at once: its 言い切り starts after the time the name takes to say (6 morae a second) */
-  if (f.ctrl === 'cpu' && o.exact === 'full' && MOVE_ACTS.has(o.act)) { const nm = actName(f, o.act); f.nameIn = Math.max(0.3, moraOf(nm) / 6); f.nameQ = nameMul(nm, o.acc === undefined ? 1 - Math.random() * 0.2 : o.acc); }
+  if (f.ctrl === 'cpu' && o.exact === 'full' && MOVE_ACTS.has(o.act)) { const nm = actName(f, o.act); const acc = o.acc === undefined ? 1 - Math.random() * 0.2 : o.acc; f.nameIn = Math.max(0.3, moraOf(nm) / 6); f.nameQ = nameMul(nm, acc); f.mpQ = MP_ACTS.has(o.act) ? Math.round(mpOf(nm) * mpQ(acc)) : 0; }
   inp.sx = inp.sz = 0; inp.guardT = false; v.cpu.t = 0; v.cpu.guardT = 0;
 }
 /* 言い切り (the player): what has been heard of the name since its move came out. Hits that land before the name is
@@ -3296,6 +3400,8 @@ function nameCheck(f, s, settle) {
   if (acc > 0) nameScore(f, s, acc);
 }
 function nameScore(f, s, acc) {
+  /* MP for an attack or air move: only the rise since the last judgement of this name */
+  if (MP_ACTS.has(s.act)) { const want = Math.round(mpOf(s.nm) * mpQ(acc)); if (want > (s.mp || 0)) { gainMP(f, want - (s.mp || 0)); s.mp = want; } }
   const mul = nameMul(s.nm, acc);
   if (mul <= s.mul + 0.005) return;
   for (const h of s.hits) { const extra = Math.round(h.d * (mul - h.m)); h.m = mul; if (extra > 0 && !h.t.ko) echoHit(f, h.t, extra); }
@@ -3324,18 +3430,19 @@ function echoHit(a, t, d) {
 function giveOrder(f, v, o, say, via) {
   let line = say || '';
   const wait = hesitation(o);
-  if (o.act === 'special' && f.spCd > 1.2 && !line) line = 'まだ溜まってない！溜まったら撃つ';
+  const noMP = o.act === 'special' && f.mp < MP_MAX;
+  if (noMP && !line) line = 'MPが足りない！あと' + Math.ceil(MP_MAX - f.mp);
   if (wait >= 0.6 && !line) line = pickOne(['えっと…どれだっけ', 'えーっと…どの技？', 'どれのこと…？']);
   applyOrder(f, v, o);
   Grumble.order(o.act);
   if (MOVE_ACTS.has(o.act) && hesitation(o) >= 0.6) Grumble.ev('vague');
-  else if (o.act === 'special' && f.spCd > 1.2) Grumble.ev('nocharge');
+  else if (noMP) Grumble.ev('nocharge');
   else if (f.pow <= 0.9) Grumble.ev('whisper');
   sayLine(f, line || replyFor(f, o.act, o.target));
   const p = f.pow, px = '×' + p.toFixed(2);
   if (p >= 1.05) floater('気合 ' + px, f.x, 3.4, f.z, 'call sp', 1.1, 0, 0.6, '#ffd86e');
   else if (p <= 0.95) floater('ひそひそ ' + px, f.x, 3.4, f.z, 'call', 1.0, 0, 0.6, '#94bbd0');
-  setPlan(planText(f, v, o, wait, via));
+  setPlan(noMP ? '→ 必殺：MPが足りない（あと' + Math.ceil(MP_MAX - f.mp) + '）。攻撃・空中攻撃の技名をうまく唱えてためる' : planText(f, v, o, wait, via));
 }
 function planText(f, v, o, wait, via) {
   const p = f.pow, conf = o.conf === undefined ? null : Math.round(o.conf * 100);
@@ -3559,12 +3666,13 @@ function stanceThink(f, dt, v, o) {
    CPUの強さ: its monster is the same as yours at every level; what changes is how good a commander it is.
    gap: seconds between orders · react: how often it calls a dodge when a special comes at it, after rDelay seconds ·
    full: how often it says the whole move name (else a vague order that hesitates), acc: how well it says it (言い切り) ·
-   muse: overthinking · sp: using a charged special · focus: going for the weakest · pow: how loud it shouts.
+   muse: overthinking · sp: using a charged special · call: calling an attack by name to fill MP · focus: going for the weakest ·
+   pow: how loud it shouts.
    In CPU-vs-CPU mirror matches つよい beats ふつう and ふつう beats よわい about 2 times in 3. */
 const CPU_LV = [
-  { name: 'よわい', note: '指示がのんびりで、技名はうろ覚え', gap: [2.6, 4.2], react: 0.15, rDelay: [0.9, 1.4], full: 0.3, acc: [0.55, 0.9], muse: 0.2, sp: 0.25, focus: 0.1, pow: 0.93 },
-  { name: 'ふつう', note: 'たいてい技名を言える', gap: [1.2, 2.5], react: 0.6, rDelay: [0.6, 1.1], full: 0.75, acc: [0.8, 1], muse: 0.05, sp: 0.55, focus: 0.25, pow: 1.03 },
-  { name: 'つよい', note: '技名を言い切り、必殺も回避もすばやい', gap: [0.8, 1.6], react: 0.85, rDelay: [0.35, 0.6], full: 0.92, acc: [0.92, 1], muse: 0.01, sp: 0.8, focus: 0.5, pow: 1.1 },
+  { name: 'よわい', note: '指示がのんびりで、技名はうろ覚え', gap: [2.6, 4.2], react: 0.15, rDelay: [0.9, 1.4], full: 0.3, acc: [0.55, 0.9], muse: 0.2, sp: 0.25, call: 0.3, focus: 0.1, pow: 0.93 },
+  { name: 'ふつう', note: 'たいてい技名を言える', gap: [1.2, 2.5], react: 0.6, rDelay: [0.6, 1.1], full: 0.75, acc: [0.8, 1], muse: 0.05, sp: 0.55, call: 0.55, focus: 0.25, pow: 1.03 },
+  { name: 'つよい', note: '技名を言い切り、必殺も回避もすばやい', gap: [0.8, 1.6], react: 0.85, rDelay: [0.35, 0.6], full: 0.92, acc: [0.92, 1], muse: 0.01, sp: 0.8, call: 0.8, focus: 0.5, pow: 1.1 },
 ];
 const randIn = ([a, b]) => a + Math.random() * (b - a);
 function newCpuVoice(lv) { const L = CPU_LV[lv === undefined ? 1 : lv] || CPU_LV[1]; return { t: randIn(L.gap) * 0.7, think: 0, react: 0, v: newVoice(), L }; }
@@ -3576,7 +3684,7 @@ const cpuSay = L => {
 };
 function cpuVoice(f, dt, b) {
   const v = b.v, L = b.L || CPU_LV[1];
-  if (f.nameIn > 0 && (f.nameIn -= dt) <= 0) { f.nameK = f.nameQ; f.nameT = 3; }
+  if (f.nameIn > 0 && (f.nameIn -= dt) <= 0) { f.nameK = f.nameQ; f.nameT = 3; gainMP(f, f.mpQ || 0); f.mpQ = 0; }
   if (!f.ko && G.phase === 'fight') {
     if (b.think > 0) b.think -= dt;
     else {
@@ -3593,7 +3701,8 @@ function cpuVoice(f, dt, b) {
 }
 function cpuDecide(f, b) {
   const v = b.v, L = b.L || CPU_LV[1], fs = foes(f).filter(t => !hidden(t));
-  if (!fs.length) return;
+  /* still saying a move name: one at a time, as a player would */
+  if (!fs.length || f.nameIn > 0) return;
   /* たまに考えすぎる */
   if (Math.random() < L.muse) { b.think = 0.9 + Math.random() * 1.1; applyOrder(f, v, { act: 'wait' }); return; }
   const o = v.target && !v.target.ko ? v.target : nearest(f), d = o ? hyp(o.x - f.x, o.z - f.z) : 99, r = Math.random();
@@ -3604,6 +3713,8 @@ function cpuDecide(f, b) {
   else if (d > 4 && bubs.some(x => !x.pend) && r < 0.35) act = 'bubble';
   else if (r < 0.15) act = pickOne(['attack', 'combo', 'air']);
   else if (v.stance !== 'fight') act = 'fight';
+  /* MP comes only from chanting moves: call an attack or air move by name when someone is near */
+  else if (f.mp < MP_MAX && d < 6 && Math.random() < (L.call || 0.5)) act = Math.random() < 0.75 ? 'attack' : 'air';
   if (!act) return;
   const target = fs.length > 1 && Math.random() < L.focus ? fs.slice().sort((a, c) => a.hp - c.hp)[0] : null;
   applyOrder(f, v, Object.assign(cpuSay(L), { act, target }));
@@ -3780,7 +3891,7 @@ function ingestRemote(f, op) {
   const sn = Net.seen[f.id] || (Net.seen[f.id] = { a: 0, h: 0, e: 0, i: 0 });
   if (!Net.live[f.id]) { if (op.ko) return; Net.live[f.id] = true; }
   f.remote = { x: clamp(+op.x || 0, -30, 30), z: clamp(+op.z || 0, -30, 30), y: clamp(+op.y || 0, -30, 10), f: +op.f || 0, st: String(op.st || 'idle').slice(0, 8), g: !!op.g };
-  if (!f.ko) { f.hp = clamp(+op.hp, 0, 100); f.shield = clamp(+op.sh || 0, 0, MAXSH); }
+  if (!f.ko) { f.hp = clamp(+op.hp, 0, 100); f.shield = clamp(+op.sh || 0, 0, MAXSH); f.mp = clamp(+op.mp || 0, 0, MP_MAX); }
   if ((op.a | 0) > sn.a) { sn.a = op.a | 0; remoteAnim(f, op.an); }
   if (Array.isArray(op.hits)) for (const h of op.hits) if (h && (h.s | 0) > sn.h) { sn.h = h.s | 0; if (h.to === Net.id()) applyIncoming(G.me, h, f); }
   if (op.ev && (op.ev.s | 0) > sn.e) { sn.e = op.ev.s | 0; const k = op.ev.k | 0; if (EVENTS[k]) runEvent(f, fighterById(op.ev.to) || nearest(f) || G.me, k, false); }
@@ -3822,7 +3933,7 @@ function netFrame(dt) {
       }
     }
     const m = G.me;
-    if (m) Net.set({ ph: 'fight', hb: Math.floor(performance.now() / 1000), x: r2(m.x), z: r2(m.z), y: r2(m.y), f: r2(m.face), hp: Math.round(m.hp), sh: Math.round(m.shield), g: m.guarding ? 1 : 0, st: m.state, a: m.animSeq, an: m.animKind, ko: m.ko || 0 });
+    if (m) Net.set({ ph: 'fight', hb: Math.floor(performance.now() / 1000), x: r2(m.x), z: r2(m.z), y: r2(m.y), f: r2(m.face), hp: Math.round(m.hp), sh: Math.round(m.shield), mp: Math.round(m.mp), g: m.guarding ? 1 : 0, st: m.state, a: m.animSeq, an: m.animKind, ko: m.ko || 0 });
     if (m && Net.host) Net.set({ bb: bubs.map(b => [b.i, b.x, b.z, b.hi ? 1 : 0]) });
   } else if (G.phase === 'result' && Net.pub) {
     G.autoBack -= dt;
@@ -4492,13 +4603,13 @@ function updateMoves() {
     let cls = '', txt = '';
     if (k === 'sp') {
       const ready = f.spCd <= 0;
-      cls = ready ? 'ready' : 'off'; txt = ready ? '使える' : 'あと' + f.spCd.toFixed(1) + '秒';
-      const w = ((1 - clamp(f.spCd / SPCD, 0, 1)) * 100).toFixed(0) + '%';
+      cls = ready ? 'ready' : 'off'; txt = ready ? '使える（MP満タン）' : 'MP ' + Math.floor(f.mp) + '/' + MP_MAX;
+      const w = clamp(f.mp / MP_MAX * 100, 0, 100).toFixed(0) + '%';
       if (r.cd.style.width !== w) r.cd.style.width = w;
     }
     if (live === k) { cls = 'go'; txt = '発動！'; }
-    else if (pick === k && a.wait > 0) { cls = 'think'; txt = '迷い中' + (a.conf !== undefined ? ' 確信' + Math.round(a.conf * 100) + '%' : '') + (k === 'sp' && f.spCd > 0 ? '・あと' + f.spCd.toFixed(1) + '秒' : ''); }
-    else if (pick === k) { cls = 'on'; txt = k === 'sp' && f.spCd > 0 ? '戦いながら溜め中…あと' + f.spCd.toFixed(1) + '秒で撃つ' : k === 'def' ? '構えている' : '向かっている'; }
+    else if (pick === k && a.wait > 0) { cls = 'think'; txt = '迷い中' + (a.conf !== undefined ? ' 確信' + Math.round(a.conf * 100) + '%' : '') + (k === 'sp' && f.mp < MP_MAX ? '・MP不足' : ''); }
+    else if (pick === k) { cls = 'on'; txt = k === 'sp' && f.mp < MP_MAX ? 'MPがたまったら撃つ' : k === 'def' ? '構えている' : '向かっている'; }
     if (cls !== r.cls) { r.li.className = cls; r.cls = cls; }
     if (txt !== r.txt) { r.s.textContent = txt; r.txt = txt; }
   }
@@ -4542,9 +4653,9 @@ function tutSteps(me, dummy) {
     { t: '「待て」で止める', ex: '「待て」「ストップ」', hint: '止まっている間も、攻撃が来たら身を守ります', ok: () => v().stance === 'wait' && !v().act },
     { t: '「ジャンプ」でかわす', ex: '「ジャンプ」「よけて」', hint: '床を走る攻撃や、飛んでくる物をかわせます', ok: () => me.y > 0.4 },
     { t: '防御の技名で身を守る', ex: '「' + mv.def + '」「防御」', hint: mv.def + '：' + DEFK[me.ch.def].desc + '。「防御」だけだと、どの技か少し迷います', ok: () => me.guarding },
-    { t: '攻撃の技名を最後まで叫ぶ', ex: '「' + mv.atk + '」', hint: '技は名前の言いはじめで分かった時点で出ます。そのまま最後まで言い切ると、名前の長さに応じて3秒間威力が上がります（この技は最大×' + nameMax(mv.atk).toFixed(1) + '。聞き取りがずれるほど下がる）。先に当たった分も言い切った時に上乗せ。「攻撃」だけだと迷って約1秒遅れます。' + ATKK[me.ch.atk].desc,
+    { t: '攻撃の技名を最後まで叫ぶ', ex: '「' + mv.atk + '」', hint: '技は名前の言いはじめで分かった時点で出ます。そのまま最後まで言い切ると、名前の長さに応じて3秒間威力が上がります（この技は最大×' + nameMax(mv.atk).toFixed(1) + '。聞き取りがずれるほど下がる）。先に当たった分も言い切った時に上乗せ。うまく唱えるほどMP（必殺技に使う）もたまります。「攻撃」だけだと迷って約1秒遅れ、MPもたまりません。' + ATKK[me.ch.atk].desc,
       ok: () => tut.full === 'attack' && tut.swing },
-    { t: '必殺技の名前を叫ぶ', ex: '「' + mv.sp + '」', hint: '「必殺」だけだと迷って遅れます。一度使うと、しばらく溜まるまで出せません', setup: () => { me.spCd = 0; }, ok: () => me.move && me.move.kind === 'sp' },
+    { t: '必殺技の名前を叫ぶ', ex: '「' + mv.sp + '」', hint: '必殺技はMPが満タンのときに撃てます（ここでは満タンにしてあります）。MPは攻撃・空中攻撃の技名をうまく唱えるほどたまり、撃つと空になります。「必殺」だけだと迷って遅れます', setup: () => { me.mp = MP_MAX; }, ok: () => me.move && me.move.kind === 'sp' },
     { t: '大きな声ほど強くなる', ex: micReady() ? '思いきり大声で「' + mv.atk + '！！」' : '「' + mv.atk + '！！」',
       hint: () => micReady() ? (Level.ok ? 'いつもの声より大きいほど、約3秒のあいだ攻撃・速さ・ジャンプが強くなります（右下のメーターの白い線がいつもの声）。ささやくと少し弱くなります' : 'この端末では声の大きさを測れていません。「！」を付けて打ち込んでも少し気合が入ります')
         : '「！」を付けて打ち込むと気合が入ります（2つまで）。マイクのある場所では、大声ほど強くなります',
@@ -4624,7 +4735,7 @@ syncTitleMenu();
    They make a 潜水者 your 仲間 (you pick which; STARTERS are yours from the start) and turn the capsule (a random look).
    A 潜水者 that is not yet yours can be tried once in a CPU fight, and CPUs show off looks now and then.
    With SERVER set, all of this lives on the game's server (worker/: a guest account made without any sign-up; the draw and
-   the daily cap are decided there) and the shop opens (Stripe Checkout: 仲間 at once, shop-only looks, the AI pass).
+   the daily cap are decided there) and the shop opens (Stripe Checkout: 仲間 at once, shop-only looks, a supporter pack).
    Without it, everything stays on this device and nothing is sold. */
 const SERVER = '';
 const STARTERS = ['whale-man', 'shark-lost', 'jelly-principal', 'puffer-gatekeeper', 'octopus-snail', 'shrimp-cadet'];
@@ -4643,6 +4754,7 @@ const Bag = {
     this.s = {
       coins: Math.max(0, Math.floor(+s.coins || 0)), own: arr(s.own, x => ids.has(x)), tried: arr(s.tried, x => ids.has(x)),
       items: arr(s.items, x => !!LOOK[x] && LOOK[x].r < 3), wear: {}, day: String(s.day || ''), dayEarn: Math.max(0, +s.dayEarn || 0), login: String(s.login || ''),
+      adDay: String(s.adDay || ''), adN: Math.max(0, +s.adN || 0), adAt: Math.max(0, +s.adAt || 0),
     };
     if (s.wear && typeof s.wear === 'object') for (const id of ids) if (s.wear[id]) this.s.wear[id] = cleanLook(s.wear[id]);
   },
@@ -4655,7 +4767,6 @@ const Bag = {
   canTry(ch) { return !this.owns(ch) && !this.s.tried.includes(ch.id); },
   /* coins from playing count against today's cap; gifts (login, tutorial) do not */
   room() { if (this.remote) return this.s.room | 0; if (this.s.day !== dayKey()) { this.s.day = dayKey(); this.s.dayEarn = 0; } return Math.max(0, DAY_CAP - this.s.dayEarn); },
-  aiOn() { return !!(this.remote && this.srv && this.srv.aiUntil > Date.now() + this.srv.skew); },
   shopOpen() { return !!(this.remote && this.ready && this.srv && this.srv.shop); },
 
   /* ---- on this device ---- */
@@ -4690,7 +4801,7 @@ const Bag = {
     const own = (me.own || []).filter(id => ROSTER.some(c => c.id === id) && !STARTERS.includes(id));
     this.s = { coins: me.coins | 0, own, tried: me.tried || [], items: (me.items || []).filter(id => LOOK[id]), wear: {}, day: dayKey(), dayEarn: 0, login: me.loginToday ? dayKey() : '', room: me.room | 0 };
     if (me.wear && typeof me.wear === 'object') for (const id in me.wear) this.s.wear[id] = cleanLook(me.wear[id]);
-    this.srv = { skus: me.skus || {}, shop: !!me.shop, aiUntil: +me.aiUntil || 0, skew: (+me.now || Date.now()) - Date.now() };
+    this.srv = { skus: me.skus || {}, shop: !!me.shop, adLeft: me.adLeft | 0, skew: (+me.now || Date.now()) - Date.now() };
     if (me.price) { if (me.price.char) PRICE.char = me.price.char; if (me.price.capsule) PRICE.capsule = me.price.capsule; }
     syncWallet();
   },
@@ -4731,15 +4842,27 @@ const Bag = {
     if (!this.remote) { if (!this.canTry(ch)) return false; this.s.tried.push(ch.id); this.save(); return true; }
     try { return !!(await this.api('/api/try', { ch: ch.id })).ok; } catch (e) { return false; }
   },
-  async pullX() {
-    if (!this.remote) return this.pull();
-    try { const j = await this.api('/api/pull', {}); return LOOK[j.item] ? { it: LOOK[j.item], dup: !!j.dup, back: j.back | 0 } : null; } catch (e) { return null; }
+  /* n capsules (1 or 5): a list of { it, dup, back }, or null when there are not enough coins */
+  async pullX(n) {
+    n = n === 5 ? 5 : 1;
+    if (!this.remote) { if (this.s.coins < PRICE.capsule * n) return null; const out = []; for (let k = 0; k < n; k++) out.push(this.pull()); return out; }
+    try { const j = await this.api('/api/pull', { n }); const out = (j.results || [j]).filter(x => LOOK[x.item]).map(x => ({ it: LOOK[x.item], dup: !!x.dup, back: x.back | 0 })); return out.length ? out : null; } catch (e) { return null; }
   },
   async wearX(ch, slot, id) {
     const L = this.look(ch); L[slot] = id && this.has(id) && LOOK[id].slot === slot ? id : '';
     if (!this.remote) { this.s.wear[ch.id] = L; this.save(); return; }
     this.s.wear[ch.id] = L;
     try { await this.api('/api/wear', { ch: ch.id, look: L }); } catch (e) {}
+  },
+  /* 広告を最後まで見た: coins, AD.perDay times a day */
+  adLeft() { return this.remote ? (this.srv ? this.srv.adLeft | 0 : 0) : Math.max(0, AD.perDay - (this.s.adDay === dayKey() ? this.s.adN : 0)); },
+  async adX() {
+    if (!this.remote) {
+      if (!this.adLeft() || Date.now() - (this.s.adAt || 0) < AD.gapMs) return 0;
+      if (this.s.adDay !== dayKey()) { this.s.adDay = dayKey(); this.s.adN = 0; }
+      this.s.adN++; this.s.adAt = Date.now(); this.gift(AD.coins); return AD.coins;
+    }
+    try { return (await this.api('/api/adreward', {})).got | 0; } catch (e) { return 0; }
   },
   async tutX() {
     if (!this.remote) { this.gift(TUT_GIFT); return TUT_GIFT; }
@@ -4804,9 +4927,158 @@ Bag.startUp().then(n => {
   paidReturn();
 });
 
+/* ================= 広告: Google の H5 Games Ads（Ad Placement API） =================
+   ADS_CLIENT に AdSense の「ca-pub-…」を入れると出る。空のあいだは何も出ない（アーティファクト版はいつも出ない）。
+   - 試合の前: その日2回目の試合から、2分に1回まで（オンライン対戦の前とチュートリアルでは出さない）
+   - コレクション: 見たい人だけ「広告を見て +50コイン」（1日3回まで。数はサーバーかこの端末で数える）
+   広告のあいだは試合とマイクを止め、終わったら戻す。 */
+const ADS_CLIENT = '';
+/* true のあいだは Google のテスト広告（審査の前に動きを確かめる用） */
+const ADS_TEST = false;
+const AD = { coins: 50, perDay: 3, gapMs: 30000, everyMs: 120000 };
+const Ads = {
+  on: false, at: 0, fights: 0, held: null, reward: null,
+  init() {
+    if (!ADS_CLIENT) return;
+    window.adsbygoogle = window.adsbygoogle || [];
+    window.adBreak = window.adConfig = function (o) { window.adsbygoogle.push(o); };
+    const s = document.createElement('script');
+    s.async = true; s.crossOrigin = 'anonymous';
+    s.src = 'https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=' + encodeURIComponent(ADS_CLIENT);
+    s.setAttribute('data-ad-client', ADS_CLIENT); s.setAttribute('data-ad-frequency-hint', Math.round(AD.everyMs / 1000) + 's');
+    if (ADS_TEST) s.setAttribute('data-adbreak-test', 'on');
+    s.onerror = () => { this.on = false; };
+    document.head.appendChild(s);
+    window.adConfig({ preloadAdBreaks: 'on', sound: audio.on ? 'on' : 'off' });
+    this.on = true;
+  },
+  /* while an ad shows: the fight (if any) and the microphone wait */
+  hold() {
+    if (this.held) return;
+    this.held = { paused: G.paused, voice: !!(G.voice && Voice.want) };
+    if (['vs', 'count', 'fight', 'end'].includes(G.phase)) G.paused = true;
+    if (this.held.voice) Voice.stop();
+  },
+  release() {
+    const h = this.held; this.held = null; if (!h) return;
+    G.paused = h.paused; if (h.voice && G.voice) Voice.start(true);
+  },
+  /* an ad between two screens, then next(). No ad (or no ad script) goes straight on. */
+  between(next) {
+    this.fights++;
+    if (!this.on || this.fights < 2 || Date.now() - this.at < AD.everyMs) { next(); return; }
+    let gone = false, shown = false;
+    const go = () => { if (gone) return; gone = true; next(); };
+    const guard = setTimeout(() => { if (!shown) go(); }, 1500);
+    window.adBreak({
+      type: 'next', name: 'before-fight',
+      beforeAd: () => { shown = true; clearTimeout(guard); this.hold(); },
+      afterAd: () => this.release(),
+      adBreakDone: info => { clearTimeout(guard); this.release(); if (info && info.breakStatus === 'viewed') this.at = Date.now(); go(); },
+    });
+  },
+  /* ask whether a rewarded ad is ready; if so, the button shows and starts it */
+  offerReward(show) {
+    this.reward = null;
+    if (!this.on) { show(null); return; }
+    window.adBreak({
+      type: 'reward', name: 'coins',
+      beforeReward: showAdFn => { this.reward = showAdFn; show(showAdFn); },
+      beforeAd: () => this.hold(), afterAd: () => this.release(),
+      adDismissed: () => { adNote('最後まで見ると受け取れます'); },
+      adViewed: async () => { const got = await Bag.adX(); adNote(got ? '+' + got + 'コイン受け取りました' : '今日はもう受け取れません'); renderBag(); },
+      adBreakDone: () => { this.reward = null; show(null); },
+    });
+  },
+};
+function adNote(t) { const el = $('#bag-ad-note'); if (el) el.textContent = t; }
+Ads.init();
+
+/* カプセルの演出. The capsule's colour is its real rarity and a レア/激レア 確定 shows only when one really is inside:
+   nothing here pretends to be a near miss. Coins can't be bought, so this is all play money. */
+const CAP_COL = ['#7fe2ff', '#b48cff', '#ffd86e'];
+const gWait = ms => new Promise(r => setTimeout(r, reduceMotion ? Math.min(ms, 120) : ms));
+const G_SND = {
+  turn() { for (let i = 0; i < 5; i++) audio.tone(260 + i * 30, 180, 0.06, 'square', 0.05, i * 0.16); },
+  drop() { audio.tone(700, 300, 0.12, 'triangle', 0.08); },
+  tease(r) { if (r >= 2) { for (let i = 0; i < 6; i++) audio.tone(520 + i * 110, 520 + i * 110, 0.09, 'triangle', 0.09, i * 0.07); } else audio.tone(660, 990, 0.2, 'triangle', 0.09); },
+  open(r) {
+    if (r >= 2) { [523, 659, 784, 1047, 1319].forEach((f, i) => audio.tone(f, f, 0.22, 'triangle', 0.11, i * 0.09)); audio.tone(1568, 1568, 0.6, 'sine', 0.08, 0.5); }
+    else if (r === 1) [659, 880, 1175].forEach((f, i) => audio.tone(f, f, 0.18, 'triangle', 0.1, i * 0.08));
+    else audio.tone(880, 1320, 0.12, 'sine', 0.09);
+  },
+};
+function gConfetti(box, r) {
+  if (reduceMotion) return;
+  const n = r >= 2 ? 90 : 26, cols = r >= 2 ? ['#ff6f6f', '#ffd86e', '#8dffb4', '#7fe2ff', '#b48cff', '#ffffff'] : ['#b48cff', '#e0ccff', '#9fd8ff'];
+  for (let i = 0; i < n; i++) {
+    const e = document.createElement('i');
+    e.style.left = Math.random() * 100 + '%'; e.style.setProperty('--c', cols[i % cols.length]);
+    e.style.setProperty('--t', (1.8 + Math.random() * 1.6).toFixed(2) + 's'); e.style.setProperty('--d', (Math.random() * 0.5).toFixed(2) + 's');
+    e.style.setProperty('--x', ((Math.random() - 0.5) * 30).toFixed(1) + 'vw'); e.style.setProperty('--r', Math.round(360 + Math.random() * 720) + 'deg');
+    box.append(e);
+  }
+  setTimeout(() => { box.textContent = ''; }, 4200);
+}
+/* results: [{ it, dup, back }]. Resolves when the player closes it. */
+function gachaShow(results) {
+  return new Promise(async done => {
+    const ov = $('#gacha'), caps = $('#g-caps'), card = $('#g-card'), sum = $('#g-sum'), hint = $('#g-hint'), ok = $('#g-ok'), all = $('#g-all'), tease = $('#g-tease'), flash = $('#g-flash');
+    const best = Math.max(...results.map(x => x.it.r)), one = results.length === 1;
+    ov.className = one ? 'one' : ''; ov.style.setProperty('--gc', CAP_COL[Math.min(2, best)]);
+    caps.textContent = ''; ov.classList.remove('dropped'); card.hidden = true; sum.hidden = true; ok.hidden = true; all.hidden = true; hint.textContent = ''; tease.textContent = ''; tease.className = 'g-tease';
+    $('#g-dome').innerHTML = Array.from({ length: 9 }, (_, i) => '<i style="--c:' + CAP_COL[i % 3 === 2 && i > 6 ? 2 : i % 2] + ';left:' + (8 + (i % 3) * 30) + '%;top:' + (16 + Math.floor(i / 3) * 26) + '%"></i>').join('');
+    ov.hidden = false;
+    /* the handle turns */
+    ov.classList.add('turn'); G_SND.turn(); await gWait(950); ov.classList.remove('turn');
+    /* a rare one inside: say so (truthfully) before it drops */
+    if (best >= 1) {
+      ov.classList.add('lit', 'r' + best); flash.classList.remove('on'); void flash.offsetWidth; flash.classList.add('on');
+      tease.textContent = best >= 2 ? '激レア確定！！' : 'レア以上確定！'; tease.classList.add('on'); G_SND.tease(best); await gWait(best >= 2 ? 1100 : 750);
+    }
+    /* the capsules drop */
+    const els = results.map((x, i) => {
+      const b = document.createElement('button'); b.type = 'button'; b.className = 'g-cap r' + Math.min(2, x.it.r); b.style.setProperty('--c', CAP_COL[Math.min(2, x.it.r)]);
+      b.style.animationDelay = (i * 0.12) + 's'; b.setAttribute('aria-label', 'カプセル' + (i + 1) + 'をひらく');
+      const gi = document.createElement('span'); gi.className = 'gi'; gi.textContent = x.it.sym; b.append(gi); caps.append(b); return b;
+    });
+    ov.classList.add('dropped'); G_SND.drop(); await gWait(700 + results.length * 120);
+    hint.textContent = one ? 'タップでひらく' : 'タップでひとつずつ、または「ぜんぶひらく」';
+    if (!one) all.hidden = false;
+    let opened = 0, busy = false;
+    const openOne = async i => {
+      const b = els[i], x = results[i]; if (!b || b.classList.contains('open') || busy) return; busy = true;
+      b.classList.add('wob'); await gWait(x.it.r >= 1 ? 520 : 300); b.classList.remove('wob'); b.classList.add('open');
+      G_SND.open(x.it.r); if (x.it.r >= 1) { flash.classList.remove('on'); void flash.offsetWidth; flash.classList.add('on'); gConfetti($('#g-conf'), x.it.r); }
+      if (one || x.it.r >= 1) {
+        card.hidden = false; card.style.animation = 'none'; void card.offsetWidth; card.style.animation = '';
+        card.innerHTML = '<span class="st">' + '★'.repeat(x.it.r + 1) + '</span><b>' + x.it.sym + ' ' + x.it.name + '</b><small>' + RARE[x.it.r].name + '・' + SLOT_NAME[x.it.slot] + '</small>' +
+          (x.dup ? '<small>もう持っていたので ' + x.back + 'コインもどりました</small>' : '<span class="nw">NEW!</span>');
+      }
+      opened++; busy = false;
+      if (opened === els.length) finish();
+    };
+    const finish = async () => {
+      all.hidden = true; hint.textContent = '';
+      if (!one) {
+        await gWait(500);
+        sum.innerHTML = results.map(x => '<div style="--c:' + CAP_COL[Math.min(2, x.it.r)] + '"><i>' + x.it.sym + '</i>' + x.it.name + (x.dup ? '<small>+' + x.back + '</small>' : '<em>NEW</em>') + '</div>').join('');
+        sum.hidden = false;
+      }
+      ok.hidden = false; ok.focus();
+    };
+    els.forEach((b, i) => b.addEventListener('click', () => openOne(i)));
+    all.onclick = async () => { for (let i = 0; i < els.length; i++) { await openOne(i); await gWait(160); } };
+    if (one) { await gWait(900); openOne(0); }
+    ok.onclick = () => { ov.hidden = true; ov.className = ''; done(); };
+  });
+}
+
 /* the collection screen: turn the capsule, see what you have and what it can hold; with the server, the shop and 引き継ぎ */
 let bagLast = null;
 function openBag() {
+  adNote(''); $('#bag-ad').hidden = true;
+  if (Ads.on && Bag.adLeft()) Ads.offerReward(fn => { const row = $('#bag-ad'); row.hidden = !fn || !Bag.adLeft(); $('#bag-ad-btn').textContent = '📺 広告を見て +' + AD.coins + 'コイン（今日あと' + Bag.adLeft() + '回）'; });
   G.phase = 'bag'; bagLast = null; $('#bag-reveal').hidden = true; $('#acct-msg').textContent = '';
   renderBag(); show('s-bag'); bagPreview();
 }
@@ -4819,7 +5091,9 @@ const yen = n => n.toLocaleString('ja-JP') + '円';
 function renderBag() {
   syncWallet();
   $('#bag-who').textContent = ROSTER[G.picks[0] | 0].name;
-  const pull = $('#bag-pull'); pull.textContent = 'カプセルを回す（' + PRICE.capsule + 'コイン）'; pull.disabled = Bag.s.coins < PRICE.capsule || (Bag.remote && !Bag.ready);
+  const pull = $('#bag-pull'), p5 = $('#bag-pull5'), wait = Bag.remote && !Bag.ready;
+  pull.textContent = 'カプセル1回（' + PRICE.capsule + 'コイン）'; pull.disabled = Bag.s.coins < PRICE.capsule || wait;
+  p5.textContent = '5回まとめて（' + PRICE.capsule * 5 + 'コイン）'; p5.disabled = Bag.s.coins < PRICE.capsule * 5 || wait;
   const room = Bag.room();
   $('#bag-day').textContent = (Bag.s.coins < PRICE.capsule ? 'コインが足りません。' : '') + '今日は対戦であと ' + room + 'コイン（1日' + DAY_CAP + 'まで）かせげます。CPUが強いほど、人数が多いほど多くもらえます。';
   $('#bag-list').innerHTML = SLOTS.map(sl => {
@@ -4839,24 +5113,29 @@ function renderBag() {
     if (sk.chall) rows.push(['chall', sk.chall.name + '（あと' + lockedLeft + '体）', !lockedLeft]);
     for (const id of ['c-neon', 'h-ribbon', 'h-witch', 'p-whale', 'p-ufo']) if (sk['look:' + id]) rows.push(['look:' + id, LOOK[id].sym + ' ' + sk['look:' + id].name, Bag.has(id)]);
     if (sk.premium) rows.push(['premium', sk.premium.name, ['c-neon', 'h-ribbon', 'h-witch', 'p-whale', 'p-ufo'].every(id => Bag.has(id))]);
-    const days = Bag.aiOn() ? Math.ceil((Bag.srv.aiUntil - Date.now() - Bag.srv.skew) / 86400000) : 0;
-    if (sk.ai30) rows.push(['ai30', sk.ai30.name + (days ? '（いま有効・あと' + days + '日。買うと延長）' : '：声の聞き取りがAIで賢くなり、キャラが一言しゃべる'), false]);
     if (sk.support) rows.push(['support', sk.support.name, false]);
     shop.innerHTML = '<h4>ショップ（お金で買う）</h4><ul class="skus">' + rows.map(([k, name, done]) => '<li><span>' + name + '</span><b>' + yen(sk[k].amount) + '</b><button class="go sm" type="button" data-buy="' + k + '"' + (done ? ' disabled' : '') + '>' + (done ? '持っています' : '買う') + '</button></li>').join('') + '</ul>' +
       '<p class="note">「買う」を押すと、Stripe（決済会社）の支払い画面に移ります。カード番号はこのゲームには届きません。未成年の方は保護者の同意を得てから買ってください。' +
       '<br><a href="tokushoho.html" target="_blank" rel="noopener">特定商取引法にもとづく表記</a>・<a href="terms.html" target="_blank" rel="noopener">利用規約</a>・<a href="privacy.html" target="_blank" rel="noopener">プライバシーポリシー</a></p>';
   }
 }
-$('#bag-pull').addEventListener('click', async () => {
-  const btn = $('#bag-pull'); btn.disabled = true;
-  const got = await Bag.pullX(); if (!got) { renderBag(); return; }
-  audio.tick(); bagLast = got.it;
-  const rv = $('#bag-reveal'), R = RARE[got.it.r];
+async function turnCapsule(n) {
+  $('#bag-pull').disabled = $('#bag-pull5').disabled = true;
+  const got = await Bag.pullX(n); if (!got) { renderBag(); return; }
+  await gachaShow(got);
+  /* the best new one is tried on, and noted under the buttons */
+  const pick = got.filter(x => !x.dup).sort((a, b) => b.it.r - a.it.r)[0] || got[got.length - 1];
+  bagLast = pick.it;
+  const rv = $('#bag-reveal'), R = RARE[pick.it.r];
   rv.hidden = false; rv.style.setProperty('--rc', R.c); rv.style.animation = 'none'; void rv.offsetWidth; rv.style.animation = '';
-  rv.innerHTML = '<span class="rs">' + got.it.sym + '</span><span><span class="rr">' + R.name + '・' + SLOT_NAME[got.it.slot] + '</span><b>' + got.it.name + '</b><small>' +
-    (got.dup ? 'もう持っていたので ' + got.back + 'コインもどりました' : 'NEW！ キャラ選択で着せられます。いまは試しに着せています') + '</small></span>';
-  renderBag(); bagPreview(got.it.id);
-});
+  const news = got.filter(x => !x.dup).length, back = got.reduce((a, x) => a + x.back, 0);
+  rv.innerHTML = '<span class="rs">' + pick.it.sym + '</span><span><span class="rr">' + R.name + '・' + SLOT_NAME[pick.it.slot] + '</span><b>' + pick.it.name + '</b><small>' +
+    (got.length > 1 ? 'NEW ' + news + '個' + (back ? '・かぶりで ' + back + 'コインもどりました' : '') + '。' : pick.dup ? 'もう持っていたので ' + pick.back + 'コインもどりました。' : 'NEW！ ') + 'いまは試しに着せています</small></span>';
+  renderBag(); bagPreview(pick.it.id);
+}
+$('#bag-ad-btn').addEventListener('click', () => { if (Ads.reward) Ads.reward(); });
+$('#bag-pull').addEventListener('click', () => turnCapsule(1));
+$('#bag-pull5').addEventListener('click', () => turnCapsule(5));
 /* buying anywhere (the shop, or a 潜水者 in the select screen) */
 async function buyFrom(btn) {
   const sku = btn.dataset.buy, arg = btn.dataset.arg || '', was = btn.textContent;
@@ -4914,7 +5193,7 @@ function detailHTML(c) {
     '<ul class="moves">' +
     '<li><span class="k">攻撃</span><span><b>' + c.mv.atk + nameTag(c.mv.atk) + '</b><small>' + ATKK[c.atk].desc + '</small></span></li>' +
     '<li><span class="k">防御</span><span><b>' + c.mv.def + nameTag(c.mv.def) + '</b><small>' + DEFK[c.def].desc + (DEFK[c.def].sm > 0 ? '。守っている間は泡の盾もたまる（最大42）' : '') + '</small></span></li>' +
-    '<li><span class="k">必殺</span><span><b>' + c.mv.sp + nameTag(c.mv.sp) + '</b><small>' + c.spDesc + '。使うと反動で自分も少し削れる</small></span></li>' +
+    '<li><span class="k">必殺</span><span><b>' + c.mv.sp + nameTag(c.mv.sp) + '</b><small>' + c.spDesc + '。MPが満タンのときに撃てる（MPは攻撃・空中攻撃の技名をうまく唱えるほどたまる）。使うと反動で自分も少し削れる</small></span></li>' +
     '<li><span class="k">空中</span><span><b>' + c.mv.air + nameTag(c.mv.air) + '</b><small>「空中攻撃」「飛びかかれ」で、ジャンプして出す。' + AIR_DESC[c.air] + '</small></span></li>' +
     '<li><span class="k">おまかせ</span><span><b>？の泡に触れると発動</b><small>ときどき浮かぶ泡に触れると、18種類のおまかせ技のどれかが出る。「泡」と言うと取りに行く</small></span></li>' +
     '<li><span class="k">ジャンプ</span><span><b>みんな跳べる</b><small>地面を走る衝撃波や、飛んでくる物をかわせる</small></span></li>' +
@@ -5014,7 +5293,7 @@ $('#sel-ok').addEventListener('click', async () => {
     const mine = ROSTER[G.picks[0]];
     if (!Bag.owns(mine) && !(await Bag.tryX(mine))) { renderSelect(); return; }
     const cpus = cpuLineup(G.picks[0]);
-    startMatch([G.picks[0], ...cpus].map(i => ROSTER[i]), ['human', ...cpus.map(() => 'cpu')], null, null, [Bag.look(mine), ...cpus.map(cpuLook)]);
+    Ads.between(() => startMatch([G.picks[0], ...cpus].map(i => ROSTER[i]), ['human', ...cpus.map(() => 'cpu')], null, null, [Bag.look(mine), ...cpus.map(cpuLook)]));
     return;
   }
   startMatch([ROSTER[G.picks[0]], ROSTER[G.picks[1]]], ['human', 'human']);
@@ -5039,7 +5318,7 @@ function tagFor(f) {
   if (G.type === 'online') return f === G.me ? 'あなた' : 'P' + (f.idx + 1);
   return f.idx === 0 ? '1P' : '2P';
 }
-const hudEls = [1, 2, 3, 4].map(n => { const s = $('.side.p' + n); return { root: s, tag: $('.tag', s), sym: $('.sym', s), nm: $('.nm', s), tox: $('.tox', s), slw: $('.slw', s), cur: $('.hp .cur', s), lag: $('.hp .lag', s), sh: $('.sh i', s) }; });
+const hudEls = [1, 2, 3, 4].map(n => { const s = $('.side.p' + n); return { root: s, tag: $('.tag', s), sym: $('.sym', s), nm: $('.nm', s), tox: $('.tox', s), slw: $('.slw', s), cur: $('.hp .cur', s), lag: $('.hp .lag', s), sh: $('.sh i', s), mpb: $('.mpb', s), mp: $('.mpb i', s) }; });
 function setupHUD() {
   hudEls.forEach((h, i) => {
     const f = G.fighters[i]; h.root.hidden = !f; if (!f) return;
@@ -5138,7 +5417,7 @@ $('#res-again').addEventListener('click', () => {
   if (G.type === 'online') { Net.set({ ph: 'lobby', rdy: true }); clearMatch(); toRoom(); return; }
   /* a trial is one fight: to go again, make it your 仲間 first */
   if (G.type === 'cpu' && G.chars && !Bag.owns(G.chars[0])) { openSelect('cpu'); return; }
-  startMatch(G.chars, G.ctrls, null, null, G.looks);
+  Ads.between(() => startMatch(G.chars, G.ctrls, null, null, G.looks));
 });
 $('#res-select').addEventListener('click', () => {
   if (G.type === 'online' && Net.pub) { clearMatch(); hideFightUI(); show('s-online'); layoutShowcase('title'); Net.leave().then(randomMatch); return; }
@@ -5411,6 +5690,7 @@ function updateHUD() {
   G.fighters.forEach((f, i) => {
     const h = hudEls[i], hp = Math.max(0, f.hp);
     h.cur.style.width = hp + '%'; h.lag.style.width = f.lagHp + '%'; h.sh.style.width = (f.shield / MAXSH * 100) + '%';
+    h.mp.style.width = clamp(f.mp / MP_MAX * 100, 0, 100) + '%'; h.mpb.classList.toggle('full', f.mp >= MP_MAX);
     h.tox.hidden = !(f.poison > 0); h.root.classList.toggle('low', hp <= 30 && !f.ko); h.root.classList.toggle('out', !!f.ko);
     h.slw.hidden = !(f.slowT > 0); if (f.slowT > 0) h.slw.textContent = f.slowK === 0 ? 'ねばねば' : 'のろのろ';
   });

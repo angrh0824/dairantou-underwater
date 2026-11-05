@@ -33,6 +33,8 @@ export const COIN = {
   back: [30, 60, 100], odds: [0.7, 0.25, 0.05],
   /* 次の対戦の報酬まで最低これだけ空ける（ミリ秒）: 結果の連打を防ぐ */
   gapMs: 15000,
+  /* 広告を最後まで見たら: 1回 ad コイン、1日 adMax 回まで、次まで adGapMs あける */
+  ad: 50, adMax: 3, adGapMs: 30000,
 };
 
 /* お金で買うもの（Stripe）。amount は円（税込）。grant はサーバーが購入後に渡すもの */
@@ -45,6 +47,5 @@ export const SKUS = {
   'look:p-whale': { name: '着せ替え「ちびクジラ」（おとも）', amount: 250 },
   'look:p-ufo': { name: '着せ替え「ちびUFO」（おとも）', amount: 250 },
   premium: { name: 'ショップ着せ替え5つセット', amount: 800, looks: ['c-neon', 'h-ribbon', 'h-witch', 'p-whale', 'p-ufo'] },
-  ai30: { name: 'AIパス（30日）', amount: 300, aiDays: 30 },
   support: { name: '応援パック（おうえんメダルつき）', amount: 500, looks: ['h-medal'] },
 };

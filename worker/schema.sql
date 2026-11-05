@@ -13,7 +13,9 @@ CREATE TABLE IF NOT EXISTS players (
   tut INTEGER NOT NULL DEFAULT 0,        -- チュートリアルのボーナスを受け取った
   imported INTEGER NOT NULL DEFAULT 0,   -- 端末だけの試作版から引き継いだ
   last_earn INTEGER NOT NULL DEFAULT 0,  -- 最後に対戦のコインを受け取った時刻（ミリ秒）
-  ai_until INTEGER NOT NULL DEFAULT 0,   -- AIパスの期限（ミリ秒）
+  ad_day TEXT NOT NULL DEFAULT '',       -- 広告のコインを数えている日
+  ad_n INTEGER NOT NULL DEFAULT 0,       -- その日に広告でもらった回数
+  last_ad INTEGER NOT NULL DEFAULT 0,    -- 最後に広告でもらった時刻（ミリ秒）
   wear TEXT NOT NULL DEFAULT '{}'        -- 潜水者ごとの着せ替え
 );
 
@@ -47,7 +49,7 @@ CREATE TABLE IF NOT EXISTS transfers (
   expires INTEGER NOT NULL
 );
 
--- 配信者・キャンペーン用のコード。kind = all / coins:500 / look:h-crown / ai:7
+-- 配信者・キャンペーン用のコード。kind = all / coins:500 / look:h-crown
 -- 例: INSERT INTO codes (code, kind, note, max_uses, expires) VALUES ('STREAMER2026', 'all', '配信者さん用', 50, 0);
 --     （code は英大文字と数字だけ。expires は期限のミリ秒、0 なら期限なし）
 CREATE TABLE IF NOT EXISTS codes (
