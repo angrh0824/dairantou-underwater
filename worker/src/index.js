@@ -34,7 +34,7 @@ const ACT_DESC = {
 const ACTS = Object.keys(ACT_DESC);
 const ASK = 'プレイヤーが自分のモンスターに声で出した指示（音声認識の結果なので、誤変換・言い間違い・聞き間違いを含む）は、どの行動を求めている？ 技の名前で指示されたら、その技の種類（攻撃・防御・必殺・空中）に対応する行動。';
 const MOVE_ASK = 'プレイヤーが自分のモンスターに声で出した指示（音声認識の結果なので誤変換を含む）は、どの技を出せと言っている？ 技名が一言一句そのままならその技で確定。「攻撃」のような曖昧な言い方なら、当てはまりそうな技に確率を分ける。';
-const ASK_TARGET ='指示はどの相手を狙えと言っている？ 相手の名前・あだ名・動物名が出ていなければ none。';
+const ASK_TARGET = '指示はどの相手を狙えと言っている？ 相手の名前・あだ名・動物名が出ていなければ none。';
 
 const SCHEMA = {
   type: 'object', additionalProperties: false, required: ['act', 'target', 'say', 'conf'],

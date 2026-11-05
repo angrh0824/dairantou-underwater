@@ -42,7 +42,7 @@ async function auth(req, env) {
 }
 async function newToken(env, id) { const t = hex(rand(24)); await run(env, 'UPDATE players SET token = ? WHERE id = ?', await sha(t), id); return t; }
 
-/* everything the game shows: coins, 仲間, looks, today's room, the AI pass, and the prices */
+/* everything the game shows: coins, 仲間, looks, today's room, the ad rewards left, and the prices */
 async function view(env, id) {
   const p = await one(env, 'SELECT * FROM players WHERE id = ?', id), rows = await all(env, 'SELECT kind, item FROM owned WHERE player = ?', id);
   const of = k => rows.filter(r => r.kind === k).map(r => r.item);
@@ -131,7 +131,8 @@ export async function handleApi(req, env, cors, path) {
     if (limited('xfer:' + ip, 10)) return J({ error: 'rate' }, 429);
     const c = normCode(inp.code), row = c && await one(env, 'SELECT * FROM transfers WHERE code = ?', c);
     if (!row || row.expires < now) return J({ error: 'code' }, 404);
-    await run(env, 'DELETE FROM transfers WHERE code = ?', c);
+    /* one use: only the request that removes the code gets the account (two at once would both make a token) */
+    if (!(await run(env, 'DELETE FROM transfers WHERE code = ?', c))) return J({ error: 'code' }, 404);
     return J({ token: await newToken(env, row.player), me: await view(env, row.player) });
   }
 
@@ -155,8 +156,9 @@ export async function handleApi(req, env, cors, path) {
     }
     /* progress from the version that kept everything on the device: once, within 10 minutes of making the account, with caps */
     case '/api/import': {
-      if (p.imported || now - p.created > 600000) return J({ error: 'late' }, 409);
-      await run(env, 'UPDATE players SET imported = 1, coins = coins + ? WHERE id = ?', Math.max(0, Math.min(2000, Math.floor(+inp.coins || 0))), id);
+      if (now - p.created > 600000) return J({ error: 'late' }, 409);
+      /* once: of two at once, the second finds imported already set */
+      if (!(await run(env, 'UPDATE players SET imported = 1, coins = coins + ? WHERE id = ? AND imported = 0', Math.max(0, Math.min(2000, Math.floor(+inp.coins || 0))), id))) return J({ error: 'late' }, 409);
       const arr = a => (Array.isArray(a) ? a.slice(0, 40) : []);
       for (const c of arr(inp.own).filter(c => isChar(c) && !STARTERS.includes(c)).slice(0, 3)) await give(env, id, 'ch', c, 'import');
       for (const c of arr(inp.tried).filter(isChar)) await give(env, id, 'tried', c, 'import');
@@ -262,9 +264,9 @@ export async function handleApi(req, env, cors, path) {
     case '/api/redeem': {
       const c = normCode(inp.code), row = c && await one(env, 'SELECT * FROM codes WHERE code = ?', c);
       if (!row || (row.expires && row.expires < now) || row.uses >= row.max_uses) return J({ error: 'code' }, 404);
-      if (await one(env, 'SELECT 1 AS x FROM redeemed WHERE code = ? AND player = ?', c, id)) return J({ error: 'used' }, 409);
-      if (!(await run(env, 'UPDATE codes SET uses = uses + 1 WHERE code = ? AND uses < max_uses', c))) return J({ error: 'code' }, 404);
-      await run(env, 'INSERT INTO redeemed (code, player, at) VALUES (?, ?, ?)', c, id, now);
+      /* claim it for this player first, so two taps at once count (and give) once */
+      if (!(await run(env, 'INSERT OR IGNORE INTO redeemed (code, player, at) VALUES (?, ?, ?)', c, id, now))) return J({ error: 'used' }, 409);
+      if (!(await run(env, 'UPDATE codes SET uses = uses + 1 WHERE code = ? AND uses < max_uses', c))) { await run(env, 'DELETE FROM redeemed WHERE code = ? AND player = ?', c, id); return J({ error: 'code' }, 404); }
       const [k, v] = String(row.kind).split(':');
       if (k === 'all') { for (const ch of CHARS) if (!STARTERS.includes(ch)) await give(env, id, 'ch', ch, 'code'); }
       else if (k === 'coins') await addCoins(env, id, Math.max(0, Math.min(10000, Math.floor(+v || 0))));

@@ -51,7 +51,7 @@ npx wrangler d1 execute dairantou --remote --file=schema.sql
 npx wrangler secret put OPENROUTER_API_KEY
 ```
 
-OpenRouter のキーを貼ります（画面には出ません）。
+OpenRouter のキーを貼ります（画面には出ません）。声のAIを使わないなら、この手順は飛ばしてかまいません。
 
 ```bash
 npx wrangler secret put STRIPE_SECRET_KEY
@@ -144,4 +144,5 @@ npx wrangler d1 execute dairantou --remote --command "INSERT INTO codes (code, k
 - 合言葉はサーバーに元に戻せない形でしか残しません
 - コイン・抽選・1日の上限・購入の受け渡しはすべてサーバーで決めます。ゲーム側を書き換えても、上限より多くはかせげません
 - 同じ支払いで品目を二重に渡しません（Stripe の通知とゲームの確認のどちらが先でも1回だけ）
+- 引き継ぎコード・配信者コード・端末の記録の取り込みは、同時に2回届いても1回分しか効きません
 - 呼び出しの回数に上限があります（`API_PER_MIN`・`PLAYER_PER_MIN` で変更）

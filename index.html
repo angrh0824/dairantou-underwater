@@ -1,6 +1,23 @@
-<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>大乱闘アンダーウォーター 3D</title>
 <meta name="claude:viewport-fit-sides" content="cover">
+<meta name="description" content="声だけで指示して戦う、深海の3D大乱闘。技名を叫ぶと技が出て、最後まで言い切るほど強くなる。登録なしでブラウザですぐ遊べます。">
+<meta name="theme-color" content="#03121f">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="大乱闘アンダーウォーター">
+<meta property="og:title" content="大乱闘アンダーウォーター 3D">
+<meta property="og:description" content="声だけで指示して戦う、深海の3D大乱闘。技名を叫んで、変な海の生きものたちと乱闘しよう。">
+<meta property="og:url" content="https://angrh0824.github.io/dairantou-underwater/">
+<meta property="og:image" content="https://angrh0824.github.io/dairantou-underwater/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:locale" content="ja_JP">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%90%8B%3C/text%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Dela+Gothic+One&family=Zen+Maru+Gothic:wght@500;700;900&display=swap">
@@ -144,6 +161,7 @@ ruby rt{font-size:.6em;font-weight:700;letter-spacing:0;opacity:.85}
 .loot li.no{opacity:.35}
 .loot li.r1{border-color:#9fd8ff}
 .loot li.r2{border-color:var(--lamp)}
+.loot li.r3{border-color:var(--p2)}
 .odds{font-size:12px;color:var(--mist);line-height:1.7}
 .odds summary{cursor:pointer;color:var(--foam)}
 .adrow{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
@@ -265,7 +283,6 @@ ruby rt{font-size:.6em;font-weight:700;letter-spacing:0;opacity:.85}
 .hp .cur{background:linear-gradient(90deg,var(--pc),#ffffff)}
 .sh{position:relative;height:5px;border-radius:3px;background:rgba(0,0,0,.35);overflow:hidden;width:70%}
 .sh i{position:absolute;top:0;bottom:0;left:0;background:#9fe8ff;box-shadow:0 0 6px #7fe2ff}
-.side .num{font-family:var(--display);font-size:12px;font-variant-numeric:tabular-nums;color:var(--mist)}
 .side.p2,.side.p4{text-align:right}
 .side.p2 .who,.side.p4 .who{flex-direction:row-reverse}
 .side.p2 .hp i,.side.p4 .hp i{left:auto;right:0}
@@ -475,6 +492,8 @@ body.portrait .pad.p2 .btns{bottom:calc(env(safe-area-inset-top,0px) + 76px)}
   .side.low .hp{animation:none;border-color:var(--hurt)}
 }
 </style>
+</head>
+<body>
 
 <canvas id="gl" aria-label="水中アリーナ"></canvas>
 <div id="fx"></div>
@@ -677,7 +696,7 @@ const $$ = (s, r) => Array.from((r || document).querySelectorAll(s));
 if (!THREE) { $('#boot-err').hidden = false; return; }
 
 /* ================= data (from 大乱闘アンダーウォーター) ================= */
-const R = 9, MAXSH = 42, MATCH_SEC = 90, SPCD = 6, RNDCD = 14;
+const R = 9, MAXSH = 42, MATCH_SEC = 90, SPCD = 6;
 /* MP: filled by chanting attack and air move names well; the 必殺 needs it full and empties it */
 const MP_MAX = 100;
 const GRAV = 20, JUMP_V = 8.2, LEAP_V = 10;
@@ -1522,6 +1541,7 @@ function disposeModel(md) {
   md.root.traverse(o => {
     if (o.geometry && !(o.geometry.userData && o.geometry.userData.shared)) o.geometry.dispose();
     if (o.material && !(o.material.userData && o.material.userData.shared)) o.material.dispose();
+    if (o.userData.mat0) o.userData.mat0.dispose();
   });
 }
 /* ================= 着せ替え: looks every 潜水者 can wear =================
@@ -1708,6 +1728,8 @@ function lookAnim(md, s, time) {
     k.pet.rotation.y = a + Math.PI / 2; k.pet.visible = !s.ko; k.pet.scale.setScalar(k.ps * Math.max(0.001, 1 - (s.fade || 0)));
   }
 }
+/* a part's own material, also while a silhouette has swapped it out (see silhouette) */
+const mat0 = o => o.userData.mat0 || o.material;
 const IDLE = { moving: false, guard: false, atkP: 0, spP: 0, shake: 0, flash: 0, ko: false, spin: 0, shield: 0, puff: 0, charge: 0, raise: 0, squash: 0, away: false, fade: 0, air: false, airK: '', airP: 0 };
 function animModel(md, s, time) {
   const P = md.P, inn = md.inner;
@@ -1751,7 +1773,7 @@ function animModel(md, s, time) {
       P.head.position.z = 1.08 - gd * 0.55; P.head.scale.setScalar(1 - gd * 0.35);
       P.paper.position.z = -0.28 + (s.spP > 0 ? Math.sin(Math.min(1, s.spP) * Math.PI) * 0.55 : 0);
       for (let i = 0; i < P.legs.length; i++) P.legs[i].rotation.x = s.moving ? Math.sin(time * 10 + i * 1.6) * 0.3 : 0;
-      P.led.material.color.setHex(Math.sin(time * 7) > 0 ? 0x7dff7a : 0x1c4a1b); break;
+      mat0(P.led).color.setHex(Math.sin(time * 7) > 0 ? 0x7dff7a : 0x1c4a1b); break;
     }
     case 'star-person':
       for (let i = 0; i < P.arms.length; i++) P.arms[i].rotation.z = P.arms[i].userData.b + Math.sin(time * (s.moving ? 9 : 3) + i * 1.3) * (s.moving ? 0.16 : 0.07);
@@ -1793,15 +1815,15 @@ function animModel(md, s, time) {
     case 'angler-note': {
       P.lure.rotation.x = Math.sin(time * 2.2 + md.phase) * 0.12;
       const lit = s.atkP > 0 || s.spP > 0 ? 1 : 0.55 + Math.sin(time * 5) * 0.2;
-      P.bulb.material.color.setHex(lit > 0.7 ? 0xffffd8 : 0xfff3a0); P.halo.material.opacity = 0.12 + lit * 0.35;
+      mat0(P.bulb).color.setHex(lit > 0.7 ? 0xffffd8 : 0xfff3a0); mat0(P.halo).opacity = 0.12 + lit * 0.35;
       P.letter.visible = !(s.spP > 0.3); break;
     }
     case 'otter-robot': {
       const beat = s.charge > 0, hit = s.atkP > 0 ? Math.sin(Math.min(1, s.atkP) * Math.PI) : 0;
       P.armL.rotation.x = -0.2 - (beat ? Math.abs(Math.sin(time * 26)) : hit) * 1.1;
       P.armR.rotation.x = -0.2 - (beat ? Math.abs(Math.cos(time * 26)) : hit) * 1.1;
-      P.ant.material.color.setHex(Math.sin(time * 5) > 0 ? 0xff6f6f : 0x5a1f1f);
-      P.visor.material.color.setHex(beat ? 0xffd86e : 0x7fe2ff);
+      mat0(P.ant).color.setHex(Math.sin(time * 5) > 0 ? 0xff6f6f : 0x5a1f1f);
+      mat0(P.visor).color.setHex(beat ? 0xffd86e : 0x7fe2ff);
       if (s.guard) inn.position.y += 0.35;
       break;
     }
@@ -1847,7 +1869,7 @@ function animModel(md, s, time) {
   }
   const sh = s.shield || 0;
   md.bubble.visible = sh > 0.5 || s.guard;
-  if (md.bubble.visible) { md.bubble.material.opacity = 0.06 + sh / MAXSH * 0.22 + (s.guard ? 0.12 : 0); md.bubble.scale.setScalar(0.85 + sh / MAXSH * 0.32 + (s.guard ? 0.05 : 0)); }
+  if (md.bubble.visible) { mat0(md.bubble).opacity = 0.06 + sh / MAXSH * 0.22 + (s.guard ? 0.12 : 0); md.bubble.scale.setScalar(0.85 + sh / MAXSH * 0.32 + (s.guard ? 0.05 : 0)); }
 }
 
 /* ================= effects ================= */
@@ -1981,7 +2003,7 @@ function cutIn(f) {
 function updateCut(rdt) { if (G.cut && (G.cut.t += rdt) >= G.cut.dur) endCut(); }
 function endCut() { G.cut = null; G.slowT = 0; cutEl.hidden = true; }
 /* a glowing shell around the fighter for as long as its special lasts, trailing sparks */
-const AURA_GEO = new THREE.SphereGeometry(1, 24, 16);
+const AURA_GEO = new THREE.SphereGeometry(1, 24, 16); AURA_GEO.userData = SHARED;
 function spAura(f, md, on, time, dt) {
   if (!on) { if (md.aura) md.aura.visible = false; return; }
   if (!md.aura) {
@@ -1997,7 +2019,7 @@ function spAura(f, md, on, time, dt) {
   a.visible = true; a.scale.set(S[0] * k, S[1] * k, S[2] * k); a.material.opacity = 0.22 + Math.sin(time * 31) * 0.1;
   if (Math.random() < Math.min(1, dt * 45)) burst(f.x, f.y + 0.4 + Math.random() * 1.2, f.z, parseInt(PCOL[f.idx].slice(1), 16), 2, 3.2);
 }
-/* the first hit of a special: rings, sparks, a word, a white flash, a hard shake */
+/* the first solid hit of a special (a big one, or 6 damage and up): rings, sparks, a word, a white flash, a hard shake */
 const BOOM_W = ['ドカーン！', 'ズドン！', 'バキィッ！', 'ドゴォ！', 'ドーン！'];
 function spBoom(t, a) {
   const col = PCOL[a ? a.idx : 0], c = parseInt(col.slice(1), 16);
@@ -2349,7 +2371,7 @@ function showBanner(e, title, text, kind) {
 
 /* ================= fighters ================= */
 const G = {
-  phase: 'title', type: null, fighters: [], me: null, opp: null, cpu: null, cpuA: null,
+  phase: 'title', type: null, fighters: [], me: null, cpuA: null,
   time: MATCH_SEC, hitstop: 0, endT: 0, intrT: 12, shake: 0, paused: false, animCounter: 0,
   picks: [0, 1], picker: 0, selIdx: 0, ctrls: ['human', 'cpu'], chars: null, roomPick: 0, roomSig: '', roomMsg: '', orbit: 0, countHide: 0,
   bubT: 5, bubSeq: 0, camYaw: 0, pubAt: 0, autoBack: 0,
@@ -2374,7 +2396,7 @@ class Fighter {
     this.x = Math.sin(a) * r; this.z = Math.cos(a) * r; this.y = 0; this.vx = 0; this.vz = 0; this.vy = 0;
     this.face = this.faceT = Math.atan2(-this.x, -this.z);
     this.hp = 100; this.shield = 0; this.state = 'idle'; this.move = null;
-    this.atkCd = 0; this.spCd = SPCD; this.mp = 0; this.rndCd = 5; this.hitstun = 0; this.poison = 0; this.poisonT = 0;
+    this.atkCd = 0; this.spCd = SPCD; this.mp = 0; this.hitstun = 0; this.poison = 0; this.poisonT = 0;
     this.guarding = false; this.flash = 0; this.squash = 0; this.ko = null; this.spin = 0;
     this.animSeq = 0; this.animKind = ''; this.prevHp = 100; this.prevSh = 0; this.lagHp = 100;
     this.puff = 0; this.charge = 0; this.raise = 0; this.remote = null; this.callF = null;
@@ -2415,7 +2437,7 @@ let shotNow = null;
 function dealHit(a, t, h) {
   if (shotNow) h.pj = 1;
   const spSeq = !a || h.cx || !h.d ? 0 : shotNow ? shotNow.spSeq : a.move && a.move.kind === 'sp' ? a.animSeq : 0;
-  if (spSeq && a.boomSeq !== spSeq) { a.boomSeq = spSeq; h.bm = 1; spBoom(t, a); }
+  if (spSeq && a.boomSeq !== spSeq && (h.big || h.d >= 6)) { a.boomSeq = spSeq; h.bm = 1; spBoom(t, a); }
   /* 気合: a shouted order hits harder and further for a few seconds (a whisper, a little softer) */
   if (a && a === G.me && h.d && !h.cx) a.hitAt = performance.now();
   if (a && a.powT > 0 && a.pow && a.pow !== 1 && !h.cx) {
@@ -3200,7 +3222,7 @@ function intruderTick(dt) {
 function decayBuf(inp, dt) { inp.atkBuf = Math.max(0, inp.atkBuf - dt); inp.spBuf = Math.max(0, inp.spBuf - dt); inp.rndBuf = Math.max(0, inp.rndBuf - dt); inp.jumpBuf = Math.max(0, inp.jumpBuf - dt); }
 function updateFighter(f, o, dt) {
   const inp = f.input;
-  f.atkCd = Math.max(0, f.atkCd - dt); f.spCd = f.mp >= MP_MAX ? 0 : SPCD * (1 - f.mp / MP_MAX); f.rndCd = Math.max(0, f.rndCd - dt); f.slowT = Math.max(0, f.slowT - dt);
+  f.atkCd = Math.max(0, f.atkCd - dt); f.spCd = f.mp >= MP_MAX ? 0 : SPCD * (1 - f.mp / MP_MAX); f.slowT = Math.max(0, f.slowT - dt);
   f.flash = Math.max(0, f.flash - dt * 4); f.squash *= Math.exp(-dt * 8);
   if (f.ko) { koPhysics(f, dt); decayBuf(inp, dt); return; }
   if (f.poison > 0) {
@@ -3529,7 +3551,7 @@ function parseOrder(text, f) {
     if (best >= 0.4) { act = bk; exact = 'part'; }
   }
   if (act === 'jump' && /よけ|避け|かわ/.test(n)) act = /左|ひだり/.test(n) ? 'left' : /右|みぎ/.test(n) ? 'right' : act;
-  if (act &&/(しないで|するな|ないで|るな)$/.test(n)) act = act === 'flee' || act === 'wait' || act === 'guard' ? 'fight' : 'wait';
+  if (act && /(しないで|するな|ないで|るな)$/.test(n)) act = act === 'flee' || act === 'wait' || act === 'guard' ? 'fight' : 'wait';
   const target = targetSaid(raw, n, f);
   if (!act && target) act = 'fight';
   /* a move order: pick the move it most likely means, and remember how sure that is */
@@ -4086,7 +4108,7 @@ function ingestRemote(f, op) {
   const sn = Net.seen[f.id] || (Net.seen[f.id] = { a: 0, h: 0, e: 0, i: 0 });
   if (!Net.live[f.id]) { if (op.ko) return; Net.live[f.id] = true; }
   f.remote = { x: clamp(+op.x || 0, -30, 30), z: clamp(+op.z || 0, -30, 30), y: clamp(+op.y || 0, -30, 10), f: +op.f || 0, st: String(op.st || 'idle').slice(0, 8), g: !!op.g };
-  if (!f.ko) { f.hp = clamp(+op.hp, 0, 100); f.shield = clamp(+op.sh || 0, 0, MAXSH); f.mp = clamp(+op.mp || 0, 0, MP_MAX); }
+  if (!f.ko && op.hp !== undefined) { f.hp = clamp(+op.hp || 0, 0, 100); f.shield = clamp(+op.sh || 0, 0, MAXSH); f.mp = clamp(+op.mp || 0, 0, MP_MAX); }
   if ((op.a | 0) > sn.a) { sn.a = op.a | 0; remoteAnim(f, op.an); }
   if (Array.isArray(op.hits)) for (const h of op.hits) if (h && (h.s | 0) > sn.h) { sn.h = h.s | 0; if (h.to === Net.id()) applyIncoming(G.me, h, f); }
   if (op.ev && (op.ev.s | 0) > sn.e) { sn.e = op.ev.s | 0; const k = op.ev.k | 0; if (EVENTS[k]) runEvent(f, fighterById(op.ev.to) || nearest(f) || G.me, k, false); }
@@ -4170,7 +4192,7 @@ function beginOnline(go, hostId) {
   Net.seen = {}; Net.live = {}; Net.lost = {}; Net.bw = []; Net.bwSeen = new Set();
   Net.set({ cl: [], bw: [], bb: [] });
   for (const e of Net.list()) { const p = e.presence; Net.seen[e.id] = { a: p.a | 0, h: maxSeq(p.hits), e: p.ev ? p.ev.s | 0 : 0, i: p.ix ? p.ix.s | 0 : 0 }; }
-  Net.set({ ph: 'fight', rdy: false, ko: 0 }); Net.push(true);
+  Net.set({ ph: 'fight', rdy: false, ko: 0, hp: 100, sh: 0, mp: 0, g: 0, st: 'idle' }); Net.push(true);
   const nms = ids.map((_, i) => cleanName(Array.isArray(go.nms) ? go.nms[i] : '') || 'P' + (i + 1));
   const looks = ids.map((_, i) => cleanLook(Array.isArray(go.lks) ? go.lks[i] : null));
   startMatch(chs.map(c => ROSTER[c] || ROSTER[0]), ids.map(id => (id === Net.id() ? 'human' : 'remote')), ids, nms, looks);
@@ -5302,13 +5324,13 @@ function renderBag() {
   const room = Bag.room();
   $('#bag-day').textContent = (Bag.s.coins < PRICE.capsule ? 'コインが足りません。' : '') + '今日は対戦であと ' + room + 'コイン（1日' + DAY_CAP + 'まで）かせげます。CPUが強いほど、人数が多いほど多くもらえます。';
   $('#bag-list').innerHTML = SLOTS.map(sl => {
-    const its = LOOKS.filter(x => x.slot === sl), got = its.filter(x => Bag.has(x.id)).length;
+    const its = LOOKS.filter(x => x.slot === sl && (x.r < 3 || Bag.shopOpen() || Bag.has(x.id))), got = its.filter(x => Bag.has(x.id)).length;
     return '<div><h4>' + SLOT_NAME[sl] + '（' + got + '/' + its.length + '）</h4><ul>' + its.map(x => Bag.has(x.id)
       ? '<li class="r' + x.r + '"><i>' + x.sym + '</i>' + x.name + '</li>' : '<li class="no r' + x.r + '"><i>？</i>' + rareName(x.r) + '</li>').join('') + '</ul></div>';
   }).join('');
   const per = r => LOOKS.filter(x => x.r === r).length;
   $('#bag-odds').innerHTML = RARE.map((R, r) => R.name + ' ' + Math.round(R.p * 100) + '%（' + per(r) + '種、1つあたり ' + (R.p / per(r) * 100).toFixed(2) + '%）。持っているものが出たら ' + R.back + 'コインもどる').join('<br>') +
-    '<br>コインはお金では買えません（遊んでためるだけ）。「ショップ」の着せ替えはカプセルからは出ません。';
+    '<br>コインはお金では買えません（遊んでためるだけ）。' + (Bag.shopOpen() ? '「ショップ」の着せ替えはカプセルからは出ません。' : '');
   /* the shop: only with the server and Stripe set up */
   const shop = $('#bag-shop'), open = Bag.shopOpen();
   shop.hidden = !open; $('#bag-acct').hidden = !(Bag.remote && Bag.ready);
@@ -5378,7 +5400,7 @@ function showModel(i, look) { if (!showcase[i]) { const md = buildModel(ROSTER[i
 /* rebuilt to show another look (a new item, a change of clothes) */
 function redressShowcase(i, look) { const old = showcase[i], rot = old ? old.root.rotation.y : 0.5; if (old) disposeModel(old); showcase[i] = null; const md = showModel(i, look); md.root.rotation.y = rot; return md; }
 function pickTitleSet() { titleSet = ROSTER.map((_, i) => i).filter(i => Bag.owns(ROSTER[i])).sort(() => Math.random() - 0.5).slice(0, 8); }
-const SIL_MAT = new THREE.MeshBasicMaterial({ color: 0x01070d });
+const SIL_MAT = new THREE.MeshBasicMaterial({ color: 0x01070d }); SIL_MAT.userData = SHARED;
 function silhouette(md, on) {
   if (!md || !!md.sil === on) return; md.sil = on;
   md.root.traverse(o => {
@@ -5559,7 +5581,7 @@ $('#sel-back').addEventListener('click', () => {
 
 function clearMatch() {
   for (const f of G.fighters) { disposeModel(f.model); if (f.callF) f.callF.t = f.callF.dur; }
-  G.fighters = []; G.me = G.opp = null; G.cpu = null; G.voice = null;
+  G.fighters = []; G.me = null; G.voice = null;
   Voice.stop(); voicePanel(false); tut = null; $('#tut').hidden = true; tutMp(false);
   clearShots(); clearBubs(); clearVortices();
   clearFloaters(); $('#banner').hidden = true; bannerT = 0; $('#think').hidden = true; $('#vs').hidden = true; $('#count').hidden = true;
@@ -5596,7 +5618,6 @@ function startMatch(chars, ctrls, ids, nms, looks) {
     G.me = F[0]; F[0].input = pads[0].input; pads[0].f = F[0];
     if (ctrls[1] === 'human') { F[1].input = pads[1].input; pads[1].f = F[1]; } else pads[1].f = null;
     for (const f of F) if (f.ctrl === 'cpu') f.brain = newCpuVoice(G.type === 'cpu' ? G.cpuLv : 1);
-    G.cpu = (F.find(f => f.brain) || {}).brain || null;
   }
   /* 声だけで戦う: your 潜水者 gets its own input, driven by spoken (or typed) orders; there is no pad */
   if (G.me && G.me.ctrl !== 'cpu') { G.me.input = blankInput(); pads[0].f = null; G.voice = newVoice(); }
@@ -5746,7 +5767,10 @@ function renderLobby() {
 const muteBtn = $('#mute');
 const syncMute = () => { muteBtn.textContent = audio.on ? '音 ON' : '音 OFF'; };
 syncMute();
-muteBtn.addEventListener('click', () => { audio.init(); audio.on = !audio.on; lsSet('uw3d-sound', audio.on ? 'on' : 'off'); syncMute(); audio.tick(); });
+muteBtn.addEventListener('click', () => {
+  audio.init(); audio.on = !audio.on; lsSet('uw3d-sound', audio.on ? 'on' : 'off'); syncMute(); audio.tick();
+  if (Ads.on) window.adConfig({ sound: audio.on ? 'on' : 'off' });
+});
 
 /* online screens */
 function setOnStatus(t) { $('#on-status').textContent = t; }
@@ -6108,8 +6132,7 @@ addEventListener('orientationchange', () => setTimeout(resize, 200));
 resize();
 pickTitleSet(); layoutShowcase('title'); show('s-title');
 requestAnimationFrame(frame);
-window.__uw = { G, Net, ROSTER, startMatch, openSelect, setCpuBoth(on) { G.cpuA = on ? newCpuVoice() : null; } };
 })();
 </script>
-
-</body></html>
+</body>
+</html>
