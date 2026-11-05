@@ -92,7 +92,7 @@ body.portrait .rotate-hint{display:flex}
 .dh .ds{font-size:34px}
 .dh h3{font-family:var(--display);font-weight:400;font-size:19px;color:var(--c)}
 .dh p{color:var(--mist);font-size:12px}
-.stats{display:grid;grid-template-columns:auto 1fr 2em;gap:5px 10px;align-items:center;font-size:12px}
+.stats{display:grid;grid-template-columns:auto 1fr minmax(2em,auto);gap:5px 10px;align-items:center;font-size:12px}
 .stats .bar{height:6px;border-radius:3px;background:rgba(255,255,255,.08);overflow:hidden}
 .stats .bar i{display:block;height:100%;background:var(--c);border-radius:3px}
 .stats .v{text-align:right;font-variant-numeric:tabular-nums;color:var(--mist)}
@@ -327,6 +327,35 @@ body.portrait .pad.p2 .btns{bottom:calc(env(safe-area-inset-top,0px) + 76px)}
 .fl.tox{font-size:14px;color:#d7a6ff}
 .fl.call{font-family:var(--body);font-weight:900;font-size:12px;padding:3px 10px;border-radius:999px;background:rgba(3,18,31,.82);border:1px solid var(--c,var(--p1));text-shadow:none}
 .fl.call.sp{font-size:15px;padding:5px 12px;border-color:var(--lamp);color:var(--lamp)}
+.fl.boom{font-size:44px;color:#fff;-webkit-text-stroke:2px var(--c,var(--lamp));paint-order:stroke fill;text-shadow:0 0 18px var(--c,var(--lamp)),0 4px 0 rgba(0,0,0,.55);animation:boompop .9s cubic-bezier(.2,1.6,.4,1) both}
+@keyframes boompop{0%{scale:2.6;rotate:-14deg}14%{scale:.86;rotate:4deg}30%{scale:1.12;rotate:-3deg}100%{scale:1;rotate:-3deg}}
+/* 必殺技のカットイン */
+#cutin{position:fixed;inset:0;z-index:20;pointer-events:none;overflow:hidden;--c:var(--p1);--bh:min(34vh,290px)}
+#cutin .ci-flash{position:absolute;inset:0;background:radial-gradient(circle at 50% 50%,#fff,color-mix(in srgb,var(--c) 70%,transparent) 60%,transparent);opacity:0;animation:ciflash .45s ease-out}
+#cutin .ci-band,#cutin .ci-stage{position:absolute;left:-12%;right:-12%;top:calc(50% - var(--bh) / 2);height:var(--bh);transform:rotate(-7deg);transform-origin:50% 50%}
+#cutin .ci-band{
+  background:linear-gradient(180deg,var(--c) 0 5%,#fff 5% 6.5%,rgba(3,18,31,.93) 6.5% 93.5%,#fff 93.5% 95%,var(--c) 95%);
+  box-shadow:0 0 40px color-mix(in srgb,var(--c) 60%,transparent);animation:ciband 1s cubic-bezier(.2,.9,.3,1) both}
+#cutin .ci-lines{position:absolute;inset:6.5% 0;background:repeating-linear-gradient(90deg,transparent 0 34px,rgba(255,255,255,.16) 34px 37px,transparent 37px 61px,color-mix(in srgb,var(--c) 40%,transparent) 61px 63px);background-size:160px 100%;animation:cilines .25s linear infinite}
+#ci-face{position:absolute;left:14%;bottom:-6%;height:min(calc(var(--bh) * 1.32),54vw);width:auto;aspect-ratio:1;filter:drop-shadow(0 0 14px color-mix(in srgb,var(--c) 80%,transparent)) drop-shadow(0 6px 0 rgba(0,0,0,.4));animation:ciface 1s cubic-bezier(.2,1.25,.35,1) both}
+#cutin .ci-txt{position:absolute;right:14%;top:50%;display:flex;flex-direction:column;align-items:flex-end;text-align:right;gap:2px;max-width:min(58vw,640px);transform:translateY(-50%);animation:citxt 1s cubic-bezier(.2,1.1,.35,1) both}
+#ci-who{font-family:var(--display);font-size:clamp(11px,1.6vw,15px);letter-spacing:.12em;color:var(--c)}
+#ci-name{font-family:var(--display);font-weight:400;line-height:1.15;color:#fff;-webkit-text-stroke:1.5px var(--c);paint-order:stroke fill;text-shadow:0 0 16px var(--c),0 4px 0 rgba(0,0,0,.6);text-wrap:balance;overflow-wrap:anywhere}
+#ci-name rt{font-size:.34em;font-family:var(--body);font-weight:900;-webkit-text-stroke:0;text-shadow:0 1px 2px rgba(0,0,0,.8);opacity:1}
+#cutin.foe .ci-band,#cutin.foe .ci-stage{transform:rotate(7deg)}
+#cutin.foe #ci-face{left:auto;right:14%;animation-name:cifacef}
+#cutin.foe .ci-txt{right:auto;left:14%;align-items:flex-start;text-align:left;animation-name:citxtf}
+@keyframes ciflash{0%{opacity:.85}100%{opacity:0}}
+@keyframes ciband{0%{clip-path:inset(48% 0 48% 0);opacity:.4}12%{clip-path:inset(0 0 0 0);opacity:1}80%{clip-path:inset(0 0 0 0);opacity:1}100%{clip-path:inset(50% 0 50% 0);opacity:0}}
+@keyframes cilines{from{background-position:0 0}to{background-position:-160px 0}}
+@keyframes ciface{0%{translate:-70% 0;opacity:0}16%{translate:4% 0;opacity:1}24%{translate:0 0}78%{translate:3% 0;scale:1.06;opacity:1}100%{translate:40% 0;scale:1.06;opacity:0}}
+@keyframes cifacef{0%{translate:70% 0;opacity:0}16%{translate:-4% 0;opacity:1}24%{translate:0 0}78%{translate:-3% 0;scale:1.06;opacity:1}100%{translate:-40% 0;scale:1.06;opacity:0}}
+@keyframes citxt{0%{translate:60% 0;opacity:0}20%{translate:-3% 0;opacity:1}28%{translate:0 0}80%{translate:-2% 0;opacity:1}100%{translate:-30% 0;opacity:0}}
+@keyframes citxtf{0%{translate:-60% 0;opacity:0}20%{translate:3% 0;opacity:1}28%{translate:0 0}80%{translate:2% 0;opacity:1}100%{translate:30% 0;opacity:0}}
+#hitflash{position:fixed;inset:0;z-index:19;pointer-events:none;background:#fff;opacity:0;animation:hitflash .22s ease-out}
+@keyframes hitflash{0%{opacity:.55}100%{opacity:0}}
+@media (prefers-reduced-motion:reduce){#cutin .ci-lines{animation:none}#cutin .ci-flash,#hitflash{display:none}#ci-face,#cutin .ci-txt{animation-name:cifade}#cutin .ci-band{animation-name:cifade}}
+@keyframes cifade{0%{opacity:0}12%{opacity:1}80%{opacity:1}100%{opacity:0}}
 .fl.drop{font-size:46px;font-family:system-ui,sans-serif;text-shadow:0 6px 12px rgba(0,0,0,.4)}
 .fl.swim{font-size:42px;font-family:system-ui,sans-serif}
 #think{position:fixed;left:0;top:0;z-index:14;pointer-events:none;font-weight:900;font-size:12px;padding:5px 10px;border-radius:14px;background:rgba(234,248,255,.92);color:var(--ink);white-space:nowrap}
@@ -439,6 +468,8 @@ body:not(.portrait) #moves.up{bottom:calc(env(safe-area-inset-bottom,0px) + 72px
 
 <canvas id="gl" aria-label="水中アリーナ"></canvas>
 <div id="fx"></div>
+<div id="hitflash" hidden></div>
+<div id="cutin" hidden aria-hidden="true"><div class="ci-flash"></div><div class="ci-band"><div class="ci-lines"></div></div><div class="ci-stage"><canvas id="ci-face" width="512" height="512"></canvas><div class="ci-txt"><small id="ci-who"></small><b id="ci-name"></b></div></div></div>
 <div id="think" hidden></div>
 <div id="tags"></div>
 <div id="banner" hidden></div>
@@ -808,6 +839,8 @@ const audio = {
   swing() { this.noise(0.08, 0.05, 2200); },
   jump() { this.tone(360, 760, 0.14, 'sine', 0.07); },
   sp() { this.noise(0.35, 0.14, 1300); this.tone(300, 900, 0.25, 'sawtooth', 0.04); },
+  cut() { this.noise(0.55, 0.12, 900); this.tone(220, 1500, 0.42, 'sawtooth', 0.05); this.tone(880, 1760, 0.35, 'triangle', 0.07, 0.1); },
+  boom() { this.tone(150, 32, 0.6, 'sine', 0.3); this.noise(0.5, 0.24, 260); this.tone(900, 200, 0.25, 'square', 0.05); },
   ding() { this.tone(880, 880, 0.18, 'triangle', 0.11); this.tone(1320, 1320, 0.28, 'triangle', 0.09, 0.09); },
   alarm() { this.tone(660, 440, 0.18, 'square', 0.07); this.tone(660, 440, 0.18, 'square', 0.07, 0.22); },
   ko() { this.tone(300, 40, 0.8, 'sawtooth', 0.11); },
@@ -829,7 +862,7 @@ scene.background = new THREE.Color(0x062540);
 scene.fog = new THREE.FogExp2(0x073253, 0.03);
 const camera = new THREE.PerspectiveCamera(46, 1, 0.1, 220);
 const camPos = new THREE.Vector3(0, 9, 18), camLook = new THREE.Vector3(0, 1, 0);
-const camPosT = new THREE.Vector3(), camLookT = new THREE.Vector3();
+const camPosT = new THREE.Vector3(), camLookT = new THREE.Vector3(), camZ = new THREE.Vector3();
 
 scene.add(new THREE.HemisphereLight(0xa6e6ff, 0x081a28, 0.9));
 const sun = new THREE.DirectionalLight(0xdff6ff, 0.8); sun.position.set(5, 16, 9); scene.add(sun);
@@ -1842,6 +1875,89 @@ function arc(f, color) {
   mesh.rotation.x = -Math.PI / 2; g.add(mesh); scene.add(g);
   fxRings.push({ mesh: g, mat: mesh.material, t: 0, dur: 0.35, op: 0.7, grow: false });
 }
+/* ---------- 必殺技の演出 ---------- */
+/* the cut-in's picture: the fighter alone, close up and turned toward the name, read back from an offscreen render */
+const CUT_PX = 512, cutRT = new THREE.WebGLRenderTarget(CUT_PX, CUT_PX), cutCam = new THREE.PerspectiveCamera(30, 1, 0.1, 80);
+const cutBuf = new Uint8Array(CUT_PX * CUT_PX * 4), cutBox = new THREE.Box3(), cutC = new THREE.Vector3(), cutS = new THREE.Vector3(), cutCol = new THREE.Color();
+const partBox = new THREE.Box3();
+function bodyBox(md) {
+  cutBox.makeEmpty(); md.root.updateMatrixWorld(true);
+  const skip = [md.shadow, md.ring, md.aura, md.bubble];
+  (function walk(o) {
+    if (skip.includes(o)) return;
+    if (o.isMesh && o.geometry) { if (!o.geometry.boundingBox) o.geometry.computeBoundingBox(); cutBox.union(partBox.copy(o.geometry.boundingBox).applyMatrix4(o.matrixWorld)); }
+    for (const c of o.children) walk(c);
+  })(md.root);
+  return cutBox;
+}
+function cutPortrait(f, cv, side) {
+  const md = f.model, hid = [];
+  for (const o of scene.children) if (o !== md.root && !o.isLight && o.visible) { o.visible = false; hid.push(o); }
+  for (const o of [md.shadow, md.ring, md.aura, md.bubble]) if (o && o.visible) { o.visible = false; hid.push(o); }
+  bodyBox(md).getCenter(cutC); cutBox.getSize(cutS);
+  const r = Math.max(cutS.x, cutS.y, cutS.z) * 0.5, fx = Math.sin(f.face), fz = Math.cos(f.face), d = r / Math.tan(15 * Math.PI / 180) * 1.02;
+  /* three-quarter view from the fighter's right (or left), so it looks across the band at its own name */
+  cutCam.position.set(cutC.x + (fx * 0.88 - fz * 0.48 * side) * d, cutC.y + r * 0.3, cutC.z + (fz * 0.88 + fx * 0.48 * side) * d);
+  cutCam.lookAt(cutC.x, cutC.y + r * 0.04, cutC.z);
+  const bg = scene.background, fogD = scene.fog.density, ca = renderer.getClearAlpha(); renderer.getClearColor(cutCol);
+  scene.background = null; scene.fog.density = 0;
+  try {
+    renderer.setRenderTarget(cutRT); renderer.setClearColor(0x000000, 0); renderer.clear(); renderer.render(scene, cutCam);
+    renderer.readRenderTargetPixels(cutRT, 0, 0, CUT_PX, CUT_PX, cutBuf);
+  } finally {
+    renderer.setRenderTarget(null); renderer.setClearColor(cutCol, ca); scene.background = bg; scene.fog.density = fogD;
+    for (const o of hid) o.visible = true;
+  }
+  const g = cv.getContext('2d'), img = g.createImageData(CUT_PX, CUT_PX), row = CUT_PX * 4;
+  for (let y = 0; y < CUT_PX; y++) img.data.set(cutBuf.subarray((CUT_PX - 1 - y) * row, (CUT_PX - y) * row), y * row);
+  g.putImageData(img, 0, 0);
+}
+const cutEl = $('#cutin');
+function cutIn(f) {
+  if (!f || !f.model || !G.fighters.includes(f)) return;
+  const left = f === G.me || (!G.me && f.idx === 0), nm = f.ch.mv.sp;
+  try { cutPortrait(f, $('#ci-face'), left ? 1 : -1); } catch (e) { console.error(e); }
+  cutEl.hidden = true; void cutEl.offsetWidth;
+  cutEl.className = left ? '' : 'foe'; cutEl.style.setProperty('--c', PCOL[f.idx]);
+  $('#ci-who').textContent = (G.type === 'online' ? pname(f) : f.ch.name) + ' の必殺技';
+  const n = $('#ci-name'); n.innerHTML = rubyHTML(nm);
+  n.style.fontSize = Math.round(clamp(Math.min(innerWidth * 0.56, 640) / [...nm].length, 18, 66)) + 'px';
+  cutEl.hidden = false;
+  G.cut = { f, t: 0, dur: 1.0, zoom: G.type !== 'online' && !reduceMotion };
+  /* online each side runs its own fight, so only the picture plays there */
+  if (G.type !== 'online') G.slowT = 0.62;
+  audio.cut();
+}
+function updateCut(rdt) { if (G.cut && (G.cut.t += rdt) >= G.cut.dur) endCut(); }
+function endCut() { G.cut = null; G.slowT = 0; cutEl.hidden = true; }
+/* a glowing shell around the fighter for as long as its special lasts, trailing sparks */
+const AURA_GEO = new THREE.SphereGeometry(1, 24, 16);
+function spAura(f, md, on, time, dt) {
+  if (!on) { if (md.aura) md.aura.visible = false; return; }
+  if (!md.aura) {
+    const was = md.root.rotation.y; md.root.rotation.y = 0;
+    bodyBox(md).getCenter(cutC); cutBox.getSize(cutS); md.root.worldToLocal(cutC); md.root.rotation.y = was;
+    const sc = md.root.scale.x || 1;
+    md.aura = new THREE.Mesh(AURA_GEO, new THREE.MeshBasicMaterial({ color: new THREE.Color(PCOL[f.idx]), transparent: true, opacity: 0.3, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.BackSide }));
+    md.aura.position.copy(cutC);
+    md.aura.userData.s = [cutS.x / sc * 0.68 + 0.25, cutS.y / sc * 0.62 + 0.25, cutS.z / sc * 0.68 + 0.25];
+    md.root.add(md.aura);
+  }
+  const a = md.aura, k = 1 + Math.sin(time * 22) * 0.06, S = a.userData.s;
+  a.visible = true; a.scale.set(S[0] * k, S[1] * k, S[2] * k); a.material.opacity = 0.22 + Math.sin(time * 31) * 0.1;
+  if (Math.random() < Math.min(1, dt * 45)) burst(f.x, f.y + 0.4 + Math.random() * 1.2, f.z, parseInt(PCOL[f.idx].slice(1), 16), 2, 3.2);
+}
+/* the first hit of a special: rings, sparks, a word, a white flash, a hard shake */
+const BOOM_W = ['ドカーン！', 'ズドン！', 'バキィッ！', 'ドゴォ！', 'ドーン！'];
+function spBoom(t, a) {
+  const col = PCOL[a ? a.idx : 0], c = parseInt(col.slice(1), 16);
+  ring(t.x, 0.45, t.z, c, 4.4, 0.55); ring(t.x, 1.1, t.z, 0xffffff, 2.9, 0.35);
+  burst(t.x, 1.1, t.z, c, 26, 9.5); burst(t.x, 1.1, t.z, 0xffffff, 12, 6);
+  G.shake = Math.max(G.shake, 0.75); G.hitstop = Math.max(G.hitstop, 0.15);
+  floater(BOOM_W[Math.floor(Math.random() * BOOM_W.length)], t.x, 2.3, t.z, 'boom', 0.95, 0, 0.7, col);
+  if (!reduceMotion) { const h = $('#hitflash'); h.hidden = true; void h.offsetWidth; h.hidden = false; clearTimeout(spBoom.tm); spBoom.tm = setTimeout(() => { h.hidden = true; }, 260); }
+  audio.boom();
+}
 function updateFX(dt) {
   for (let i = fxParts.length - 1; i >= 0; i--) {
     const p = fxParts[i]; p.life += dt;
@@ -1935,7 +2051,7 @@ function markMesh(x, z, color, r) {
 }
 const shots = [], zones = [];
 function shoot(f, kind, mesh, o) {
-  const p = Object.assign({ kind, mesh, owner: f, x: f.x, y: f.y + 1.1, z: f.z, vx: 0, vy: 0, vz: 0, t: 0 }, o);
+  const p = Object.assign({ kind, mesh, owner: f, x: f.x, y: f.y + 1.1, z: f.z, vx: 0, vy: 0, vz: 0, t: 0, spSeq: f.move && f.move.kind === 'sp' ? f.animSeq : 0 }, o);
   mesh.position.set(p.x, p.y, p.z); scene.add(mesh); shots.push(p); return p;
 }
 function killShot(i) {
@@ -2196,6 +2312,7 @@ function derive(c) {
     atkCd: (0.42 + s.def * 0.008) * (c.atkRate || 1) * ATKK[c.atk].cd,
     spDmg: Math.round((13 + s.atk * 0.82 + s.pri * 0.45) * 0.5),
     shRate: 6 + s.def * 0.25,
+    jump: JUMP_V * (1 - (s.def - 17) * 0.01),
   };
 }
 class Fighter {
@@ -2247,6 +2364,8 @@ function atkDamage(a, t) {
 let shotNow = null;
 function dealHit(a, t, h) {
   if (shotNow) h.pj = 1;
+  const spSeq = !a || h.cx || !h.d ? 0 : shotNow ? shotNow.spSeq : a.move && a.move.kind === 'sp' ? a.animSeq : 0;
+  if (spSeq && a.boomSeq !== spSeq) { a.boomSeq = spSeq; h.bm = 1; spBoom(t, a); }
   /* 気合: a shouted order hits harder and further for a few seconds (a whisper, a little softer) */
   if (a && a === G.me && h.d && !h.cx) a.hitAt = performance.now();
   if (a && a.powT > 0 && a.pow && a.pow !== 1 && !h.cx) {
@@ -2264,7 +2383,7 @@ function dealHit(a, t, h) {
   if (h.big) G.shake = Math.max(G.shake, 0.35);
   if (t.ctrl === 'remote') {
     const o = { d: h.d | 0, kx: r2(h.kx || 0), kz: r2(h.kz || 0), ky: r2(h.ky || 0), po: h.po || 0, st: r2(h.st || 0), sl: r2(h.sl || 0), sk: h.sk === undefined ? 0.5 : h.sk, pl: h.pull ? 1 : 0, he: h.he | 0, sh: h.sh | 0 };
-    for (const k of ['pj', 'gb', 'cx', 'jm']) if (h[k]) o[k] = 1;
+    for (const k of ['pj', 'gb', 'cx', 'jm', 'bm']) if (h[k]) o[k] = 1;
     Net.sendHit(o, t.id);
     t.flash = 1; return;
   }
@@ -2364,7 +2483,7 @@ function startSpecial(f, o) {
   f.animSeq = ++G.animCounter; f.animKind = 'sp';
   const rec = Math.round(f.ch.st.rec * 0.5) + rnd(0, 3), abs = Math.min(f.shield, rec);
   f.shield -= abs; f.hp = Math.max(1, f.hp - (rec - abs));
-  callout(f, f.ch.mv.sp, true); audio.sp(); f.squash = 0.6;
+  callout(f, f.ch.mv.sp, true); audio.sp(); f.squash = 0.6; cutIn(f);
 }
 const AIRDUR = { stomp: 1.4, dive: 1.2, kick: 0.32, spin: 0.5, shot: 0.4 };
 function startAir(f, o) {
@@ -2671,7 +2790,7 @@ function remoteAnim(f, kind) {
   if (f.ko) return;
   if (kind === 'atk') { f.move = newAtkMove(f); callout(f, f.ch.mv.atk, false); audio.swing(); }
   else if (kind === 'air') { f.move = { kind: 'air', t: 0, dur: AIRDUR[f.ch.air], hits: {} }; callout(f, f.ch.mv.air, false); audio.swing(); }
-  else if (kind === 'sp') { f.move = { kind: 'sp', t: 0, dur: SPDUR[f.ch.sp], hits: {} }; callout(f, f.ch.mv.sp, true); audio.sp(); f.squash = 0.6; }
+  else if (kind === 'sp') { f.move = { kind: 'sp', t: 0, dur: SPDUR[f.ch.sp], hits: {} }; callout(f, f.ch.mv.sp, true); audio.sp(); f.squash = 0.6; cutIn(f); }
 }
 const SPECIAL = {
   dash(f, o, m, dt, fx, fz) {
@@ -3063,7 +3182,7 @@ function updateFighter(f, o, dt) {
     } else if (on) f.faceT = Math.atan2(mx, mz);
     f.state = air ? 'jump' : f.guarding ? 'guard' : (on ? 'move' : 'idle');
     if (live && !f.guarding) {
-      if (inp.jumpBuf > 0 && !air && slow > 0) { inp.jumpBuf = 0; f.vy = JUMP_V * (1 + fire * 0.5); f.squash = 0.35; bubbles(f.x, 0.2, f.z, 4); audio.jump(); }
+      if (inp.jumpBuf > 0 && !air && slow > 0) { inp.jumpBuf = 0; f.vy = f.d.jump * (1 + fire * 0.5); f.squash = 0.35; bubbles(f.x, 0.2, f.z, 4); audio.jump(); }
       if (inp.spBuf > 0 && f.spCd <= 0) { inp.spBuf = 0; startSpecial(f, o); }
       else if (inp.atkBuf > 0 && f.atkCd <= 0 && (!air || (f.y > 0.25 && !f.airUsed))) { inp.atkBuf = 0; if (air) startAir(f, o); else startAttack(f, o); }
     }
@@ -3909,6 +4028,7 @@ function applyIncoming(t, h, from) {
   if (he) heal(t, he);
   if (sh) addShield(t, sh);
   const fl = { pj: h.pj ? 1 : 0, gb: h.gb ? 1 : 0, cx: h.cx ? 1 : 0, jm: h.jm ? 1 : 0 };
+  if (h.bm && d) spBoom(t, from);
   if (d || kx || kz || ky || st || sl || fl.gb || fl.jm) applyHit(t, Object.assign({ d, kx, kz, ky, po, st, sl, sk, pull: h.pl ? 1 : 0, ev: h.ev ? 1 : 0 }, fl), from);
 }
 function ingestRemote(f, op) {
@@ -5211,10 +5331,16 @@ function tileHTML(c, i) { return '<button class="tile" type="button" data-i="' +
 $('#roster').innerHTML = ROSTER.map(tileHTML).join('');
 $('#room-roster').innerHTML = ROSTER.map(tileHTML).join('');
 const nameTag = nm => '<em class="nx">言い切り×' + nameMax(nm).toFixed(1) + '</em>';
+/* 足の速さとジャンプは防御の数値から決まる（守りが固いほど遅く、低く跳ぶ） */
+function feelHTML(c) {
+  const d = derive(c), sp = d.speed, jk = d.jump / JUMP_V;
+  const row = (k, w, word) => '<span>' + k + '</span><span class="bar"><i style="width:' + Math.round(clamp(w, 0.05, 1) * 100) + '%"></i></span><span class="v">' + word + '</span>';
+  return row('速さ', (sp - 4.6) / 2.2, sp >= 5.7 ? 'はやい' : sp <= 5.2 ? 'おそい' : 'ふつう') + row('跳躍', (jk - 0.85) / 0.25, jk >= 1.02 ? '高い' : jk <= 0.94 ? '低い' : 'ふつう');
+}
 function detailHTML(c) {
   const st = [['攻撃', c.st.atk], ['防御', c.st.def], ['反動', c.st.rec], ['ちく', c.st.pri]];
   return '<div class="dh"><span class="ds">' + c.sym + '</span><div><h3>' + c.name + '</h3><p>' + c.sub + '</p></div></div>' +
-    '<div class="stats">' + st.map(([k, v]) => '<span>' + k + '</span><span class="bar"><i style="width:' + Math.round(v / 30 * 100) + '%"></i></span><span class="v">' + v + '</span>').join('') + '</div>' +
+    '<div class="stats">' + st.map(([k, v]) => '<span>' + k + '</span><span class="bar"><i style="width:' + Math.round(v / 30 * 100) + '%"></i></span><span class="v">' + v + '</span>').join('') + feelHTML(c) + '</div>' +
     '<ul class="moves">' +
     '<li><span class="k">攻撃</span><span><b>' + rubyHTML(c.mv.atk) + nameTag(c.mv.atk) + '</b><small>' + ATKK[c.atk].desc + '</small></span></li>' +
     '<li><span class="k">防御</span><span><b>' + rubyHTML(c.mv.def) + nameTag(c.mv.def) + '</b><small>' + DEFK[c.def].desc + (DEFK[c.def].sm > 0 ? '。守っている間は泡の盾もたまる（最大42）' : '') + '</small></span></li>' +
@@ -5371,7 +5497,7 @@ function startMatch(chars, ctrls, ids, nms, looks) {
   }
   /* 声だけで戦う: your 潜水者 gets its own input, driven by spoken (or typed) orders; there is no pad */
   if (G.me && G.me.ctrl !== 'cpu') { G.me.input = blankInput(); pads[0].f = null; G.voice = newVoice(); }
-  G.time = MATCH_SEC; G.hitstop = 0; G.intrT = 10 + Math.random() * 5; G.shake = 0; G.endT = 0; G.bubT = 5;
+  G.time = MATCH_SEC; G.hitstop = 0; G.slowT = 0; endCut(); G.intrT = 10 + Math.random() * 5; G.shake = 0; G.endT = 0; G.bubT = 5;
   G.camYaw = G.me ? G.me.face : 0;
   layoutShowcase('none'); layoutPads(); setupHUD();
   show(null); $('#hud').hidden = false; $('#hud2').hidden = F.length <= 2; $('#pads').hidden = true;
@@ -5658,6 +5784,7 @@ function stepGame(rdt) {
   if (G.phase !== 'fight' && G.phase !== 'end') return;
   let dt = rdt;
   if (G.hitstop > 0) { G.hitstop -= rdt; dt = 0; }
+  if (G.slowT > 0) { G.slowT -= rdt; dt *= 0.1; }
   if (G.phase === 'end') { dt *= 0.45; G.endT -= rdt; if (G.endT <= 0) { showResult(); return; } }
   if (dt <= 0) return;
   if (G.phase === 'fight') {
@@ -5696,6 +5823,7 @@ function renderFighter(f, time, dt) {
   md.shadow.position.y = 0.02 - f.y + f.sinkV; md.shadow.visible = f.state !== 'fall'; md.shadow.scale.setScalar(Math.max(0.45, 1 - Math.max(0, f.y) * 0.18));
   if (md.ring) { md.ring.position.y = 0.035 - f.y + f.sinkV; md.ring.visible = !f.ko; }
   s.atkP = m && (m.kind === 'atk' || (m.kind === 'air' && f.ch.air === 'kick')) ? m.t / m.dur : 0; s.spP = m && m.kind === 'sp' ? m.t / m.dur : 0;
+  spAura(f, md, s.spP > 0 && !f.ko, time, dt);
   s.airK = m && m.kind === 'air' ? f.ch.air : ''; s.airP = m && m.kind === 'air' ? m.t / m.dur : 0;
   s.moving = f.state === 'move'; s.guard = f.guarding && !f.ko; s.shake = f.hitstun > 0 ? Math.min(1, f.hitstun * 3) : (f.ctrl === 'remote' && f.state === 'hit' ? 0.5 : 0);
   s.flash = f.flash; s.ko = !!f.ko; s.spin = f.spin; s.shield = f.shield; s.puff = f.puff; s.charge = f.charge; s.raise = f.raise; s.squash = f.squash;
@@ -5776,6 +5904,11 @@ function updateCamera(dt) {
     camLookT.set(mx * 0.8, 0.8 + my * 0.3, mz * 0.85);
   } else if (ph === 'select') { camPosT.set(0, 2.6, 7.2); camLookT.set(0, 1.25, 0); }
   else { G.orbit += dt * 0.1; camPosT.set(Math.sin(G.orbit) * 17, 8.5, Math.cos(G.orbit) * 17); camLookT.set(0, 0.8, 0); }
+  const cf = G.cut && G.cut.zoom && G.cut.t < 0.8 ? G.cut.f : null;
+  if (cf && !cf.ko && cf.state !== 'fall') {
+    camZ.set(camPosT.x - cf.x, 0, camPosT.z - cf.z); const l = Math.hypot(camZ.x, camZ.z) || 1;
+    camPosT.set(cf.x + camZ.x / l * 5.2, cf.y + 2.2, cf.z + camZ.z / l * 5.2); camLookT.set(cf.x, cf.y + 0.9, cf.z); rate = 9;
+  }
   const k = 1 - Math.exp(-dt * rate);
   camPos.lerp(camPosT, k); camLook.lerp(camLookT, k);
   camera.position.copy(camPos);
@@ -5808,6 +5941,7 @@ function frame(now) {
     stepGame(rdt);
     updateEnv(rdt);
     updateFX(rdt);
+    updateCut(rdt);
     if (G.fighters.length >= 2) for (const f of G.fighters) renderFighter(f, T, rdt);
     else for (const md of showcase) { if (!md || !md.root.visible) continue; if (G.phase === 'select' || G.phase === 'bag') md.root.rotation.y += rdt * 0.7; animModel(md, IDLE, T); }
     updateCamera(rdt);
