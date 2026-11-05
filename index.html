@@ -121,7 +121,9 @@ ruby rt{font-size:.6em;font-weight:700;letter-spacing:0;opacity:.85}
 .wallet small{font-family:var(--body);font-size:11px;color:var(--mist)}
 .bonus{font-size:13px;line-height:1.6;color:var(--lamp);background:rgba(255,216,110,.1);border:1px solid rgba(255,216,110,.35);border-radius:12px;padding:8px 12px}
 .tile{position:relative}
-.tile.locked .s,.tile.locked .n{opacity:.45}
+.tile.locked .s{filter:brightness(0) drop-shadow(0 0 1px rgba(170,225,255,.85));opacity:.95}
+.tile.locked .n{opacity:.5;letter-spacing:.12em}
+.dh .ds.sil{filter:brightness(0) drop-shadow(0 0 2px rgba(170,225,255,.85))}
 .tile.locked::after{content:'🔒';position:absolute;top:3px;right:4px;font-size:11px}
 .lockbar{display:flex;flex-direction:column;gap:8px;padding:10px 12px;border-radius:12px;border:1px dashed rgba(255,216,110,.5);background:rgba(255,216,110,.06)}
 .lockbar b{color:var(--lamp);font-size:13px}
@@ -272,6 +274,8 @@ ruby rt{font-size:.6em;font-weight:700;letter-spacing:0;opacity:.85}
 .mpb{position:relative;height:5px;border-radius:3px;background:rgba(0,0,0,.35);overflow:hidden;width:70%}
 .mpb i{position:absolute;top:0;bottom:0;left:0;background:#b48cff;box-shadow:0 0 6px #b48cff}
 .mpb.full i{background:linear-gradient(90deg,#b48cff,#ffd86e);animation:mpfull .6s ease-in-out infinite alternate}
+.mpb.hi{overflow:visible;outline:2px solid #b48cff;outline-offset:3px;animation:mphi .7s ease-in-out infinite alternate}
+@keyframes mphi{from{outline-color:rgba(180,140,255,.3)}to{outline-color:#ffd86e}}
 @keyframes mpfull{to{filter:brightness(1.5)}}
 .side.p2 .mpb,.side.p4 .mpb{justify-self:end}
 .side.p2 .mpb i,.side.p4 .mpb i{left:auto;right:0}
@@ -4796,16 +4800,18 @@ function tutSteps(me, dummy) {
       ok: () => tut.heard },
     { t: '「攻めろ」で戦いはじめる', ex: '「攻めろ」', hint: '一度言えば、自分で近づいて攻め続けます。何も言わないと、その場で待っています', ok: () => v().stance === 'fight' },
     { t: '「待て」で止める', ex: '「待て」「ストップ」', hint: '止まっている間も、攻撃が来たら身を守ります', ok: () => v().stance === 'wait' && !v().act },
-    { t: '「ジャンプ」でかわす', ex: '「ジャンプ」「よけて」', hint: '床を走る攻撃や、飛んでくる物をかわせます', ok: () => me.y > 0.4 },
+    { t: '「ジャンプ」でかわす', ex: '「ジャンプ」「よけて」', hint: '床を走る攻撃や、飛んでくる物をかわせます。守りが固い重いキャラほど低くしか跳べません（' + me.ch.name + 'の跳躍は「' + feelOf(me.ch).jW + '」）。大声で言うと高く跳べます', ok: () => me.y > 0.4 },
     { t: '防御の技名で身を守る', ex: '「' + mv.def + '」「防御」', hint: mv.def + '：' + DEFK[me.ch.def].desc + '。「防御」だけだと、どの技か少し迷います', ok: () => me.guarding },
     { t: '攻撃の技名を最後まで叫ぶ', ex: '「' + mv.atk + '」', hint: '技は名前の言いはじめで分かった時点で出ます。そのまま最後まで言い切ると、名前の長さに応じて3秒間威力が上がります（この技は最大×' + nameMax(mv.atk).toFixed(1) + '。聞き取りがずれるほど下がる）。先に当たった分も言い切った時に上乗せ。うまく唱えるほどMP（必殺技に使う）もたまります。「攻撃」だけだと迷って約1秒遅れ、MPもたまりません。' + ATKK[me.ch.atk].desc,
       ok: () => tut.full === 'attack' && tut.swing },
-    { t: '必殺技の名前を叫ぶ', ex: '「' + mv.sp + '」', hint: '必殺技はMPが満タンのときに撃てます（ここでは満タンにしてあります）。MPは攻撃・空中攻撃の技名をうまく唱えるほどたまり、撃つと空になります。「必殺」だけだと迷って遅れます', setup: () => { me.mp = MP_MAX; }, ok: () => me.move && me.move.kind === 'sp' },
+    { t: '空中攻撃の技名で飛びかかる', ex: '「' + mv.air + '」「空中攻撃」', hint: mv.air + '：' + AIR_DESC[me.ch.air] + '。空中攻撃の技名でもMPがたまります', ok: () => me.move && me.move.kind === 'air' },
+    { t: '技名を唱えてMPを満タンにする', ex: '「' + mv.atk + '」「' + mv.air + '」', mp: 1,
+      hint: '体力の下の紫のバーがMPです。攻撃と空中攻撃の技名を、最後まで正しく言えるほど多くたまります。満タンになると光って、必殺技が撃てます', ok: () => me.mp >= MP_MAX },
+    { t: '必殺技の名前を叫ぶ', ex: '「' + mv.sp + '」', mp: 1, hint: 'MPが満タンのときに必殺技の名前を叫ぶと、カットインが入って大技が出ます（足りないときは満タンにしてあります）。撃つとMPは空になり、自分も少し反動を受けます。「必殺」だけだと迷って遅れます', setup: () => { if (me.mp < MP_MAX) me.mp = MP_MAX; }, ok: () => me.move && me.move.kind === 'sp' },
     { t: '大きな声ほど強くなる', ex: micReady() ? '思いきり大声で「' + mv.atk + '！！」' : '「' + mv.atk + '！！」',
       hint: () => micReady() ? (Level.ok ? 'いつもの声より大きいほど、約3秒のあいだ攻撃・速さ・ジャンプが強くなります（右下のメーターの白い線がいつもの声）。ささやくと少し弱くなります' : 'この端末では声の大きさを測れていません。「！」を付けて打ち込んでも少し気合が入ります')
         : '「！」を付けて打ち込むと気合が入ります（2つまで）。マイクのある場所では、大声ほど強くなります',
       ok: () => me.powT > 0 && me.pow >= 1.15 },
-    { t: '空中攻撃の技名で飛びかかる', ex: '「' + mv.air + '」「空中攻撃」', hint: mv.air + '：' + AIR_DESC[me.ch.air], ok: () => me.move && me.move.kind === 'air' },
     { t: '名前を呼んで狙う', ex: '「' + call + 'を狙え」', hint: '乱闘では狙う相手を選べます。「弱ってるやつ」「近いやつ」も使えます', ok: () => v().target === dummy },
     { t: '「泡」で？の泡を取りに行く', ex: '「泡」「おまかせ」', bub: 1, hint: '泡に触れると、18種類のおまかせ技のどれかが出ます', setup: () => { tut.gotBub = false; tutBubble(); }, ok: () => tut.gotBub },
     { t: '「真ん中」で場外から戻る', ex: '「真ん中」', hint: 'リングの外に落ちると負けです。端に追い込まれたら呼び戻しましょう',
@@ -4822,7 +4828,8 @@ function tutRevive(f) {
 }
 function startTutorial() {
   G.type = 'tutorial';
-  const mine = ROSTER[G.picks[0] | 0], other = ROSTER.find(c => c.id === (mine.id === 'sea-cucumber-ceo' ? 'crab-meeting' : 'sea-cucumber-ceo'));
+  G.picks[0] = Bag.mine();
+  const mine = ROSTER[G.picks[0]], other = ROSTER.find(c => c.id === (mine.id === 'sea-cucumber-ceo' ? 'crab-meeting' : 'sea-cucumber-ceo'));
   startMatch([mine, other], ['human', 'cpu'], null, null, [Bag.look(mine), null]);
   const d = G.fighters[1]; d.brain = null;
   tut = { i: -1, steps: tutSteps(G.me, d), dummy: d, heard: false, gotBub: false, okT: 0, n0: 0, done: false };
@@ -4839,7 +4846,10 @@ function tutGo(i) {
   $('#tut-ex').innerHTML = rubyText(s.ex + ' と' + (micReady() ? '言ってみよう' : '打ち込んでみよう'));
   $('#tut-hint').textContent = (typeof s.hint === 'function' ? s.hint() : s.hint) || '';
   $('#tut-skip').hidden = false; $('#tut-cpu').hidden = true;
+  tutMp(!!s.mp);
 }
+/* the steps about MP point at your MP bar */
+function tutMp(on) { const b = $('#hud .side.p1 .mpb'); if (b) b.classList.toggle('hi', on); }
 function tutTick(dt) {
   if (!tut || tut.done || !G.me || !G.voice) return;
   const d = tut.dummy; d.hp = 100; d.poison = 0;
@@ -4862,6 +4872,7 @@ function tutEnd() {
   $('#tut-ex').textContent = '';
   $('#tut-hint').textContent = 'このまま練習を続けてもかまいません。「やめる」でタイトルにもどります';
   $('#tut-skip').hidden = true; $('#tut-cpu').hidden = false;
+  tutMp(false);
 }
 $('#tut-skip').addEventListener('click', () => { if (!tut || tut.done || tut.okT > 0) return; audio.tick(); if (tut.i + 1 < tut.steps.length) tutGo(tut.i + 1); else tutEnd(); });
 $('#tut-quit').addEventListener('click', () => { audio.tick(); goTitle(); });
@@ -4906,6 +4917,8 @@ const Bag = {
   blank() { this.s = { coins: 0, own: [], tried: [], items: [], wear: {}, day: dayKey(), dayEarn: 0, login: '', room: DAY_CAP }; },
   save() { if (!this.remote) lsSet('uw3d-bag', JSON.stringify(this.s)); },
   owns(ch) { return STARTERS.includes(ch.id) || this.s.own.includes(ch.id); },
+  /* your last pick if it is yours (a お試し one is not), else your first 仲間 */
+  mine() { const i = G.picks[0] | 0; return this.owns(ROSTER[i]) ? i : Math.max(0, ROSTER.findIndex(c => this.owns(c))); },
   has(id) { return this.s.items.includes(id); },
   /* what this 潜水者 wears, keeping only items you have */
   look(ch) { const L = cleanLook(this.s.wear[ch.id]); for (const sl of SLOTS) if (L[sl] && !this.has(L[sl])) L[sl] = ''; return L; },
@@ -5222,6 +5235,7 @@ function gachaShow(results) {
 /* the collection screen: turn the capsule, see what you have and what it can hold; with the server, the shop and 引き継ぎ */
 let bagLast = null;
 function openBag() {
+  G.picks[0] = Bag.mine();
   adNote(''); $('#bag-ad').hidden = true;
   if (Ads.on && Bag.adLeft()) Ads.offerReward(fn => { const row = $('#bag-ad'); row.hidden = !fn || !Bag.adLeft(); $('#bag-ad-btn').textContent = '📺 広告を見て +' + AD.coins + 'コイン（今日あと' + Bag.adLeft() + '回）'; });
   G.phase = 'bag'; bagLast = null; $('#bag-reveal').hidden = true; $('#acct-msg').textContent = '';
@@ -5317,37 +5331,55 @@ let titleSet = [];
 function showModel(i, look) { if (!showcase[i]) { const md = buildModel(ROSTER[i], null, look || Bag.look(ROSTER[i])); scene.add(md.root); showcase[i] = md; } return showcase[i]; }
 /* rebuilt to show another look (a new item, a change of clothes) */
 function redressShowcase(i, look) { const old = showcase[i], rot = old ? old.root.rotation.y : 0.5; if (old) disposeModel(old); showcase[i] = null; const md = showModel(i, look); md.root.rotation.y = rot; return md; }
-function pickTitleSet() { titleSet = ROSTER.map((_, i) => i).sort(() => Math.random() - 0.5).slice(0, 8); }
+function pickTitleSet() { titleSet = ROSTER.map((_, i) => i).filter(i => Bag.owns(ROSTER[i])).sort(() => Math.random() - 0.5).slice(0, 8); }
+const SIL_MAT = new THREE.MeshBasicMaterial({ color: 0x01070d });
+function silhouette(md, on) {
+  if (!md || !!md.sil === on) return; md.sil = on;
+  md.root.traverse(o => {
+    if (!o.isMesh || o === md.shadow) return;
+    if (on) { o.userData.mat0 = o.material; o.material = SIL_MAT; } else if (o.userData.mat0) { o.material = o.userData.mat0; o.userData.mat0 = null; }
+  });
+}
 function layoutShowcase(mode, sel) {
   for (const md of showcase) if (md) md.root.visible = false;
   if (mode === 'title') titleSet.forEach((idx, k) => {
     const md = showModel(idx), a = k / titleSet.length * Math.PI * 2;
-    md.root.visible = true; md.root.position.set(Math.sin(a) * 5, 0, Math.cos(a) * 5); md.root.rotation.y = a; md.root.scale.setScalar(1);
+    md.root.visible = true; md.root.position.set(Math.sin(a) * 5, 0, Math.cos(a) * 5); md.root.rotation.y = a; md.root.scale.setScalar(1); silhouette(md, false);
   });
-  else if (mode === 'select') { const md = showModel(sel); md.root.visible = true; if (G.lastSel !== sel) md.root.rotation.y = 0.5; md.root.position.set(0, 0, 0); md.root.scale.setScalar(1.25); }
+  else if (mode === 'select') { const md = showModel(sel); md.root.visible = true; silhouette(md, !Bag.owns(ROSTER[sel])); if (G.lastSel !== sel) md.root.rotation.y = 0.5; md.root.position.set(0, 0, 0); md.root.scale.setScalar(1.25); }
   G.lastSel = mode === 'select' ? sel : -1;
+}
+function tileState(b, c) {
+  const own = Bag.owns(c), n = b.querySelector('.n');
+  b.classList.toggle('locked', !own); if (n) n.textContent = own ? c.name : '？？？';
+  b.setAttribute('aria-label', own ? c.name : 'まだ仲間ではない潜水者');
+  return own;
 }
 function tileHTML(c, i) { return '<button class="tile" type="button" data-i="' + i + '" style="--c:' + c.glow + '" aria-pressed="false"><span class="s">' + c.sym + '</span><span class="n">' + c.name + '</span></button>'; }
 $('#roster').innerHTML = ROSTER.map(tileHTML).join('');
 $('#room-roster').innerHTML = ROSTER.map(tileHTML).join('');
 const nameTag = nm => '<em class="nx">言い切り×' + nameMax(nm).toFixed(1) + '</em>';
 /* 足の速さとジャンプは防御の数値から決まる（守りが固いほど遅く、低く跳ぶ） */
-function feelHTML(c) {
+function feelOf(c) {
   const d = derive(c), sp = d.speed, jk = d.jump / JUMP_V;
-  const row = (k, w, word) => '<span>' + k + '</span><span class="bar"><i style="width:' + Math.round(clamp(w, 0.05, 1) * 100) + '%"></i></span><span class="v">' + word + '</span>';
-  return row('速さ', (sp - 4.6) / 2.2, sp >= 5.7 ? 'はやい' : sp <= 5.2 ? 'おそい' : 'ふつう') + row('跳躍', (jk - 0.85) / 0.25, jk >= 1.02 ? '高い' : jk <= 0.94 ? '低い' : 'ふつう');
+  return { sp, jk, spW: sp >= 5.7 ? 'はやい' : sp <= 5.2 ? 'おそい' : 'ふつう', jW: jk >= 1.02 ? '高い' : jk <= 0.94 ? '低い' : 'ふつう' };
+}
+function feelHTML(c) {
+  const e = feelOf(c), row = (k, w, word) => '<span>' + k + '</span><span class="bar"><i style="width:' + Math.round(clamp(w, 0.05, 1) * 100) + '%"></i></span><span class="v">' + word + '</span>';
+  return row('速さ', (e.sp - 4.6) / 2.2, e.spW) + row('跳躍', (e.jk - 0.85) / 0.25, e.jW);
 }
 function detailHTML(c) {
-  const st = [['攻撃', c.st.atk], ['防御', c.st.def], ['反動', c.st.rec], ['ちく', c.st.pri]];
-  return '<div class="dh"><span class="ds">' + c.sym + '</span><div><h3>' + c.name + '</h3><p>' + c.sub + '</p></div></div>' +
+  const st = [['攻撃', c.st.atk], ['防御', c.st.def], ['反動', c.st.rec], ['ちく', c.st.pri]], own = Bag.owns(c);
+  const mvRow = (k, nm, desc) => '<li><span class="k">' + k + '</span><span><b>' + (own ? rubyHTML(nm) + nameTag(nm) : '？？？') + '</b><small>' + (own ? desc : '？？？') + '</small></span></li>';
+  return '<div class="dh"><span class="ds' + (own ? '' : ' sil') + '">' + c.sym + '</span><div><h3>' + (own ? c.name : '？？？') + '</h3><p>' + (own ? c.sub : 'まだ仲間ではない潜水者。仲間にすると名前と技が分かります') + '</p></div></div>' +
     '<div class="stats">' + st.map(([k, v]) => '<span>' + k + '</span><span class="bar"><i style="width:' + Math.round(v / 30 * 100) + '%"></i></span><span class="v">' + v + '</span>').join('') + feelHTML(c) + '</div>' +
     '<ul class="moves">' +
-    '<li><span class="k">攻撃</span><span><b>' + rubyHTML(c.mv.atk) + nameTag(c.mv.atk) + '</b><small>' + ATKK[c.atk].desc + '</small></span></li>' +
-    '<li><span class="k">防御</span><span><b>' + rubyHTML(c.mv.def) + nameTag(c.mv.def) + '</b><small>' + DEFK[c.def].desc + (DEFK[c.def].sm > 0 ? '。守っている間は泡の盾もたまる（最大42）' : '') + '</small></span></li>' +
-    '<li><span class="k">必殺</span><span><b>' + rubyHTML(c.mv.sp) + nameTag(c.mv.sp) + '</b><small>' + c.spDesc + '。MPが満タンのときに撃てる（MPは攻撃・空中攻撃の技名をうまく唱えるほどたまる）。使うと反動で自分も少し削れる</small></span></li>' +
-    '<li><span class="k">空中</span><span><b>' + rubyHTML(c.mv.air) + nameTag(c.mv.air) + '</b><small>「空中攻撃」「飛びかかれ」で、ジャンプして出す。' + AIR_DESC[c.air] + '</small></span></li>' +
+    mvRow('攻撃', c.mv.atk, ATKK[c.atk].desc) +
+    mvRow('防御', c.mv.def, DEFK[c.def].desc + (DEFK[c.def].sm > 0 ? '。守っている間は泡の盾もたまる（最大42）' : '')) +
+    mvRow('必殺', c.mv.sp, c.spDesc + '。MPが満タンのときに撃てる（MPは攻撃・空中攻撃の技名をうまく唱えるほどたまる）。使うと反動で自分も少し削れる') +
+    mvRow('空中', c.mv.air, '「空中攻撃」「飛びかかれ」で、ジャンプして出す。' + AIR_DESC[c.air]) +
     '<li><span class="k">おまかせ</span><span><b>？の泡に触れると発動</b><small>ときどき浮かぶ泡に触れると、18種類のおまかせ技のどれかが出る。「泡」と言うと取りに行く</small></span></li>' +
-    '<li><span class="k">ジャンプ</span><span><b>みんな跳べる</b><small>地面を走る衝撃波や、飛んでくる物をかわせる</small></span></li>' +
+    '<li><span class="k">ジャンプ</span><span><b>跳躍：' + feelOf(c).jW + '</b><small>地面を走る衝撃波や、飛んでくる物をかわせる。守りが固い重いキャラほど低く、大声で言うと高く跳べる</small></span></li>' +
     '</ul>';
 }
 /* CPU対戦: total fighters 2-4 (you + 1-3 CPUs), remembered on this device */
@@ -5369,8 +5401,10 @@ $('#sel-foes').addEventListener('change', e => {
 });
 function renderFoes() {
   const box = $('#sel-foes'), n = G.cpuN - 1;
-  if (box.childElementCount !== n + 1) {
-    const opts = '<option value="">🎲 おまかせ</option>' + ROSTER.map(c => '<option value="' + c.id + '">' + c.sym + ' ' + c.name + '</option>').join('');
+  const sig = n + ':' + ROSTER.map(c => (Bag.owns(c) ? 1 : 0)).join('');
+  if (box.dataset.sig !== sig) {
+    box.dataset.sig = sig; let q = 0;
+    const opts = '<option value="">🎲 おまかせ</option>' + ROSTER.map(c => '<option value="' + c.id + '">' + (Bag.owns(c) ? c.sym + ' ' + c.name : '❔ ？？？ その' + ++q) + '</option>').join('');
     box.innerHTML = '<span>相手</span>' + Array.from({ length: n }, (_, k) => '<select data-k="' + k + '" aria-label="相手' + (k + 1) + '">' + opts + '</select>').join('');
   }
   $$('#sel-foes select').forEach(sl => { sl.value = G.cpuFoes[+sl.dataset.k] || ''; });
@@ -5402,7 +5436,7 @@ $('#detail').addEventListener('click', async e => {
   const buy = e.target.closest('[data-buy]'); if (buy) { buyFrom(buy); return; }
   const b = e.target.closest('[data-unlock]'); if (!b) return;
   const c = ROSTER.find(x => x.id === b.dataset.unlock); b.disabled = true;
-  if (c && await Bag.unlockX(c)) audio.tick();
+  if (c && await Bag.unlockX(c)) { audio.ding(); burst(0, 1.5, 0, parseInt(c.glow.slice(1), 16), 40, 7); burst(0, 1.5, 0, 0xffffff, 16, 5); ring(0, 0.3, 0, 0xffffff, 3.2, 0.6); }
   renderSelect(); syncWallet();
 });
 $('#detail').addEventListener('change', e => {
@@ -5420,8 +5454,9 @@ function renderSelect() {
   $('#sel-count-note').textContent = 'CPU ' + (G.cpuN - 1) + '体と乱闘';
   $('#sel-who').textContent = G.type === 'cpu' ? 'あなたの潜水者' : (G.picker === 0 ? '1P がえらぶ' : '2P がえらぶ');
   $('#sel-who').style.color = G.picker === 1 ? 'var(--p2)' : 'var(--p1)';
-  $$('#roster .tile').forEach((b, i) => { b.setAttribute('aria-pressed', String(i === G.selIdx)); b.classList.toggle('locked', !Bag.owns(ROSTER[i])); });
+  $$('#roster .tile').forEach((b, i) => { b.setAttribute('aria-pressed', String(i === G.selIdx)); tileState(b, ROSTER[i]); });
   const d = $('#detail'); d.style.setProperty('--c', c.glow); d.innerHTML = collectHTML(c) + detailHTML(c);
+  silhouette(showcase[G.selIdx], !Bag.owns(c));
   const ok = $('#sel-ok'), mine = Bag.owns(c) || G.type !== 'cpu';
   ok.textContent = G.type === 'local' && G.picker === 0 ? 'つぎは2P' : mine ? 'この潜水者で' : Bag.canTry(c) ? 'お試しで戦う（1回だけ）' : '仲間にすると使えます';
   ok.disabled = !mine && !Bag.canTry(c);
@@ -5457,7 +5492,7 @@ $('#sel-back').addEventListener('click', () => {
 function clearMatch() {
   for (const f of G.fighters) { disposeModel(f.model); if (f.callF) f.callF.t = f.callF.dur; }
   G.fighters = []; G.me = G.opp = null; G.cpu = null; G.voice = null;
-  Voice.stop(); voicePanel(false); tut = null; $('#tut').hidden = true;
+  Voice.stop(); voicePanel(false); tut = null; $('#tut').hidden = true; tutMp(false);
   clearShots(); clearBubs();
   clearFloaters(); $('#banner').hidden = true; bannerT = 0; $('#think').hidden = true; $('#vs').hidden = true; $('#count').hidden = true;
   G.paused = false;
@@ -5733,7 +5768,7 @@ function renderRoom(list) {
     $('small', el).textContent = !p ? '—' : (c ? c.sym + ' ' + c.name + ' ・ ' : '') + (p.ph === 'fight' ? '試合中' : p.ph === 'result' ? 'リザルト中' : p.rdy ? '準備OK' : '選択中');
     el.classList.toggle('ready', !!(p && p.rdy)); el.classList.toggle('empty', !p);
   });
-  $$('#room-roster .tile').forEach((b, i) => { const mine = Bag.owns(ROSTER[i]); b.setAttribute('aria-pressed', String(i === (Net.me.ch | 0))); b.classList.toggle('locked', !mine); b.disabled = (!!Net.me.rdy && !Net.pub) || !mine; });
+  $$('#room-roster .tile').forEach((b, i) => { const mine = Bag.owns(ROSTER[i]); b.setAttribute('aria-pressed', String(i === (Net.me.ch | 0))); tileState(b, ROSTER[i]); b.disabled = (!!Net.me.rdy && !Net.pub) || !mine; });
   $('#room-ready').textContent = Net.me.rdy ? '準備OKを取り消す' : '準備OK';
 }
 $('#on-create').addEventListener('click', () => enterRoom(String(rnd(1000, 9999)), true));
