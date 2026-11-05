@@ -100,6 +100,7 @@ body.portrait .rotate-hint{display:flex}
 .moves li{display:grid;grid-template-columns:3.4em minmax(0,1fr);gap:8px;align-items:start}
 .moves .k{font-family:var(--display);font-size:11px;color:var(--mist);padding-top:3px}
 .moves b{display:block;font-size:14px}
+ruby rt{font-size:.6em;font-weight:700;letter-spacing:0;opacity:.85}
 .moves b .nx,#moves .mv-x{font-style:normal;font-weight:700;font-size:10px;color:var(--lamp);margin-left:6px;white-space:nowrap}
 .moves small{display:block;color:var(--mist);font-size:11px;line-height:1.5}
 .foot{font-size:11px;color:var(--mist)}
@@ -3225,7 +3226,7 @@ function moveProbs(n, f) {
 const MOVE_YOMI = {
   '潮吹きバリア': 'しおふきバリア', '深海出張・直行便': 'しんかいしゅっちょうちょっこうびん', 'ブリーチング出社': 'ブリーチングしゅっしゃ',
   '五方向ペチペチ': 'ごほうこうペチペチ', '砂浜の伏せ待ち': 'すなはまのふせまち', '星形の事情聴取': 'ほしがたのじじょうちょうしゅ', '流れ星の土下座': 'ながれぼしのどげざ',
-  '伯爵式・水圧パンチ': 'はくしゃくしきすいあつパンチ', '袖で目隠し': 'そでめかくし', '七色の高速会釈': 'なないろのこうそくえしゃく', '頭上から会釈': 'ずじょうからえしゃく',
+  '伯爵式・水圧パンチ': 'はくしゃくしきすいあつパンチ', '袖で目隠し': 'そででめかくし', '七色の高速会釈': 'なないろのこうそくえしゃく', '頭上から会釈': 'ずじょうからえしゃく',
   '朝礼のしびれ話': 'ちょうれいのしびればなし', '透明な威厳': 'とうめいないげん', '全校一斉ぷるぷる': 'ぜんこういっせいぷるぷる', 'ふわふわ朝礼': 'ふわふわちょうれい',
   '忘却バイト': 'ぼうきゃくバイト', '物陰で思い出す': 'ものかげでおもいだす', '歯だけ先に帰宅': 'はだけさきにきたく', '上の空バイト': 'うわのそらバイト',
   '黒鍵しかない協奏曲': 'こっけんしかないきょうそうきょく', '墨色カーテン': 'すみいろカーテン', 'アンコールは墨まみれ': 'アンコールはすみまみれ', 'フォルテッシモ落下': 'フォルテッシモらっか',
@@ -3245,6 +3246,30 @@ const MOVE_YOMI = {
   '稟議書ぬるり': 'りんぎしょぬるり', '決裁を寝かせる': 'けっさいをねかせる', '臓器の大規模再編': 'ぞうきのだいきぼさいへん', 'トップダウン決裁': 'トップダウンけっさい',
 };
 const yomiOf = nm => MOVE_YOMI[nm] || nm;
+/* ふりがな: the reading split over the kanji of a name, for <ruby>. The kana between kanji pins each piece down;
+   names whose kanji runs are only split by 「・」, or where the kana between them is also in a reading, are given their split here. */
+const RUBY_FIX = {
+  '深海出張・直行便': [['深海出張', 'しんかいしゅっちょう'], ['・', ''], ['直行便', 'ちょっこうびん']],
+  '伯爵式・水圧パンチ': [['伯爵式', 'はくしゃくしき'], ['・', ''], ['水圧', 'すいあつ'], ['パンチ', '']],
+  '固定資産・大回転': [['固定資産', 'こていしさん'], ['・', ''], ['大回転', 'だいかいてん']],
+  '袖で目隠し': [['袖', 'そで'], ['で', ''], ['目隠', 'めかく'], ['し', '']],
+};
+const KANJI = /[\u3400-\u9fff々]/;
+const reEsc = s => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+function rubyParts(nm) {
+  if (RUBY_FIX[nm]) return RUBY_FIX[nm];
+  const y = MOVE_YOMI[nm]; if (!y) return [[nm, '']];
+  const runs = [];
+  for (const ch of nm) { const k = KANJI.test(ch), last = runs[runs.length - 1]; if (last && last.k === k) last.t += ch; else runs.push({ t: ch, k }); }
+  const lit = s => reEsc(s.replace(/・/g, ''));
+  const m = new RegExp('^' + runs.map(r => (r.k ? '(.+?)' : lit(r.t))).join('') + '$').exec(y.replace(/・/g, ''));
+  if (!m) return [[nm, y]];
+  let g = 1; return runs.map(r => [r.t, r.k ? m[g++] : '']);
+}
+const rubyHTML = nm => rubyParts(nm).map(([t, r]) => (r ? '<ruby>' + t + '<rt>' + r + '</rt></ruby>' : t)).join('');
+/* a line of plain text, escaped, with the ふりがな on every move name in it */
+const RUBY_RE = new RegExp(Object.keys(MOVE_YOMI).sort((a, b) => b.length - a.length).map(k => reEsc(k)).join('|'), 'g');
+const rubyText = s => s.replace(/[&<>"]/g, c => '&#' + c.charCodeAt(0) + ';').replace(RUBY_RE, nm => rubyHTML(nm));
 /* morae: every kana counts except the small ones (ゃ ぇ…); っ, ん and ー count */
 const moraOf = nm => [...yomiOf(nm).normalize('NFKC')].filter(c => /[ぁ-ゖァ-ヺー]/.test(c) && !/[ぁぃぅぇぉゃゅょゎゕゖァィゥェォャュョヮヵヶ]/.test(c)).length;
 /* 言い切り: saying a whole move name pays by its length. 「こうげき」 (4 morae) is worth nothing extra; each mora beyond adds
@@ -4589,7 +4614,7 @@ function movesPanel(on, up) {
   /* each name with what saying it in full is worth (言い切り) */
   for (const k of MOVE_KEYS) {
     const nm = G.me.ch.mv[k], r = mvRows[k], x = document.createElement('i');
-    r.n.textContent = nm; x.className = 'mv-x'; x.textContent = '×' + nameMax(nm).toFixed(1); r.n.appendChild(x);
+    r.n.innerHTML = rubyHTML(nm); x.className = 'mv-x'; x.textContent = '×' + nameMax(nm).toFixed(1); r.n.appendChild(x);
   }
 }
 function updateMoves() {
@@ -4691,7 +4716,7 @@ function tutGo(i) {
   el.hidden = false; el.classList.remove('ok');
   $('#tut-n').textContent = 'チュートリアル ' + (i + 1) + ' / ' + tut.steps.length;
   $('#tut-say').textContent = s.t;
-  $('#tut-ex').textContent = s.ex + ' と' + (micReady() ? '言ってみよう' : '打ち込んでみよう');
+  $('#tut-ex').innerHTML = rubyText(s.ex + ' と' + (micReady() ? '言ってみよう' : '打ち込んでみよう'));
   $('#tut-hint').textContent = (typeof s.hint === 'function' ? s.hint() : s.hint) || '';
   $('#tut-skip').hidden = false; $('#tut-cpu').hidden = true;
 }
@@ -5191,10 +5216,10 @@ function detailHTML(c) {
   return '<div class="dh"><span class="ds">' + c.sym + '</span><div><h3>' + c.name + '</h3><p>' + c.sub + '</p></div></div>' +
     '<div class="stats">' + st.map(([k, v]) => '<span>' + k + '</span><span class="bar"><i style="width:' + Math.round(v / 30 * 100) + '%"></i></span><span class="v">' + v + '</span>').join('') + '</div>' +
     '<ul class="moves">' +
-    '<li><span class="k">攻撃</span><span><b>' + c.mv.atk + nameTag(c.mv.atk) + '</b><small>' + ATKK[c.atk].desc + '</small></span></li>' +
-    '<li><span class="k">防御</span><span><b>' + c.mv.def + nameTag(c.mv.def) + '</b><small>' + DEFK[c.def].desc + (DEFK[c.def].sm > 0 ? '。守っている間は泡の盾もたまる（最大42）' : '') + '</small></span></li>' +
-    '<li><span class="k">必殺</span><span><b>' + c.mv.sp + nameTag(c.mv.sp) + '</b><small>' + c.spDesc + '。MPが満タンのときに撃てる（MPは攻撃・空中攻撃の技名をうまく唱えるほどたまる）。使うと反動で自分も少し削れる</small></span></li>' +
-    '<li><span class="k">空中</span><span><b>' + c.mv.air + nameTag(c.mv.air) + '</b><small>「空中攻撃」「飛びかかれ」で、ジャンプして出す。' + AIR_DESC[c.air] + '</small></span></li>' +
+    '<li><span class="k">攻撃</span><span><b>' + rubyHTML(c.mv.atk) + nameTag(c.mv.atk) + '</b><small>' + ATKK[c.atk].desc + '</small></span></li>' +
+    '<li><span class="k">防御</span><span><b>' + rubyHTML(c.mv.def) + nameTag(c.mv.def) + '</b><small>' + DEFK[c.def].desc + (DEFK[c.def].sm > 0 ? '。守っている間は泡の盾もたまる（最大42）' : '') + '</small></span></li>' +
+    '<li><span class="k">必殺</span><span><b>' + rubyHTML(c.mv.sp) + nameTag(c.mv.sp) + '</b><small>' + c.spDesc + '。MPが満タンのときに撃てる（MPは攻撃・空中攻撃の技名をうまく唱えるほどたまる）。使うと反動で自分も少し削れる</small></span></li>' +
+    '<li><span class="k">空中</span><span><b>' + rubyHTML(c.mv.air) + nameTag(c.mv.air) + '</b><small>「空中攻撃」「飛びかかれ」で、ジャンプして出す。' + AIR_DESC[c.air] + '</small></span></li>' +
     '<li><span class="k">おまかせ</span><span><b>？の泡に触れると発動</b><small>ときどき浮かぶ泡に触れると、18種類のおまかせ技のどれかが出る。「泡」と言うと取りに行く</small></span></li>' +
     '<li><span class="k">ジャンプ</span><span><b>みんな跳べる</b><small>地面を走る衝撃波や、飛んでくる物をかわせる</small></span></li>' +
     '</ul>';
