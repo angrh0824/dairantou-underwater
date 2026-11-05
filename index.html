@@ -445,7 +445,7 @@ body:not(.portrait) #moves.up{bottom:calc(env(safe-area-inset-bottom,0px) + 72px
 #banner.sys{border-color:var(--p1)}
 #banner.sys b{color:var(--p1)}
 @keyframes bannerin{from{opacity:0;transform:translate(-50%,-8px)}}
-#vs{position:fixed;inset:0;z-index:25;display:flex;flex-wrap:wrap;justify-content:center;align-items:center;align-content:center;gap:12px 18px;pointer-events:none;background:rgba(3,18,31,.55);
+#vs{position:fixed;inset:0;z-index:25;display:flex;flex-wrap:wrap;justify-content:center;align-items:center;align-content:center;gap:12px 18px;pointer-events:none;background:rgba(3,18,31,.26);
   padding-left:max(16px, env(safe-area-inset-left,0px));padding-right:max(16px, env(safe-area-inset-right,0px))}
 #vs .vs-p{display:flex;flex-direction:column;align-items:center;gap:6px;text-align:center;min-width:0;max-width:40%;animation:vsa .45s ease-out}
 #vs .vs-p.b{animation-name:vsb}
@@ -844,6 +844,8 @@ const audio = {
   jump() { this.tone(360, 760, 0.14, 'sine', 0.07); },
   sp() { this.noise(0.35, 0.14, 1300); this.tone(300, 900, 0.25, 'sawtooth', 0.04); },
   cut() { this.noise(0.55, 0.12, 900); this.tone(220, 1500, 0.42, 'sawtooth', 0.05); this.tone(880, 1760, 0.35, 'triangle', 0.07, 0.1); },
+  splash() { this.noise(0.45, 0.12, 700); this.tone(520, 170, 0.32, 'sine', 0.07); },
+  swirl() { this.noise(1.1, 0.07, 480); this.tone(140, 420, 0.9, 'sine', 0.05); },
   boom() { this.tone(150, 32, 0.6, 'sine', 0.3); this.noise(0.5, 0.24, 260); this.tone(900, 200, 0.25, 'square', 0.05); },
   ding() { this.tone(880, 880, 0.18, 'triangle', 0.11); this.tone(1320, 1320, 0.28, 'triangle', 0.09, 0.09); },
   alarm() { this.tone(660, 440, 0.18, 'square', 0.07); this.tone(660, 440, 0.18, 'square', 0.07, 0.22); },
@@ -1879,6 +1881,46 @@ function arc(f, color) {
   mesh.rotation.x = -Math.PI / 2; g.add(mesh); scene.add(g);
   fxRings.push({ mesh: g, mat: mesh.material, t: 0, dur: 0.35, op: 0.7, grow: false });
 }
+/* ---------- 渦潮 ---------- */
+/* an open funnel of streaked water that spins up out of the floor, with bubbles climbing it */
+let vortexTex = null;
+function vortexTexture() {
+  if (vortexTex) return vortexTex;
+  const c = document.createElement('canvas'); c.width = 256; c.height = 128; const g = c.getContext('2d');
+  g.lineCap = 'round';
+  for (let i = 0; i < 30; i++) {
+    const x = Math.random() * 256, a = 0.2 + Math.random() * 0.65; g.strokeStyle = 'rgba(255,255,255,' + a.toFixed(2) + ')'; g.lineWidth = 2 + Math.random() * 6;
+    for (const o of [0, -256, 256]) { g.beginPath(); g.moveTo(x + o, 128); g.lineTo(x + o + 110, 0); g.stroke(); }
+  }
+  const fade = g.createLinearGradient(0, 0, 0, 128);
+  fade.addColorStop(0, 'rgba(0,0,0,1)'); fade.addColorStop(0.3, 'rgba(0,0,0,0)'); fade.addColorStop(0.75, 'rgba(0,0,0,0)'); fade.addColorStop(1, 'rgba(0,0,0,1)');
+  g.globalCompositeOperation = 'destination-out'; g.fillStyle = fade; g.fillRect(0, 0, 256, 128);
+  vortexTex = new THREE.CanvasTexture(c); vortexTex.wrapS = THREE.RepeatWrapping;
+  return vortexTex;
+}
+const VORT_GEO = new THREE.CylinderGeometry(1, 0.3, 1, 40, 1, true), vortices = [];
+function vortex(x, z, color, dur, size) {
+  const g = new THREE.Group(); g.position.set(x, 0.02, z);
+  for (const [r, h, op] of [[1.35, 3.3, 0.8], [0.85, 2.7, 0.6]]) {
+    const m = new THREE.Mesh(VORT_GEO, new THREE.MeshBasicMaterial({ map: vortexTexture(), color, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide }));
+    m.userData.v = { r: r * size, h: h * size, op }; g.add(m);
+  }
+  scene.add(g); audio.swirl();
+  const v = { g, t: 0, dur, x, z, size }; vortices.push(v); return v;
+}
+function updateVortices(dt) {
+  for (let i = vortices.length - 1; i >= 0; i--) {
+    const v = vortices[i]; v.t += dt; const k = v.t / v.dur;
+    if (k >= 1) { scene.remove(v.g); for (const m of v.g.children) m.material.dispose(); vortices.splice(i, 1); continue; }
+    const grow = Math.min(1, v.t / 0.3), fade = k > 0.6 ? 1 - (k - 0.6) / 0.4 : 1, wide = (0.35 + 0.65 * grow) * (1 + (1 - fade) * 0.6);
+    v.g.children.forEach((m, j) => {
+      const u = m.userData.v; m.rotation.y += dt * (j ? -10 : 7);
+      m.scale.set(u.r * wide, u.h * grow * (0.6 + 0.4 * fade), u.r * wide); m.position.y = m.scale.y / 2; m.material.opacity = u.op * grow * fade;
+    });
+    if (Math.random() < Math.min(1, dt * 55) * fade) { const a = Math.random() * Math.PI * 2, r = (0.3 + Math.random() * 0.9) * v.size; bubbles(v.x + Math.sin(a) * r, 0.1 + Math.random() * 0.5, v.z + Math.cos(a) * r, 1); }
+  }
+}
+function clearVortices() { for (const v of vortices) { scene.remove(v.g); for (const m of v.g.children) m.material.dispose(); } vortices.length = 0; }
 /* ---------- 必殺技の演出 ---------- */
 /* the cut-in's picture: the fighter alone, close up and turned toward the name, read back from an offscreen render */
 const CUT_PX = 512, cutRT = new THREE.WebGLRenderTarget(CUT_PX, CUT_PX), cutCam = new THREE.PerspectiveCamera(30, 1, 0.1, 80);
@@ -5340,13 +5382,35 @@ function silhouette(md, on) {
     if (on) { o.userData.mat0 = o.material; o.material = SIL_MAT; } else if (o.userData.mat0) { o.material = o.userData.mat0; o.userData.mat0 = null; }
   });
 }
+const REVEAL_LIT = 0.36, REVEAL_POP = 0.78, REVEAL_END = 1.1;
+const silOn = i => !Bag.owns(ROSTER[i]) || !!(G.reveal && G.reveal.i === i && !G.reveal.lit);
+function startReveal(i) {
+  const c = ROSTER[i]; G.reveal = { i, t: 0, lit: false, pop: false };
+  vortex(0, 0, new THREE.Color(c.glow).lerp(new THREE.Color(0x9fe6ff), 0.4), 1.6, 1.25);
+}
+function updateReveal(dt) {
+  const r = G.reveal; if (!r) return;
+  const md = showcase[r.i]; r.t += dt;
+  if (!md || G.phase !== 'select') { if (md) md.root.position.y = 0; G.reveal = null; renderSelect(); return; }
+  if (r.t < REVEAL_LIT) { const k = r.t / REVEAL_LIT; md.root.position.y = -2.2 * k * k; }
+  else if (r.t < REVEAL_POP) { const k = (r.t - REVEAL_LIT) / (REVEAL_POP - REVEAL_LIT); md.root.position.y = -2.2 + 2.7 * (1 - Math.pow(1 - k, 3)); }
+  else md.root.position.y = 0.5 * Math.max(0, 1 - (r.t - REVEAL_POP) / (REVEAL_END - REVEAL_POP));
+  md.root.rotation.y += dt * 16 * Math.max(0, 1 - r.t / REVEAL_POP);
+  if (!r.lit && r.t >= REVEAL_LIT) { r.lit = true; silhouette(md, false); }
+  if (!r.pop && r.t >= REVEAL_POP) {
+    r.pop = true; const c = ROSTER[r.i];
+    audio.ding(); burst(0, 1.6, 0, parseInt(c.glow.slice(1), 16), 40, 7); burst(0, 1.6, 0, 0xffffff, 16, 5); ring(0, 0.3, 0, 0xffffff, 3.2, 0.6);
+    renderSelect(); syncWallet();
+  }
+  if (r.t >= REVEAL_END) { md.root.position.y = 0; G.reveal = null; }
+}
 function layoutShowcase(mode, sel) {
   for (const md of showcase) if (md) md.root.visible = false;
   if (mode === 'title') titleSet.forEach((idx, k) => {
     const md = showModel(idx), a = k / titleSet.length * Math.PI * 2;
     md.root.visible = true; md.root.position.set(Math.sin(a) * 5, 0, Math.cos(a) * 5); md.root.rotation.y = a; md.root.scale.setScalar(1); silhouette(md, false);
   });
-  else if (mode === 'select') { const md = showModel(sel); md.root.visible = true; silhouette(md, !Bag.owns(ROSTER[sel])); if (G.lastSel !== sel) md.root.rotation.y = 0.5; md.root.position.set(0, 0, 0); md.root.scale.setScalar(1.25); }
+  else if (mode === 'select') { const md = showModel(sel); md.root.visible = true; silhouette(md, silOn(sel)); if (G.lastSel !== sel) md.root.rotation.y = 0.5; md.root.position.set(0, 0, 0); md.root.scale.setScalar(1.25); }
   G.lastSel = mode === 'select' ? sel : -1;
 }
 function tileState(b, c) {
@@ -5436,7 +5500,7 @@ $('#detail').addEventListener('click', async e => {
   const buy = e.target.closest('[data-buy]'); if (buy) { buyFrom(buy); return; }
   const b = e.target.closest('[data-unlock]'); if (!b) return;
   const c = ROSTER.find(x => x.id === b.dataset.unlock); b.disabled = true;
-  if (c && await Bag.unlockX(c)) { audio.ding(); burst(0, 1.5, 0, parseInt(c.glow.slice(1), 16), 40, 7); burst(0, 1.5, 0, 0xffffff, 16, 5); ring(0, 0.3, 0, 0xffffff, 3.2, 0.6); }
+  if (c && await Bag.unlockX(c) && ROSTER[G.selIdx] === c && !reduceMotion) { startReveal(G.selIdx); return; }
   renderSelect(); syncWallet();
 });
 $('#detail').addEventListener('change', e => {
@@ -5456,7 +5520,7 @@ function renderSelect() {
   $('#sel-who').style.color = G.picker === 1 ? 'var(--p2)' : 'var(--p1)';
   $$('#roster .tile').forEach((b, i) => { b.setAttribute('aria-pressed', String(i === G.selIdx)); tileState(b, ROSTER[i]); });
   const d = $('#detail'); d.style.setProperty('--c', c.glow); d.innerHTML = collectHTML(c) + detailHTML(c);
-  silhouette(showcase[G.selIdx], !Bag.owns(c));
+  silhouette(showcase[G.selIdx], silOn(G.selIdx));
   const ok = $('#sel-ok'), mine = Bag.owns(c) || G.type !== 'cpu';
   ok.textContent = G.type === 'local' && G.picker === 0 ? 'つぎは2P' : mine ? 'この潜水者で' : Bag.canTry(c) ? 'お試しで戦う（1回だけ）' : '仲間にすると使えます';
   ok.disabled = !mine && !Bag.canTry(c);
@@ -5493,7 +5557,7 @@ function clearMatch() {
   for (const f of G.fighters) { disposeModel(f.model); if (f.callF) f.callF.t = f.callF.dur; }
   G.fighters = []; G.me = G.opp = null; G.cpu = null; G.voice = null;
   Voice.stop(); voicePanel(false); tut = null; $('#tut').hidden = true; tutMp(false);
-  clearShots(); clearBubs();
+  clearShots(); clearBubs(); clearVortices();
   clearFloaters(); $('#banner').hidden = true; bannerT = 0; $('#think').hidden = true; $('#vs').hidden = true; $('#count').hidden = true;
   G.paused = false;
 }
@@ -5548,6 +5612,7 @@ function startMatch(chars, ctrls, ids, nms, looks) {
   });
   vs.hidden = false;
   G.phase = 'vs'; G.phaseT = F.length > 2 ? 2.0 : 1.5;
+  setupEntrance(F);
 }
 function showCount(text, go) {
   const c = $('#count'); c.className = go ? 'go' : ''; c.textContent = ''; const s = document.createElement('span'); s.textContent = text; c.append(s); c.hidden = false; audio.count(go);
@@ -5798,6 +5863,7 @@ function stepGame(rdt) {
   const F = G.fighters; if (F.length < 2) return;
   if (G.countHide > 0) { G.countHide -= rdt; if (G.countHide <= 0) $('#count').hidden = true; }
   if (G.paused) return;
+  G.entT = (G.entT || 0) + rdt;
   if (G.phase === 'vs') {
     G.phaseT -= rdt;
     if (G.phaseT <= 0) { $('#vs').hidden = true; G.phase = 'count'; G.count = 3; G.phaseT = 0.7; showCount('3'); }
@@ -5840,6 +5906,43 @@ function stepGame(rdt) {
     else intruderTick(dt);
   }
 }
+/* 登場: swimmers glide in out of the dark water, bottom-dwellers rise out of a whirlpool on their spot.
+   It only moves the model; the fight itself starts after the countdown as before. */
+const SWIMMERS = ['whale-man', 'jelly-principal', 'shark-lost', 'ink-pianist', 'seahorse-manager', 'puffer-gatekeeper', 'manta-house', 'angler-note', 'coelacanth-dream', 'clione-guard'];
+function setupEntrance(F) {
+  G.entT = 0;
+  F.forEach((f, i) => { f.ent = reduceMotion ? null : { kind: SWIMMERS.includes(f.ch.id) ? 'swim' : 'vortex', delay: 0.15 + i * 0.25, done: false, vx: null }; });
+}
+function landEntrance(f, md, e, quiet) {
+  e.done = true; md.root.rotation.set(0, f.face, 0); md.root.position.set(f.x, f.y, f.z);
+  if (quiet) return;
+  ring(f.x, 0.3, f.z, parseInt(PCOL[f.idx].slice(1), 16), 2.3, 0.45); bubbles(f.x, 0.3, f.z, 10); burst(f.x, 0.4, f.z, 0xdff6ff, 10, 4); audio.splash();
+}
+function entrance(f, md, time, dt) {
+  const e = f.ent; if (!e || e.done) return;
+  if (G.phase !== 'vs' && G.phase !== 'count') { landEntrance(f, md, e, true); return; }
+  const t = (G.entT || 0) - e.delay, ox = f.x, oz = f.z, l = Math.hypot(ox, oz) || 1, ux = ox / l, uz = oz / l, sx = -uz, sz = ux;
+  md.shadow.visible = false; if (md.ring) md.ring.visible = false;
+  md.root.rotation.order = 'YXZ';
+  if (e.kind === 'swim') {
+    /* a curve from deep in the dark water behind the ring, high up, down to the spot */
+    const p = clamp(t / 1.8, 0, 1), q = 1 - Math.pow(1 - p, 3), a = (1 - q) * (1 - q), b = 2 * (1 - q) * q, c = q * q;
+    const S = [ox + ux * 7 + sx * 2, 5.2, oz - 24], C = [ox + ux * 5 - sx * 2, 2.6, oz - 8], E = [ox, 0, oz];
+    const P = [0, 1, 2].map(k => a * S[k] + b * C[k] + c * E[k]), T = [0, 1, 2].map(k => 2 * (1 - q) * (C[k] - S[k]) + 2 * q * (E[k] - C[k]));
+    const k = clamp((p - 0.72) / 0.28, 0, 1), turn = k * k * (3 - 2 * k), yaw = angLerp(Math.atan2(T[0], T[2]), f.face, turn);
+    md.root.position.set(P[0], P[1], P[2]);
+    md.root.rotation.set(-Math.atan2(T[1], Math.hypot(T[0], T[2])) * 0.7 * (1 - turn), yaw, Math.sin(time * 13 + f.idx) * 0.2 * (1 - turn));
+    if (t > 0 && Math.random() < Math.min(1, dt * 35)) bubbles(P[0], P[1] + 0.6, P[2], 1);
+    if (p >= 1) landEntrance(f, md, e);
+  } else {
+    /* the whirlpool opens, then it spins up out of the floor and settles */
+    if (!e.vx && t > -0.15) e.vx = vortex(ox, oz, new THREE.Color(PCOL[f.idx]).lerp(new THREE.Color(0x9fe6ff), 0.45), 2.1, 1);
+    const u = t - 0.35, D = 0.85, p = clamp(u / D, 0, 1), q = 1 - Math.pow(1 - p, 3);
+    const y = u < 0 ? -3.2 : u < D ? -2.8 + q * 3.2 : 0.4 * Math.max(0, 1 - (u - D) / 0.25);
+    md.root.position.set(ox, y, oz); md.root.rotation.set(0, f.face + (1 - q) * (1 - q) * Math.PI * 6, 0);
+    if (u >= D + 0.25) landEntrance(f, md, e);
+  }
+}
 function renderFighter(f, time, dt) {
   const md = f.model, s = f.s, m = f.move;
   /* guards you can see: チンアナゴ sinks into the sand, エビフライ候補生 fades out; some attacks spin the whole body */
@@ -5864,6 +5967,7 @@ function renderFighter(f, time, dt) {
   s.flash = f.flash; s.ko = !!f.ko; s.spin = f.spin; s.shield = f.shield; s.puff = f.puff; s.charge = f.charge; s.raise = f.raise; s.squash = f.squash;
   s.away = !!f.away; s.fade = f.fade; s.air = f.y > 0.05 && !f.ko;
   animModel(md, s, time);
+  entrance(f, md, time, dt);
   const dh = Math.round(f.hp) - Math.round(f.prevHp);
   if (dh <= -1) floater(String(-dh), f.x + (Math.random() - 0.5) * 0.6, 2.4, f.z, -dh >= 12 ? 'big' : (f.poison > 0 && dh === -1 ? 'tox' : 'dmg'), 0.9, 0, 1.5);
   else if (dh >= 1) floater('+' + dh, f.x, 2.5, f.z, 'heal', 1.0, 0, 1.3);
@@ -5893,7 +5997,7 @@ function updateHUD() {
 /* online: name tags over everyone else's head */
 const tagLayer = $('#tags'), tagEls = [];
 function updateTags() {
-  const show = G.type === 'online' && ['vs', 'count', 'fight', 'end'].includes(G.phase);
+  const show = G.type === 'online' && ['count', 'fight', 'end'].includes(G.phase);
   G.fighters.forEach((f, i) => {
     let el = tagEls[i];
     if (!el) { el = tagEls[i] = document.createElement('div'); el.className = 'ntag'; tagLayer.append(el); }
@@ -5977,8 +6081,10 @@ function frame(now) {
     updateEnv(rdt);
     updateFX(rdt);
     updateCut(rdt);
+    updateVortices(rdt);
     if (G.fighters.length >= 2) for (const f of G.fighters) renderFighter(f, T, rdt);
     else for (const md of showcase) { if (!md || !md.root.visible) continue; if (G.phase === 'select' || G.phase === 'bag') md.root.rotation.y += rdt * 0.7; animModel(md, IDLE, T); }
+    if (G.fighters.length < 2) updateReveal(rdt);
     updateCamera(rdt);
     updateHUD();
     updateFloaters(rdt);
