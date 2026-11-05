@@ -143,6 +143,15 @@ body.portrait .rotate-hint{display:flex}
 .loot li.r2{border-color:var(--lamp)}
 .odds{font-size:12px;color:var(--mist);line-height:1.7}
 .odds summary{cursor:pointer;color:var(--foam)}
+.shop{display:flex;flex-direction:column;gap:8px}
+.shop h4{margin:0;font-size:12px;color:var(--mist);font-weight:700}
+.skus{list-style:none;margin:0;padding:0;display:grid;gap:6px}
+.skus li{display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:8px;align-items:center;padding:8px 10px;border:1px solid var(--line);border-radius:12px;font-size:13px}
+.skus b{font-family:var(--display);font-weight:400;color:var(--lamp);white-space:nowrap}
+.go.sm{min-height:34px;padding:0 12px;font-size:13px;flex:none}
+.shop a,.acct a{color:var(--p1)}
+.acct{display:flex;flex-direction:column;gap:8px}
+.acct[open]{gap:8px}
 #res-coins{font-family:var(--display);color:var(--lamp);font-size:15px}
 #res-coins small{font-family:var(--body);color:var(--mist);font-size:12px;margin-left:6px}
 
@@ -463,6 +472,14 @@ body:not(.portrait) #moves.up{bottom:calc(env(safe-area-inset-bottom,0px) + 72px
     <p class="note" id="bag-day"></p>
     <div class="loot" id="bag-list"></div>
     <details class="odds"><summary>カプセルから出る確率</summary><div id="bag-odds"></div></details>
+    <div class="shop" id="bag-shop" hidden></div>
+    <details class="odds acct" id="bag-acct" hidden><summary>機種変更（引き継ぎ）・コード入力</summary>
+      <p class="note">機種変更するときは、いまの端末でコードを出して、新しい端末で入力します（24時間・1回だけ有効）。引き継ぐと、その端末のいまのデータは引き継いだほうに置きかわります。</p>
+      <button class="ghost sm" id="xfer-new" type="button">引き継ぎコードを出す</button>
+      <div class="join"><input id="xfer-in" maxlength="16" autocomplete="off" placeholder="引き継ぎコード" aria-label="引き継ぎコード"><button class="go" id="xfer-use" type="button">この端末に引き継ぐ</button></div>
+      <div class="join"><input id="code-in" maxlength="24" autocomplete="off" placeholder="配信者・キャンペーンのコード" aria-label="配信者・キャンペーンのコード"><button class="go" id="code-use" type="button">コードを使う</button></div>
+    </details>
+    <p class="status" id="acct-msg" role="status"></p>
     <div class="row"><button class="ghost" id="bag-back" type="button">もどる</button><button class="go" id="bag-dress" type="button">キャラ選択で着せ替える</button></div>
   </div>
 </section>
@@ -1397,6 +1414,13 @@ const LOOKS = [
   { id: 'p-jelly', slot: 'pet', r: 1, name: 'ちびクラゲ', sym: '🎐' },
   { id: 'p-star', slot: 'pet', r: 1, name: 'ちびヒトデ', sym: '🌟' },
   { id: 'p-shark', slot: 'pet', r: 2, name: 'ちびザメ', sym: '🦈' },
+  /* r 3: sold in the shop only (with the game's server), never in the capsule */
+  { id: 'c-neon', slot: 'col', r: 3, name: 'ネオン', sym: '💜', neon: 1 },
+  { id: 'h-ribbon', slot: 'head', r: 3, name: 'おおきなリボン', sym: '🎀' },
+  { id: 'h-witch', slot: 'head', r: 3, name: 'まじょのぼうし', sym: '🧙' },
+  { id: 'h-medal', slot: 'head', r: 3, name: 'おうえんメダル', sym: '🏅' },
+  { id: 'p-whale', slot: 'pet', r: 3, name: 'ちびクジラ', sym: '🐳' },
+  { id: 'p-ufo', slot: 'pet', r: 3, name: 'ちびUFO', sym: '🛸' },
 ];
 const LOOK = Object.fromEntries(LOOKS.map(x => [x.id, x])), SLOTS = ['col', 'head', 'pet'], SLOT_NAME = { col: 'カラー', head: 'あたま', pet: 'おとも' };
 /* anything from storage or another player is checked: unknown ids, or an item in the wrong slot, become nothing */
@@ -1420,15 +1444,20 @@ function recolor(md, it, time) {
     else if (it.ink) { s *= 0.55; l *= 0.42; }
     else if (it.gold) { h = 0.12 + d * 0.25; s = Math.max(0.62, s); l = clamp(l, 0.42, 0.62); mt.metalness = 0.6; mt.roughness = 0.3; }
     else if (it.rainbow) h = time * 0.08 + d;
+    else if (it.neon) { h = h + 0.5; s = 0.95; l = clamp(l, 0.5, 0.62); }
     mt.color.setHSL(((h % 1) + 1) % 1, s, l);
   }
 }
 /* where the head is: the top of the thick parts (thin stalks, antennae and glows don't count), in the middle */
 function headTop(inner) {
   inner.updateMatrixWorld(true);
-  const b = new THREE.Box3(), sz = new THREE.Vector3(); let best = null;
+  const b = new THREE.Box3(), sz = new THREE.Vector3(), ws = new THREE.Vector3(); let best = null;
   inner.traverse(o => {
     if (!o.isMesh || !o.geometry || o.material.isMeshBasicMaterial) return;
+    /* thin by its own shape (a tilted antenna is thin even when its box is wide) */
+    if (!o.geometry.boundingBox) o.geometry.computeBoundingBox();
+    o.geometry.boundingBox.getSize(sz).multiply(o.getWorldScale(ws));
+    if (Math.min(sz.x, sz.y, sz.z) < 0.1) return;
     b.setFromObject(o); b.getSize(sz);
     if (sz.x * sz.y * sz.z < 0.02 || Math.min(sz.x, sz.z) < 0.15) return;
     if (!best || b.max.y > best.y) best = { y: b.max.y, z: (b.min.z + b.max.z) / 2 };
@@ -1459,7 +1488,20 @@ function buildHead(id, g, m) {
   } else if (id === 'h-heart') put(g, heartGeo(0.15, 0.06), m('#ff4f7a', { emissive: '#ff2f5a', emissiveIntensity: 0.25 }));
   else if (id === 'h-star') put(g, starGeo(0.17, 0.06), m('#ffd84a', { emissive: '#ffb800', emissiveIntensity: 0.4 }));
   else if (id === 'h-halo') put(g, torus(0.2, 0.032, 8, 28), m('#fff3a8', { emissive: '#ffe066', emissiveIntensity: 0.9 })).rotation.x = Math.PI / 2;
-  else if (id === 'h-crown') {
+  else if (id === 'h-ribbon') {
+    const rm = m('#ff5c9a', { roughness: 0.4 });
+    for (const s of [-1, 1]) { const b = put(g, cone(0.11, 0.2, 12), rm, s * 0.12, 0, 0); b.rotation.z = s * Math.PI / 2; b.scale.z = 0.55; }
+    put(g, sph(0.06, 10, 8), m('#ff7fb0'), 0, 0, 0);
+  } else if (id === 'h-witch') {
+    const hm = m('#4a2a7a', { roughness: 0.7 });
+    put(g, cyl(0.24, 0.24, 0.025, 20), hm, 0, -0.06, 0);
+    const tip = put(g, cone(0.15, 0.36, 12), hm, 0, 0.12, 0); tip.rotation.z = 0.18;
+    put(g, cyl(0.152, 0.152, 0.05, 20), m('#ffd25a', { metalness: 0.5, roughness: 0.35 }), 0, -0.025, 0);
+  } else if (id === 'h-medal') {
+    const md = put(g, cyl(0.13, 0.13, 0.035, 22), gold, 0, 0, 0); md.rotation.x = Math.PI / 2;
+    put(g, starGeo(0.08, 0.02), m('#fff3a8', { emissive: '#ffd84a', emissiveIntensity: 0.5 }), 0, 0, 0.03);
+    for (const s of [-1, 1]) { const rb = put(g, box(0.06, 0.16, 0.012), m(s < 0 ? '#3f78d8' : '#e0464f'), s * 0.045, 0.17, -0.01); rb.rotation.z = -s * 0.25; }
+  } else if (id === 'h-crown') {
     put(g, new THREE.CylinderGeometry(0.17, 0.15, 0.13, 18, 1, true), m('#ffd25a', { metalness: 0.6, roughness: 0.3, emissive: '#7a5200', emissiveIntensity: 0.3, side: THREE.DoubleSide }), 0, 0, 0);
     for (let i = 0; i < 5; i++) { const a = i / 5 * Math.PI * 2; put(g, cone(0.04, 0.09, 8), gold, Math.cos(a) * 0.16, 0.1, Math.sin(a) * 0.16); put(g, sph(0.025, 8, 6), m('#ff4f7a', { roughness: 0.2 }), Math.cos(a + 0.63) * 0.163, 0, Math.sin(a + 0.63) * 0.163); }
   }
@@ -1483,6 +1525,16 @@ function buildPet(id, g, m) {
   } else if (id === 'p-star') {
     const st = put(g, starGeo(0.13, 0.05), m('#ff9b6b')); st.rotation.x = -0.5;
     for (const s of [-1, 1]) put(st, sph(0.02, 6, 5), m('#141820'), s * 0.035, 0.02, 0.04);
+  } else if (id === 'p-whale') {
+    put(g, sph(0.11, 12, 9), m('#4f86c6'), 0, 0, 0).scale.set(0.85, 0.75, 1.25);
+    put(g, sph(0.09, 10, 8), m('#e3edf3'), 0, -0.035, 0.03).scale.set(0.7, 0.5, 1.1);
+    for (const s of [-1, 1]) { const f = put(g, sph(0.05, 8, 6), m('#4f86c6'), s * 0.05, 0.01, -0.17); f.scale.set(1.2, 0.25, 0.6); f.rotation.y = -s * 0.5; }
+    for (const s of [-1, 1]) put(g, sph(0.02, 6, 5), m('#141820'), s * 0.065, 0.02, 0.09);
+    put(g, cyl(0.008, 0.02, 0.08, 6), m('#bfefff', { transparent: true, opacity: 0.7 }), 0, 0.11, 0.02);
+  } else if (id === 'p-ufo') {
+    put(g, sph(0.15, 16, 8), m('#c9d3de', { metalness: 0.7, roughness: 0.25 }), 0, 0, 0).scale.set(1, 0.28, 1);
+    put(g, new THREE.SphereGeometry(0.075, 14, 7, 0, Math.PI * 2, 0, Math.PI / 2), m('#7fe2ff', { transparent: true, opacity: 0.6, emissive: '#4fc3ff', emissiveIntensity: 0.5 }), 0, 0.03, 0);
+    for (let i = 0; i < 6; i++) { const a = i / 6 * Math.PI * 2; put(g, sph(0.016, 6, 5), new THREE.MeshBasicMaterial({ color: i % 2 ? 0xffe066 : 0xff6fae }), Math.cos(a) * 0.12, -0.01, Math.sin(a) * 0.12); }
   } else if (id === 'p-shark') {
     put(g, sph(0.1, 12, 9), m('#6f8fa3'), 0, 0, 0).scale.set(0.6, 0.6, 1.6);
     put(g, cone(0.05, 0.1, 4), m('#6f8fa3'), 0, 0.07, -0.02).scale.z = 0.35;
@@ -3008,6 +3060,9 @@ function cpuThink(f, o, dt, b) {
    The browser turns speech into text (Web Speech API). Short orders are matched here;
    anything else goes to the voice relay (a Cloudflare Worker that asks an AI) when VOICE_AI is set. */
 const VOICE_AI = '';
+/* with the game's server (SERVER, below), the voice AI comes with the AI pass: the same server checks it */
+const aiURL = () => VOICE_AI || (SERVER && Bag.aiOn() ? SERVER + '/' : '');
+const aiHeaders = () => Object.assign({ 'Content-Type': 'text/plain' }, !VOICE_AI && Bag.tok ? { Authorization: 'Bearer ' + Bag.tok } : {});
 /* false where the page may not use the microphone at all (the Claude artifact build): orders are typed instead */
 const MIC_OK = true;
 const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition || null;
@@ -3309,7 +3364,7 @@ function hearOrder(alts, typed) {
     if (!o) continue;
     o.pow = pow; v.ask++; giveOrder(f, v, o);
     if (typed) nameStart(f, v, o, 'typed', vnorm(t), true);
-    if (VOICE_AI && MOVE_ACTS.has(o.act) && o.conf < 0.95 && o.exact !== 'pre') refineMove(t, f, v, o);
+    if (aiURL() && MOVE_ACTS.has(o.act) && o.conf < 0.95 && o.exact !== 'pre') refineMove(t, f, v, o);
     return o;
   }
   askAI(list[0], f, v, pow);
@@ -3322,7 +3377,7 @@ async function refineMove(text, f, v, o) {
   let r = null;
   const ctl = new AbortController(), tm = setTimeout(() => ctl.abort(), 1500);
   try {
-    const res = await fetch(VOICE_AI, { method: 'POST', headers: { 'Content-Type': 'text/plain' }, signal: ctl.signal,
+    const res = await fetch(aiURL(), { method: 'POST', headers: aiHeaders(), signal: ctl.signal,
       body: JSON.stringify({ kind: 'move', text: text.slice(0, 60), me: f.ch.name, moves: [f.ch.mv.atk, f.ch.mv.def, f.ch.mv.sp, f.ch.mv.air] }) });
     if (res.ok) r = await res.json();
   } catch (e) { r = null; }
@@ -3390,13 +3445,13 @@ function onHeard(i, alts, fin) {
   } else if (tg && v.target !== tg) { v.target = tg; setPlan('→ 🎯' + pname(tg)); }
 }
 async function askAI(text, f, v, pow) {
-  if (!VOICE_AI) { confused(f, v); return; }
+  if (!aiURL()) { confused(f, v); return; }
   const seq = ++v.ask; setPlan('🤔 考え中…');
   const body = { text: text.slice(0, 60), me: f.ch.name, moves: [f.ch.mv.atk, f.ch.mv.def, f.ch.mv.sp, f.ch.mv.air], foes: foes(f).slice(0, 3).map(pname) };
   let r = null;
   const ctl = new AbortController(), tm = setTimeout(() => ctl.abort(), 5000);
   try {
-    const res = await fetch(VOICE_AI, { method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify(body), signal: ctl.signal });
+    const res = await fetch(aiURL(), { method: 'POST', headers: aiHeaders(), body: JSON.stringify(body), signal: ctl.signal });
     if (res.ok) r = await res.json();
   } catch (e) { r = null; }
   clearTimeout(tm);
@@ -4381,7 +4436,7 @@ const Grumble = {
     const f = G.me, text = this.lastText, P = personaOf(f), cat = EVCAT[kind] || 'bad';
     this.busy = true;
     let line = null;
-    if (VOICE_AI) line = await askGrumble(f, kind, text);
+    if (aiURL()) line = await askGrumble(f, kind, text);
     this.busy = false;
     if (G.me !== f || f.ko || !G.voice) return;
     /* a gentle character's complaints are worries or apologies, not anger */
@@ -4391,7 +4446,7 @@ const Grumble = {
 async function askGrumble(f, kind, last) {
   const ctl = new AbortController(), tm = setTimeout(() => ctl.abort(), 2500), P = personaOf(f);
   try {
-    const res = await fetch(VOICE_AI, { method: 'POST', headers: { 'Content-Type': 'text/plain' }, signal: ctl.signal,
+    const res = await fetch(aiURL(), { method: 'POST', headers: aiHeaders(), signal: ctl.signal,
       body: JSON.stringify({ kind: 'grumble', ev: kind, me: f.ch.name, sub: f.ch.sub, persona: P.p, mood: P.mood, last: String(last || '').slice(0, 40), hp: Math.round(f.hp) }) });
     if (!res.ok) return null;
     const j = await res.json();
@@ -4544,7 +4599,7 @@ function tutTick(dt) {
 function tutEnd() {
   const first = lsGet('uw3d-tut') !== '1';
   tut.done = true; lsSet('uw3d-tut', '1'); syncTitleMenu();
-  if (first) { Bag.gift(TUT_GIFT); syncWallet(); }
+  if (first) Bag.tutX().then(syncWallet);
   $('#tut').classList.remove('ok');
   $('#tut-n').textContent = 'おつかれさま！';
   $('#tut-say').textContent = 'これで準備OK。あとは乱闘で試してみよう';
@@ -4564,83 +4619,195 @@ function syncTitleMenu() {
 }
 syncTitleMenu();
 
-/* ================= コレクション: coins, 仲間 and looks, kept on this device for now (nothing is sold yet) =================
+/* ================= コレクション: coins, 仲間 and looks =================
    Coins come from playing (more against stronger CPUs and in bigger fights, at most DAY_CAP a day) and a daily login bonus.
    They make a 潜水者 your 仲間 (you pick which; STARTERS are yours from the start) and turn the capsule (a random look).
-   A 潜水者 that is not yet yours can be tried once in a CPU fight, and CPUs show off looks now and then. */
+   A 潜水者 that is not yet yours can be tried once in a CPU fight, and CPUs show off looks now and then.
+   With SERVER set, all of this lives on the game's server (worker/: a guest account made without any sign-up; the draw and
+   the daily cap are decided there) and the shop opens (Stripe Checkout: 仲間 at once, shop-only looks, the AI pass).
+   Without it, everything stays on this device and nothing is sold. */
+const SERVER = '';
 const STARTERS = ['whale-man', 'shark-lost', 'jelly-principal', 'puffer-gatekeeper', 'octopus-snail', 'shrimp-cadet'];
 const PRICE = { char: 1200, capsule: 100 }, DAY_CAP = 600, LOGIN = { first: 300, daily: 100 }, TUT_GIFT = 200;
-/* capsule odds by rarity, and the coins back for one you already have */
+/* capsule odds by rarity, and the coins back for one you already have (r 3 = sold in the shop, never in the capsule) */
 const RARE = [{ name: 'ふつう', p: 0.7, back: 30, c: '#94bbd0' }, { name: 'レア', p: 0.25, back: 60, c: '#9fd8ff' }, { name: '激レア', p: 0.05, back: 100, c: '#ffd86e' }];
+const rareName = r => (r === 3 ? 'ショップ' : RARE[r].name);
 const dayKey = () => { const d = new Date(); return d.getFullYear() + '-' + (d.getMonth() + 1) + '-' + d.getDate(); };
+const fightWant = i => Math.round(i.mode === 'online' ? { win: 80, draw: 40, lose: 30 }[i.res] : { win: 60, draw: 30, lose: 20 }[i.res] * [0.5, 1, 1.6][i.lv] * (1 + 0.25 * (i.n - 2)));
 const Bag = {
-  s: null,
+  s: null, remote: !!SERVER, tok: '', srv: null, ready: !SERVER, err: '',
   load() {
     let s = null; try { s = JSON.parse(lsGet('uw3d-bag') || 'null'); } catch (e) { s = null; }
     const ids = new Set(ROSTER.map(c => c.id)), arr = (a, ok) => (Array.isArray(a) ? [...new Set(a.filter(ok))] : []);
     s = s && typeof s === 'object' ? s : {};
     this.s = {
       coins: Math.max(0, Math.floor(+s.coins || 0)), own: arr(s.own, x => ids.has(x)), tried: arr(s.tried, x => ids.has(x)),
-      items: arr(s.items, x => !!LOOK[x]), wear: {}, day: String(s.day || ''), dayEarn: Math.max(0, +s.dayEarn || 0), login: String(s.login || ''),
+      items: arr(s.items, x => !!LOOK[x] && LOOK[x].r < 3), wear: {}, day: String(s.day || ''), dayEarn: Math.max(0, +s.dayEarn || 0), login: String(s.login || ''),
     };
     if (s.wear && typeof s.wear === 'object') for (const id of ids) if (s.wear[id]) this.s.wear[id] = cleanLook(s.wear[id]);
   },
-  save() { lsSet('uw3d-bag', JSON.stringify(this.s)); },
+  blank() { this.s = { coins: 0, own: [], tried: [], items: [], wear: {}, day: dayKey(), dayEarn: 0, login: '', room: DAY_CAP }; },
+  save() { if (!this.remote) lsSet('uw3d-bag', JSON.stringify(this.s)); },
   owns(ch) { return STARTERS.includes(ch.id) || this.s.own.includes(ch.id); },
   has(id) { return this.s.items.includes(id); },
   /* what this 潜水者 wears, keeping only items you have */
   look(ch) { const L = cleanLook(this.s.wear[ch.id]); for (const sl of SLOTS) if (L[sl] && !this.has(L[sl])) L[sl] = ''; return L; },
-  wear(ch, slot, id) { const L = this.look(ch); L[slot] = id && this.has(id) && LOOK[id].slot === slot ? id : ''; this.s.wear[ch.id] = L; this.save(); },
+  canTry(ch) { return !this.owns(ch) && !this.s.tried.includes(ch.id); },
   /* coins from playing count against today's cap; gifts (login, tutorial) do not */
-  room() { if (this.s.day !== dayKey()) { this.s.day = dayKey(); this.s.dayEarn = 0; } return Math.max(0, DAY_CAP - this.s.dayEarn); },
+  room() { if (this.remote) return this.s.room | 0; if (this.s.day !== dayKey()) { this.s.day = dayKey(); this.s.dayEarn = 0; } return Math.max(0, DAY_CAP - this.s.dayEarn); },
+  aiOn() { return !!(this.remote && this.srv && this.srv.aiUntil > Date.now() + this.srv.skew); },
+  shopOpen() { return !!(this.remote && this.ready && this.srv && this.srv.shop); },
+
+  /* ---- on this device ---- */
   earn(n) { const got = Math.min(Math.max(0, Math.round(n)), this.room()); this.s.dayEarn += got; this.s.coins += got; this.save(); return got; },
   gift(n) { this.s.coins += n; this.save(); },
   spend(n) { if (this.s.coins < n) return false; this.s.coins -= n; this.save(); return true; },
-  unlock(ch) { if (this.owns(ch) || !this.spend(PRICE.char)) return false; this.s.own.push(ch.id); this.save(); return true; },
-  tryOnce(ch) { if (this.owns(ch) || this.s.tried.includes(ch.id)) return false; this.s.tried.push(ch.id); this.save(); return true; },
-  canTry(ch) { return !this.owns(ch) && !this.s.tried.includes(ch.id); },
   /* one capsule: a rarity by the odds, then any item of that rarity; one you have already turns into coins */
   pull() {
     if (!this.spend(PRICE.capsule)) return null;
-    let r = 0, x = Math.random(); for (let i = 0; i < RARE.length; i++) { if (x < RARE[i].p) { r = i; break; } x -= RARE[i].p; r = i; }
+    let r = 0, x = Math.random(); for (let i = 0; i < RARE.length; i++) { r = i; if (x < RARE[i].p) break; x -= RARE[i].p; }
     const pool = LOOKS.filter(it => it.r === r), it = pool[Math.floor(Math.random() * pool.length)], dup = this.has(it.id);
     if (dup) this.s.coins += RARE[r].back; else this.s.items.push(it.id);
     this.save(); return { it, dup, back: dup ? RARE[r].back : 0 };
   },
-  /* the login bonus: once a day, more the very first time (enough for three capsules) */
-  login() { const t = dayKey(); if (this.s.login === t) return 0; const n = this.s.login ? LOGIN.daily : LOGIN.first; this.s.login = t; this.gift(n); return n; },
+
+  /* ---- the game's server ---- */
+  async api(path, body) {
+    const ctl = new AbortController(), tm = setTimeout(() => ctl.abort(), 9000);
+    try {
+      const r = await fetch(SERVER + path, {
+        method: body === undefined ? 'GET' : 'POST', signal: ctl.signal, body: body === undefined ? undefined : JSON.stringify(body),
+        headers: Object.assign({ 'Content-Type': 'application/json' }, this.tok ? { Authorization: 'Bearer ' + this.tok } : {}),
+      });
+      const j = await r.json().catch(() => ({}));
+      if (j && j.me) this.take(j.me);
+      if (!r.ok) { const e = new Error(String(j.error || r.status)); e.code = j.error || r.status; throw e; }
+      this.err = ''; return j;
+    } finally { clearTimeout(tm); }
+  },
+  /* the server's view of you, in the shape the game uses */
+  take(me) {
+    const own = (me.own || []).filter(id => ROSTER.some(c => c.id === id) && !STARTERS.includes(id));
+    this.s = { coins: me.coins | 0, own, tried: me.tried || [], items: (me.items || []).filter(id => LOOK[id]), wear: {}, day: dayKey(), dayEarn: 0, login: me.loginToday ? dayKey() : '', room: me.room | 0 };
+    if (me.wear && typeof me.wear === 'object') for (const id in me.wear) this.s.wear[id] = cleanLook(me.wear[id]);
+    this.srv = { skus: me.skus || {}, shop: !!me.shop, aiUntil: +me.aiUntil || 0, skew: (+me.now || Date.now()) - Date.now() };
+    if (me.price) { if (me.price.char) PRICE.char = me.price.char; if (me.price.capsule) PRICE.capsule = me.price.capsule; }
+    syncWallet();
+  },
+
+  /* ---- the same things in either mode ---- */
+  /* the start: on the server, your account (made now if there is none; progress kept on this device comes along once), then the login bonus */
+  async startUp(again) {
+    if (!this.remote) {
+      const t = dayKey(); if (this.s.login === t) return 0;
+      const n = this.s.login ? LOGIN.daily : LOGIN.first; this.s.login = t; this.gift(n); return n;
+    }
+    const loc = this.s || { coins: 0, own: [], items: [], tried: [] }; this.blank();
+    this.tok = lsGet('uw3d-token') || '';
+    try {
+      if (!this.tok) {
+        const j = await this.api('/api/guest', {}); this.tok = j.token; lsSet('uw3d-token', this.tok);
+        /* progress kept on this device comes along once; then it is cleared so it cannot be brought in again */
+        if (loc.coins || loc.own.length || loc.items.length) await this.api('/api/import', { coins: loc.coins, own: loc.own, items: loc.items, tried: loc.tried }).then(() => lsSet('uw3d-bag', ''), () => {});
+      } else await this.api('/api/me');
+      this.ready = true;
+      return (await this.api('/api/login', {})).got || 0;
+    } catch (e) {
+      /* the account moved to another device (引き継ぎ): start a new one here */
+      if (e.code === 'auth' && !again) { lsSet('uw3d-token', ''); return this.startUp(true); }
+      this.err = 'サーバーにつながりません'; return 0;
+    }
+  },
+  async earnFight(i) {
+    const want = fightWant(i);
+    if (!this.remote) return { got: this.earn(want), want };
+    try { const j = await this.api('/api/earn', i); return { got: j.got | 0, want: j.want | 0 }; } catch (e) { return { got: 0, want, err: true }; }
+  },
+  async unlockX(ch) {
+    if (!this.remote) { if (this.owns(ch) || !this.spend(PRICE.char)) return false; this.s.own.push(ch.id); this.save(); return true; }
+    try { await this.api('/api/unlock', { ch: ch.id }); return true; } catch (e) { return false; }
+  },
+  async tryX(ch) {
+    if (!this.remote) { if (!this.canTry(ch)) return false; this.s.tried.push(ch.id); this.save(); return true; }
+    try { return !!(await this.api('/api/try', { ch: ch.id })).ok; } catch (e) { return false; }
+  },
+  async pullX() {
+    if (!this.remote) return this.pull();
+    try { const j = await this.api('/api/pull', {}); return LOOK[j.item] ? { it: LOOK[j.item], dup: !!j.dup, back: j.back | 0 } : null; } catch (e) { return null; }
+  },
+  async wearX(ch, slot, id) {
+    const L = this.look(ch); L[slot] = id && this.has(id) && LOOK[id].slot === slot ? id : '';
+    if (!this.remote) { this.s.wear[ch.id] = L; this.save(); return; }
+    this.s.wear[ch.id] = L;
+    try { await this.api('/api/wear', { ch: ch.id, look: L }); } catch (e) {}
+  },
+  async tutX() {
+    if (!this.remote) { this.gift(TUT_GIFT); return TUT_GIFT; }
+    try { return (await this.api('/api/tutorial', {})).got | 0; } catch (e) { return 0; }
+  },
+  /* buying: off to Stripe's payment page; you come back to the game with ?paid=… */
+  async buy(sku, arg) { const j = await this.api('/api/checkout', { sku, arg: arg || '' }); location.href = j.url; },
+  confirm(session) { return this.api('/api/checkout/confirm', { session }); },
+  xferNew() { return this.api('/api/transfer/new', {}); },
+  async xferUse(code) { const j = await this.api('/api/transfer/use', { code }); this.tok = j.token; lsSet('uw3d-token', j.token); return j; },
+  redeem(code) { return this.api('/api/redeem', { code }); },
 };
 Bag.load();
 const coinsTxt = n => '🪙 ' + n.toLocaleString('ja-JP');
-/* coins for the fight that just ended (CPU or online; the tutorial and trials of other modes give none) */
-function matchCoins(r) {
-  if (G.type !== 'cpu' && G.type !== 'online') return 0;
-  const res = !r.w ? 'draw' : r.w === G.me ? 'win' : 'lose', n = G.fighters.length;
-  if (G.type === 'online') return { win: 80, draw: 40, lose: 30 }[res];
-  return { win: 60, draw: 30, lose: 20 }[res] * [0.5, 1, 1.6][G.cpuLv] * (1 + 0.25 * (n - 2));
+/* how the fight that just ended went, for its coins (CPU or online; the tutorial gives none) */
+function fightInfo(r) {
+  if (G.type !== 'cpu' && G.type !== 'online') return null;
+  return { mode: G.type, res: !r.w ? 'draw' : r.w === G.me ? 'win' : 'lose', lv: G.cpuLv | 0, n: G.fighters.length };
 }
+const matchCoins = r => { const i = fightInfo(r); return i ? fightWant(i) : 0; };
 /* CPUs wear something now and then, so you see what the capsule holds */
 function cpuLook() {
   const L = { col: '', head: '', pet: '' };
-  if (Math.random() < 0.5) for (const sl of SLOTS) if (Math.random() < 0.5) { const pool = LOOKS.filter(x => x.slot === sl); L[sl] = pool[Math.floor(Math.random() * pool.length)].id; }
+  if (Math.random() < 0.5) for (const sl of SLOTS) if (Math.random() < 0.5) { const pool = LOOKS.filter(x => x.slot === sl && x.r < 3); L[sl] = pool[Math.floor(Math.random() * pool.length)].id; }
   return L;
 }
 function syncWallet() {
-  $('#title-coins').textContent = coinsTxt(Bag.s.coins) + ' コイン';
+  const t = Bag.remote && !Bag.ready ? (Bag.err ? 'コイン（サーバーにつながりません）' : 'コインを読みこみ中…') : coinsTxt(Bag.s.coins) + ' コイン';
+  $('#title-coins').textContent = t;
   const b = $('#bag-coins'); if (b) b.textContent = coinsTxt(Bag.s.coins);
 }
-/* testing on this device only: #debug-coins in the address gives 5,000 coins (there is no money in this version) */
-if (/debug-coins/.test(location.hash)) { Bag.gift(5000); try { history.replaceState(null, '', location.pathname + location.search); } catch (e) {} }
-{
-  const n = Bag.login(), el = $('#title-bonus');
-  if (n) { el.hidden = false; el.textContent = 'ログインボーナス +' + n + 'コイン' + (n >= LOGIN.first ? '（カプセル3回分）。「コレクション」で回せます' : '。また明日も来てね'); }
-  syncWallet();
+/* testing on this device only: #debug-coins in the address gives 5,000 coins (never with the server) */
+if (!Bag.remote && /debug-coins/.test(location.hash)) { Bag.gift(5000); try { history.replaceState(null, '', location.pathname + location.search); } catch (e) {} }
+function titleNote(t) { const el = $('#title-bonus'); el.hidden = !t; el.textContent = t || ''; }
+/* back from Stripe's payment page */
+async function paidReturn() {
+  let q = null; try { q = new URLSearchParams(location.search).get('paid'); } catch (e) {}
+  if (!q) return;
+  try { history.replaceState(null, '', location.pathname); } catch (e) {}
+  if (q === 'cancel') { titleNote('購入をやめました。お金はかかっていません'); return; }
+  for (let k = 0; k < 4; k++) {
+    try {
+      const j = await Bag.confirm(q);
+      if (j.granted) { const s = Bag.srv.skus[j.sku]; titleNote('お買い上げありがとうございます！「' + (s ? s.name : j.sku) + '」が届きました'); afterState(); return; }
+    } catch (e) {}
+    await new Promise(r => setTimeout(r, 1500));
+  }
+  titleNote('支払いの確認がまだ取れていません。少し待ってからページを開き直してください（二重にお金がかかることはありません）');
 }
+/* the server's answer came: what is on screen follows it */
+function afterState() {
+  syncWallet();
+  showcase.forEach((md, i) => { if (md) redressShowcase(i, Bag.look(ROSTER[i])); });
+  if (G.phase === 'title') layoutShowcase('title');
+  else if (G.phase === 'select') { renderSelect(); layoutShowcase('select', G.selIdx); }
+  else if (G.phase === 'bag') { renderBag(); bagPreview(); }
+}
+Bag.startUp().then(n => {
+  if (n) titleNote('ログインボーナス +' + n + 'コイン' + (n >= LOGIN.first ? '（カプセル3回分）。「コレクション」で回せます' : '。また明日も来てね'));
+  else if (Bag.err) titleNote('サーバーにつながりません。対戦はできますが、コインや着せ替えはつながったときに使えます');
+  if (Bag.remote) afterState(); else syncWallet();
+  paidReturn();
+});
 
-/* the collection screen: turn the capsule, see what you have and what it can hold */
+/* the collection screen: turn the capsule, see what you have and what it can hold; with the server, the shop and 引き継ぎ */
 let bagLast = null;
 function openBag() {
-  G.phase = 'bag'; bagLast = null; $('#bag-reveal').hidden = true;
+  G.phase = 'bag'; bagLast = null; $('#bag-reveal').hidden = true; $('#acct-msg').textContent = '';
   renderBag(); show('s-bag'); bagPreview();
 }
 function bagPreview(id) {
@@ -4648,28 +4815,71 @@ function bagPreview(id) {
   if (id) L[LOOK[id].slot] = id;
   redressShowcase(i, L); layoutShowcase('select', i);
 }
+const yen = n => n.toLocaleString('ja-JP') + '円';
 function renderBag() {
   syncWallet();
   $('#bag-who').textContent = ROSTER[G.picks[0] | 0].name;
-  const pull = $('#bag-pull'); pull.textContent = 'カプセルを回す（' + PRICE.capsule + 'コイン）'; pull.disabled = Bag.s.coins < PRICE.capsule;
+  const pull = $('#bag-pull'); pull.textContent = 'カプセルを回す（' + PRICE.capsule + 'コイン）'; pull.disabled = Bag.s.coins < PRICE.capsule || (Bag.remote && !Bag.ready);
   const room = Bag.room();
   $('#bag-day').textContent = (Bag.s.coins < PRICE.capsule ? 'コインが足りません。' : '') + '今日は対戦であと ' + room + 'コイン（1日' + DAY_CAP + 'まで）かせげます。CPUが強いほど、人数が多いほど多くもらえます。';
   $('#bag-list').innerHTML = SLOTS.map(sl => {
     const its = LOOKS.filter(x => x.slot === sl), got = its.filter(x => Bag.has(x.id)).length;
     return '<div><h4>' + SLOT_NAME[sl] + '（' + got + '/' + its.length + '）</h4><ul>' + its.map(x => Bag.has(x.id)
-      ? '<li class="r' + x.r + '"><i>' + x.sym + '</i>' + x.name + '</li>' : '<li class="no r' + x.r + '"><i>？</i>' + RARE[x.r].name + '</li>').join('') + '</ul></div>';
+      ? '<li class="r' + x.r + '"><i>' + x.sym + '</i>' + x.name + '</li>' : '<li class="no r' + x.r + '"><i>？</i>' + rareName(x.r) + '</li>').join('') + '</ul></div>';
   }).join('');
   const per = r => LOOKS.filter(x => x.r === r).length;
-  $('#bag-odds').innerHTML = RARE.map((R, r) => R.name + ' ' + Math.round(R.p * 100) + '%（' + per(r) + '種、1つあたり ' + (R.p / per(r) * 100).toFixed(2) + '%）。持っているものが出たら ' + R.back + 'コインもどる').join('<br>') + '<br>コインはお金では買えません（遊んでためるだけ）。';
+  $('#bag-odds').innerHTML = RARE.map((R, r) => R.name + ' ' + Math.round(R.p * 100) + '%（' + per(r) + '種、1つあたり ' + (R.p / per(r) * 100).toFixed(2) + '%）。持っているものが出たら ' + R.back + 'コインもどる').join('<br>') +
+    '<br>コインはお金では買えません（遊んでためるだけ）。「ショップ」の着せ替えはカプセルからは出ません。';
+  /* the shop: only with the server and Stripe set up */
+  const shop = $('#bag-shop'), open = Bag.shopOpen();
+  shop.hidden = !open; $('#bag-acct').hidden = !(Bag.remote && Bag.ready);
+  if (open) {
+    const sk = Bag.srv.skus, rows = [];
+    const lockedLeft = ROSTER.filter(c => !Bag.owns(c)).length;
+    if (sk.chall) rows.push(['chall', sk.chall.name + '（あと' + lockedLeft + '体）', !lockedLeft]);
+    for (const id of ['c-neon', 'h-ribbon', 'h-witch', 'p-whale', 'p-ufo']) if (sk['look:' + id]) rows.push(['look:' + id, LOOK[id].sym + ' ' + sk['look:' + id].name, Bag.has(id)]);
+    if (sk.premium) rows.push(['premium', sk.premium.name, ['c-neon', 'h-ribbon', 'h-witch', 'p-whale', 'p-ufo'].every(id => Bag.has(id))]);
+    const days = Bag.aiOn() ? Math.ceil((Bag.srv.aiUntil - Date.now() - Bag.srv.skew) / 86400000) : 0;
+    if (sk.ai30) rows.push(['ai30', sk.ai30.name + (days ? '（いま有効・あと' + days + '日。買うと延長）' : '：声の聞き取りがAIで賢くなり、キャラが一言しゃべる'), false]);
+    if (sk.support) rows.push(['support', sk.support.name, false]);
+    shop.innerHTML = '<h4>ショップ（お金で買う）</h4><ul class="skus">' + rows.map(([k, name, done]) => '<li><span>' + name + '</span><b>' + yen(sk[k].amount) + '</b><button class="go sm" type="button" data-buy="' + k + '"' + (done ? ' disabled' : '') + '>' + (done ? '持っています' : '買う') + '</button></li>').join('') + '</ul>' +
+      '<p class="note">「買う」を押すと、Stripe（決済会社）の支払い画面に移ります。カード番号はこのゲームには届きません。未成年の方は保護者の同意を得てから買ってください。' +
+      '<br><a href="tokushoho.html" target="_blank" rel="noopener">特定商取引法にもとづく表記</a>・<a href="terms.html" target="_blank" rel="noopener">利用規約</a>・<a href="privacy.html" target="_blank" rel="noopener">プライバシーポリシー</a></p>';
+  }
 }
-$('#bag-pull').addEventListener('click', () => {
-  const got = Bag.pull(); if (!got) { renderBag(); return; }
+$('#bag-pull').addEventListener('click', async () => {
+  const btn = $('#bag-pull'); btn.disabled = true;
+  const got = await Bag.pullX(); if (!got) { renderBag(); return; }
   audio.tick(); bagLast = got.it;
   const rv = $('#bag-reveal'), R = RARE[got.it.r];
   rv.hidden = false; rv.style.setProperty('--rc', R.c); rv.style.animation = 'none'; void rv.offsetWidth; rv.style.animation = '';
   rv.innerHTML = '<span class="rs">' + got.it.sym + '</span><span><span class="rr">' + R.name + '・' + SLOT_NAME[got.it.slot] + '</span><b>' + got.it.name + '</b><small>' +
     (got.dup ? 'もう持っていたので ' + got.back + 'コインもどりました' : 'NEW！ キャラ選択で着せられます。いまは試しに着せています') + '</small></span>';
   renderBag(); bagPreview(got.it.id);
+});
+/* buying anywhere (the shop, or a 潜水者 in the select screen) */
+async function buyFrom(btn) {
+  const sku = btn.dataset.buy, arg = btn.dataset.arg || '', was = btn.textContent;
+  btn.disabled = true; btn.textContent = '支払い画面へ…';
+  try { await Bag.buy(sku, arg); }
+  catch (e) { btn.disabled = false; btn.textContent = was; const m = $('#acct-msg'); if (m) m.textContent = ''; alertLine(e.code === 'owned' ? 'もう持っています' : '支払い画面を開けませんでした。少し待ってからもう一度どうぞ'); }
+}
+function alertLine(t) { const el = G.phase === 'select' ? $('#sel-voice') : $('#acct-msg'); if (el) { el.hidden = false; el.textContent = t; } }
+$('#bag-shop').addEventListener('click', e => { const b = e.target.closest('[data-buy]'); if (b) buyFrom(b); });
+$('#xfer-new').addEventListener('click', async () => {
+  const m = $('#acct-msg');
+  try { const j = await Bag.xferNew(); m.textContent = '引き継ぎコード：' + j.code + '（' + new Date(j.expires).toLocaleString('ja-JP') + ' まで・1回だけ）。新しい端末の「コレクション」で入力してください'; }
+  catch (e) { m.textContent = 'コードを出せませんでした。サーバーにつながっているか確かめてください'; }
+});
+$('#xfer-use').addEventListener('click', async () => {
+  const m = $('#acct-msg'), v = $('#xfer-in').value.trim(); if (!v) return;
+  try { await Bag.xferUse(v); $('#xfer-in').value = ''; m.textContent = '引き継ぎました。この端末で続きから遊べます'; afterState(); }
+  catch (e) { m.textContent = e.code === 'code' ? 'コードが違うか、期限が切れています' : '引き継げませんでした。少し待ってからもう一度どうぞ'; }
+});
+$('#code-use').addEventListener('click', async () => {
+  const m = $('#acct-msg'), v = $('#code-in').value.trim(); if (!v) return;
+  try { const j = await Bag.redeem(v); $('#code-in').value = ''; m.textContent = 'コードを使いました' + (j.note ? '（' + j.note + '）' : '') + '。' + (j.kind === 'all' ? '全キャラが仲間になりました' : '受け取りました'); afterState(); }
+  catch (e) { m.textContent = e.code === 'used' ? 'このコードはもう使っています' : 'コードが違うか、期限が切れています'; }
 });
 function bagRestore() { const i = G.picks[0] | 0; redressShowcase(i, Bag.look(ROSTER[i])); }
 $('#bag-back').addEventListener('click', () => { bagRestore(); goTitle(); });
@@ -4748,6 +4958,7 @@ function collectHTML(c) {
     const can = Bag.s.coins >= PRICE.char;
     return '<div class="lockbar"><b>🔒 まだ仲間ではありません</b>' + coins +
       '<button class="go" type="button" data-unlock="' + c.id + '"' + (can ? '' : ' disabled') + '>' + PRICE.char.toLocaleString('ja-JP') + 'コインで仲間にする</button>' +
+      (Bag.shopOpen() && Bag.srv.skus.ch1 ? '<button class="ghost" type="button" data-buy="ch1" data-arg="' + c.id + '">' + yen(Bag.srv.skus.ch1.amount) + 'ですぐ仲間にする</button>' : '') +
       '<small>' + (can ? '' : 'あと ' + (PRICE.char - Bag.s.coins).toLocaleString('ja-JP') + 'コイン。CPU戦やオンライン対戦でたまります。') +
       (Bag.canTry(c) ? 'CPU戦で1回だけお試しできます。' : 'お試しは使いました。') + '</small></div>';
   }
@@ -4757,14 +4968,16 @@ function collectHTML(c) {
     LOOKS.filter(x => x.slot === sl && Bag.has(x.id)).map(x => '<option value="' + x.id + '"' + (w[sl] === x.id ? ' selected' : '') + '>' + x.sym + ' ' + x.name + '</option>').join('') + '</select>').join('') +
     (any ? '' : '<small>「コレクション」のカプセルで集めると着せられます</small>') + coins + '</div>';
 }
-$('#detail').addEventListener('click', e => {
+$('#detail').addEventListener('click', async e => {
+  const buy = e.target.closest('[data-buy]'); if (buy) { buyFrom(buy); return; }
   const b = e.target.closest('[data-unlock]'); if (!b) return;
-  const c = ROSTER.find(x => x.id === b.dataset.unlock);
-  if (c && Bag.unlock(c)) { audio.tick(); renderSelect(); syncWallet(); }
+  const c = ROSTER.find(x => x.id === b.dataset.unlock); b.disabled = true;
+  if (c && await Bag.unlockX(c)) audio.tick();
+  renderSelect(); syncWallet();
 });
 $('#detail').addEventListener('change', e => {
   const sl = e.target.closest('select[data-slot]'); if (!sl) return;
-  const c = ROSTER[G.selIdx]; Bag.wear(c, sl.dataset.slot, sl.value); audio.tick();
+  const c = ROSTER[G.selIdx]; Bag.wearX(c, sl.dataset.slot, sl.value); audio.tick();
   redressShowcase(G.selIdx, Bag.look(c)); layoutShowcase('select', G.selIdx); renderSelect();
 });
 function renderSelect() {
@@ -4794,12 +5007,12 @@ $('#roster').addEventListener('click', e => {
   const b = e.target.closest('.tile'); if (!b) return;
   G.selIdx = +b.dataset.i; renderSelect(); layoutShowcase('select', G.selIdx); audio.tick();
 });
-$('#sel-ok').addEventListener('click', () => {
+$('#sel-ok').addEventListener('click', async () => {
   G.picks[G.picker] = G.selIdx;
   if (G.type === 'local' && G.picker === 0) { G.picker = 1; G.selIdx = G.picks[1] | 0; renderSelect(); layoutShowcase('select', G.selIdx); return; }
   if (G.type === 'cpu') {
     const mine = ROSTER[G.picks[0]];
-    if (!Bag.owns(mine) && !Bag.tryOnce(mine)) return;
+    if (!Bag.owns(mine) && !(await Bag.tryX(mine))) { renderSelect(); return; }
     const cpus = cpuLineup(G.picks[0]);
     startMatch([G.picks[0], ...cpus].map(i => ROSTER[i]), ['human', ...cpus.map(() => 'cpu')], null, null, [Bag.look(mine), ...cpus.map(cpuLook)]);
     return;
@@ -4908,9 +5121,16 @@ function showResult() {
   $('#res-select').textContent = G.type === 'online' ? (Net.pub ? 'ほかの相手をさがす' : '部屋にもどる') : 'キャラ選択';
   if (G.type === 'online') { Net.set({ ph: 'result', rdy: false }); G.autoBack = 8; }
   /* coins for this fight (today's cap applies) */
-  const want = Math.round(matchCoins(r)), rc = $('#res-coins');
-  rc.hidden = !want;
-  if (want) { const got = Bag.earn(want), left = Bag.room(); rc.innerHTML = ''; rc.append('+' + got + ' コイン'); const sm = document.createElement('small'); sm.textContent = got < want ? '今日のかせぎは上限（' + DAY_CAP + '）に達しました' : '今日はあと ' + left + 'コイン・持っている ' + Bag.s.coins.toLocaleString('ja-JP'); rc.append(sm); }
+  const info = fightInfo(r), rc = $('#res-coins');
+  rc.hidden = !info;
+  if (info) {
+    rc.textContent = 'コインを受け取っています…';
+    Bag.earnFight(info).then(({ got, want, err }) => {
+      const left = Bag.room(); rc.textContent = '+' + got + ' コイン'; const sm = document.createElement('small');
+      sm.textContent = err ? 'サーバーにつながらず、受け取れませんでした' : got < want ? (left ? '続けて結果を送りすぎたので、今回は少なめです' : '今日のかせぎは上限（' + DAY_CAP + '）に達しました') : '今日はあと ' + left + 'コイン・持っている ' + Bag.s.coins.toLocaleString('ja-JP');
+      rc.append(sm);
+    });
+  }
   if (G.type === 'cpu' && G.chars && !Bag.owns(G.chars[0])) $('#res-again').textContent = '仲間にして続ける';
   show('s-result');
 }

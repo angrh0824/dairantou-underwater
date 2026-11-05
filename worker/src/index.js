@@ -9,7 +9,10 @@
    - 決めたページ（ALLOWED_ORIGINS）からしか受け付けない
    - 送れるのは短い指示と名前だけ。AI への聞き方はここで組み立てる
    - 返すのは決まった形（行動の種類・相手・短い返事・自信）だけ
-   - 同じ人からの連続呼び出しは 1 分に RATE_PER_MIN 回まで */
+   - 同じ人からの連続呼び出しは 1 分に RATE_PER_MIN 回まで
+   - AI_NEEDS_PASS = "1" のときは、AIパスを持っているアカウント（Authorization: Bearer 合言葉）だけ使える
+   /api/... はアカウント・持ち物・決済（shop.js） */
+import { handleApi, aiAllowed } from './shop.js';
 
 const ACT_DESC = {
   attack: '近づいて攻撃を数発',
@@ -183,11 +186,14 @@ export default {
     const okOrigin = allowed.includes(origin);
     const cors = okOrigin ? { 'Access-Control-Allow-Origin': origin, Vary: 'Origin' } : {};
     if (req.method === 'OPTIONS') {
-      return new Response(null, { status: okOrigin ? 204 : 403, headers: { ...cors, 'Access-Control-Allow-Methods': 'POST', 'Access-Control-Allow-Headers': 'Content-Type', 'Access-Control-Max-Age': '86400' } });
+      return new Response(null, { status: okOrigin ? 204 : 403, headers: { ...cors, 'Access-Control-Allow-Methods': 'GET, POST', 'Access-Control-Allow-Headers': 'Content-Type, Authorization', 'Access-Control-Max-Age': '86400' } });
     }
+    const path = new URL(req.url).pathname;
+    if (path.startsWith('/api/')) return handleApi(req, env, cors, path);
     if (req.method !== 'POST') return reply({ error: 'method' }, 405, cors);
     if (!okOrigin) return reply({ error: 'origin' }, 403, cors);
     if (!env.OPENROUTER_API_KEY) return reply({ error: 'no_key' }, 503, cors);
+    if (env.AI_NEEDS_PASS === '1' && !(await aiAllowed(req, env))) return reply({ error: 'pass' }, 402, cors);
     if (limited(req.headers.get('CF-Connecting-IP') || 'x', Number(env.RATE_PER_MIN) || 30)) return reply({ error: 'rate' }, 429, cors);
 
     const raw = await req.text();
