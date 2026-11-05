@@ -375,7 +375,6 @@ body.portrait .pad.p2 .btns{bottom:calc(env(safe-area-inset-top,0px) + 76px)}
 /* 声で操作: mic panel (bottom right) and the monster's reply over its head */
 .vnote{font-size:12px;line-height:1.6;color:var(--lamp)}
 #voice{position:fixed;z-index:16;right:max(12px, env(safe-area-inset-right,0px));bottom:calc(env(safe-area-inset-bottom,0px) + 12px);width:min(340px,calc(100vw - 24px));display:flex;flex-direction:column;gap:8px;padding:10px 12px;border-radius:16px;background:rgba(3,18,31,.8);border:1px solid var(--line);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px)}
-body:not(.portrait) #voice.up{bottom:calc(env(safe-area-inset-bottom,0px) + 72px)}
 .v-top{display:flex;gap:10px;align-items:center}
 .v-mic{flex:none;width:44px;height:44px;border-radius:50%;border:2px solid var(--line);background:rgba(127,226,255,.1);display:grid;place-items:center;padding:0}
 .v-mic i{display:block;width:12px;height:20px;border-radius:6px;background:var(--mist)}
@@ -397,7 +396,6 @@ body:not(.portrait) #voice.up{bottom:calc(env(safe-area-inset-bottom,0px) + 72px
 #vsay{position:fixed;left:0;top:0;z-index:14;pointer-events:none;font-weight:900;font-size:13px;padding:5px 11px;border-radius:14px;background:var(--pc,var(--p1));color:var(--ink);white-space:nowrap;max-width:60vw;overflow:hidden;text-overflow:ellipsis}
 /* 技パネル: your four moves by name, bottom left. The ordered move lights up, hesitation pulses, 必殺 greys out while charging */
 #moves{position:fixed;z-index:16;left:max(12px, env(safe-area-inset-left,0px));bottom:calc(env(safe-area-inset-bottom,0px) + 12px);width:min(260px,34vw);padding:8px 10px;border-radius:16px;background:rgba(3,18,31,.8);border:1px solid var(--line);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);pointer-events:none}
-body:not(.portrait) #moves.up{bottom:calc(env(safe-area-inset-bottom,0px) + 72px)}
 .mv-h{font-size:10px;letter-spacing:.06em;color:var(--mist);margin-bottom:4px}
 #moves ol{list-style:none;margin:0;padding:0;display:grid;gap:4px}
 #moves li{position:relative;display:grid;grid-template-columns:2.6em minmax(0,1fr);column-gap:6px;align-items:center;padding:4px 6px;border-radius:9px;border:1px solid transparent;overflow:hidden;transition:background .15s,border-color .15s}
@@ -4780,8 +4778,8 @@ function updateGrumble(dt) {
 /* 技パネル */
 const ACT_MOVE = { attack: 'atk', combo: 'atk', guard: 'def', special: 'sp', air: 'air' };
 const mvRows = {}; for (const li of $$('#moves li')) mvRows[li.dataset.k] = { li, n: $('.mv-n', li), s: $('.mv-s', li), cd: $('.mv-cd', li), cls: '', txt: null };
-function movesPanel(on, up) {
-  const p = $('#moves'); p.hidden = !on; p.classList.toggle('up', !!up);
+function movesPanel(on) {
+  const p = $('#moves'); p.hidden = !on;
   if (!on || !G.me) return;
   /* each name with what saying it in full is worth (言い切り) */
   for (const k of MOVE_KEYS) {
@@ -4811,9 +4809,9 @@ function updateMoves() {
     if (txt !== r.txt) { r.s.textContent = txt; r.txt = txt; }
   }
 }
-function voicePanel(on, up) {
-  const p = $('#voice'); p.hidden = !on; p.classList.toggle('up', !!up);
-  movesPanel(on, up);
+function voicePanel(on) {
+  const p = $('#voice'); p.hidden = !on;
+  movesPanel(on);
   if (!on) { vsayT = 0; $('#vsay').hidden = true; grrT = 0; $('#vgrr').hidden = true; return; }
   $('#v-mic').hidden = !micReady();
   $('#v-text').placeholder = micReady() ? '文字でも指示できます（例: 必殺）' : 'ここに指示を打ち込む（例: 必殺）';
@@ -5606,7 +5604,7 @@ function startMatch(chars, ctrls, ids, nms, looks) {
   G.camYaw = G.me ? G.me.face : 0;
   layoutShowcase('none'); layoutPads(); setupHUD();
   show(null); $('#hud').hidden = false; document.body.classList.toggle('hud4', F.length > 2); $('#pads').hidden = true;
-  if (G.voice) { voicePanel(true, F.length > 2); Voice.start(); }
+  if (G.voice) { voicePanel(true); Voice.start(); }
   Grumble.reset();
   const vs = $('#vs'); vs.textContent = ''; vs.classList.toggle('many', F.length > 2);
   F.forEach((f, i) => {
