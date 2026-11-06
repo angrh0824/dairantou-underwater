@@ -97,6 +97,8 @@ body.portrait .rotate-hint{display:flex}
 /* select */
 #s-select{justify-content:flex-end;align-items:stretch;overflow:hidden}
 .sel-panel{width:min(450px,54vw);max-height:100%;overflow-y:auto;touch-action:pan-y;background:var(--panel);border:1px solid var(--line);border-radius:20px;padding:14px;display:flex;flex-direction:column;gap:12px;-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px)}
+/* the panel's own back / go buttons stay in reach however far it scrolls */
+.sel-panel>.row:last-child{position:sticky;bottom:-14px;z-index:3;margin:0 -14px -14px;padding:12px 14px 14px;background:linear-gradient(rgba(5,30,50,0),rgba(5,30,50,.97) 34%);border-radius:0 0 20px 20px}
 .sel-panel header{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;padding-right:64px}
 .sel-panel h2{font-family:var(--display);font-weight:400;font-size:20px}
 .roster{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
@@ -430,8 +432,8 @@ body.portrait .pad.p2 .btns{bottom:calc(env(safe-area-inset-top,0px) + 76px)}
 #moves li.go{background:var(--p1);border-color:var(--p1)}
 #moves li.go b,#moves li.go .mv-n,#moves li.go .mv-s{color:var(--ink);opacity:1}
 @keyframes mvthink{from{opacity:.65}to{opacity:1}}
-@media (max-width:720px){
-  #moves{width:auto;right:max(12px, env(safe-area-inset-right,0px));bottom:calc(env(safe-area-inset-bottom,0px) + 150px)}
+@media (max-width:720px) and (orientation:portrait){
+  #moves{width:auto;right:max(12px, env(safe-area-inset-right,0px));bottom:calc(env(safe-area-inset-bottom,0px) + 178px)}
   #moves ol{grid-template-columns:1fr 1fr}
   #moves .mv-n{font-size:12px}
 }
@@ -451,7 +453,7 @@ body.portrait .pad.p2 .btns{bottom:calc(env(safe-area-inset-top,0px) + 76px)}
 @media (prefers-reduced-motion:reduce){#voice[data-st="on"] .v-mic i{animation:none}}
 
 /* チュートリアル: one order at a time, in a card under the HUD */
-#tut{position:fixed;z-index:17;left:50%;transform:translateX(-50%);top:calc(env(safe-area-inset-top,0px) + 70px);width:min(440px,calc(100vw - 32px));display:flex;flex-direction:column;gap:4px;padding:12px 14px;border-radius:16px;background:rgba(3,18,31,.86);border:1px solid var(--lamp);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px)}
+#tut{position:fixed;z-index:17;left:50%;transform:translateX(-50%);top:calc(env(safe-area-inset-top,0px) + 80px);width:min(440px,calc(100vw - 32px));display:flex;flex-direction:column;gap:4px;padding:12px 14px;border-radius:16px;background:rgba(3,18,31,.86);border:1px solid var(--lamp);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px)}
 #tut.ok{border-color:var(--heal);box-shadow:0 0 24px -6px var(--heal)}
 #tut-n{font-family:var(--display);font-size:11px;letter-spacing:.12em;color:var(--lamp)}
 #tut.ok #tut-n{color:var(--heal)}
@@ -459,6 +461,21 @@ body.portrait .pad.p2 .btns{bottom:calc(env(safe-area-inset-top,0px) + 76px)}
 #tut-ex{font-weight:900;font-size:15px;color:var(--p1);overflow-wrap:anywhere}
 #tut-hint{font-size:12px;color:var(--mist);line-height:1.6}
 #tut .row{margin-top:4px}
+@media (max-height:500px) and (min-width:600px){
+  #tut{left:max(12px, env(safe-area-inset-left,0px));right:max(12px, env(safe-area-inset-right,0px));width:auto;transform:none;top:calc(env(safe-area-inset-top,0px) + 80px);padding:7px 12px;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.5fr);column-gap:14px;row-gap:2px;align-items:start}
+  #tut-n,#tut-say,#tut-ex{grid-column:1}
+  #tut-say{font-size:14px}
+  #tut-ex{font-size:12px}
+  #tut-hint{grid-column:2;grid-row:1 / span 2;font-size:11px;line-height:1.4}
+  #tut .row{grid-column:2;grid-row:3;margin:0;justify-content:flex-end;gap:6px}
+  #tut .row button{min-height:26px;padding:0 9px;font-size:11px}
+  .title-card{gap:8px}
+  .logo .t1{font-size:clamp(30px,10vh,46px)}
+  .logo .t2{font-size:clamp(16px,5vh,24px)}
+  .menu{grid-template-columns:1fr 1fr}
+  .cta{padding:7px 12px}
+  .cta small{font-size:11px;line-height:1.4}
+}
 #banner{position:fixed;z-index:18;left:50%;top:calc(env(safe-area-inset-top,0px) + 64px);transform:translateX(-50%);width:max-content;max-width:min(540px,calc(100% - 32px));padding:9px 16px 9px 12px;border-radius:14px;background:rgba(5,30,50,.9);border:1px solid var(--lamp);display:flex;gap:10px;align-items:center;pointer-events:none;animation:bannerin .25s ease-out}
 #banner .e{font-size:28px;font-family:system-ui,sans-serif}
 #banner b{display:block;font-family:var(--display);font-weight:400;font-size:14px;color:var(--lamp);line-height:1.35}
@@ -4468,7 +4485,7 @@ function clearInputs() { for (const p of pads) { Object.assign(p.input, blankInp
 
 const keys = new Set();
 addEventListener('keydown', e => {
-  if (e.target && e.target.tagName === 'INPUT') return;
+  if (e.target && e.target.tagName === 'INPUT') { if (e.code === 'Escape' && e.target.id === 'v-text') { e.target.blur(); togglePause(); G.typeBack = G.paused; } return; }
   if (e.code === 'Escape') { togglePause(); return; }
   if (e.code === 'Space' && G.fighters.length) e.preventDefault();
   if (e.repeat) return;
@@ -4885,12 +4902,12 @@ function tutSteps(me, dummy) {
     { t: '「待て」で止める', ex: '「待て」「ストップ」', hint: '止まっている間も、攻撃が来たら身を守ります', ok: () => v().stance === 'wait' && !v().act },
     { t: '「ジャンプ」でかわす', ex: '「ジャンプ」「よけて」', hint: '床を走る攻撃や、飛んでくる物をかわせます。守りが固い重いキャラほど低くしか跳べません（' + me.ch.name + 'の跳躍は「' + feelOf(me.ch).jW + '」）。大声で言うと高く跳べます', ok: () => me.y > 0.4 },
     { t: '防御の技名で身を守る', ex: '「' + mv.def + '」「防御」', hint: mv.def + '：' + DEFK[me.ch.def].desc + '。「防御」だけだと、どの技か少し迷います', ok: () => me.guarding },
-    { t: '攻撃の技名を最後まで叫ぶ', ex: '「' + mv.atk + '」', hint: '技は名前の言いはじめで分かった時点で出ます。そのまま最後まで言い切ると、名前の長さに応じて3秒間威力が上がります（この技は最大×' + nameMax(mv.atk).toFixed(1) + '。聞き取りがずれるほど下がる）。先に当たった分も言い切った時に上乗せ。うまく唱えるほどMP（必殺技に使う）もたまります。「攻撃」だけだと迷って約1秒遅れ、MPもたまりません。' + ATKK[me.ch.atk].desc,
+    { t: '攻撃の技名を最後まで叫ぶ', ex: '「' + mv.atk + '」', hint: '言いはじめで技が出て、最後まで言い切ると3秒間威力が上がります（この技は最大×' + nameMax(mv.atk).toFixed(1) + '）。うまく唱えるほどMP（必殺技に使う）もたまります。「攻撃」だけだと約1秒迷い、MPもたまりません',
       ok: () => tut.full === 'attack' && tut.swing },
     { t: '空中攻撃の技名で飛びかかる', ex: '「' + mv.air + '」「空中攻撃」', hint: mv.air + '：' + AIR_DESC[me.ch.air] + '。空中攻撃の技名でもMPがたまります', ok: () => me.move && me.move.kind === 'air' },
     { t: '技名を唱えてMPを満タンにする', ex: '「' + mv.atk + '」「' + mv.air + '」', mp: 1,
       hint: '体力の下の紫のバーがMPです。攻撃と空中攻撃の技名を、最後まで正しく言えるほど多くたまります。満タンになると光って、必殺技が撃てます', ok: () => me.mp >= MP_MAX },
-    { t: '必殺技の名前を叫ぶ', ex: '「' + mv.sp + '」', mp: 1, hint: 'MPが満タンのときに必殺技の名前を叫ぶと、カットインが入って大技が出ます（足りないときは満タンにしてあります）。撃つとMPは空になり、自分も少し反動を受けます。「必殺」だけだと迷って遅れます', setup: () => { if (me.mp < MP_MAX) me.mp = MP_MAX; }, ok: () => me.move && me.move.kind === 'sp' },
+    { t: '必殺技の名前を叫ぶ', ex: '「' + mv.sp + '」', mp: 1, hint: 'MPが満タンのときに名前を叫ぶと、カットインつきの大技が出ます（いまは満タンにしてあります）。撃つとMPは空になり、反動で自分も少し削れます。「必殺」だけだと迷って遅れます', setup: () => { if (me.mp < MP_MAX) me.mp = MP_MAX; }, ok: () => me.move && me.move.kind === 'sp' },
     { t: '大きな声ほど強くなる', ex: micReady() ? '思いきり大声で「' + mv.atk + '！！」' : '「' + mv.atk + '！！」',
       hint: () => micReady() ? (Level.ok ? 'いつもの声より大きいほど、約3秒のあいだ攻撃・速さ・ジャンプが強くなります（右下のメーターの白い線がいつもの声）。ささやくと少し弱くなります' : 'この端末では声の大きさを測れていません。「！」を付けて打ち込んでも少し気合が入ります')
         : '「！」を付けて打ち込むと気合が入ります（2つまで）。マイクのある場所では、大声ほど強くなります',
@@ -5393,12 +5410,12 @@ $('#xfer-new').addEventListener('click', async () => {
   catch (e) { m.textContent = 'コードを出せませんでした。サーバーにつながっているか確かめてください'; }
 });
 $('#xfer-use').addEventListener('click', async () => {
-  const m = $('#acct-msg'), v = $('#xfer-in').value.trim(); if (!v) return;
+  const m = $('#acct-msg'), v = $('#xfer-in').value.normalize('NFKC').trim(); if (!v) return;
   try { await Bag.xferUse(v); $('#xfer-in').value = ''; m.textContent = '引き継ぎました。この端末で続きから遊べます'; afterState(); }
   catch (e) { m.textContent = e.code === 'code' ? 'コードが違うか、期限が切れています' : '引き継げませんでした。少し待ってからもう一度どうぞ'; }
 });
 $('#code-use').addEventListener('click', async () => {
-  const m = $('#acct-msg'), v = $('#code-in').value.trim(); if (!v) return;
+  const m = $('#acct-msg'), v = $('#code-in').value.normalize('NFKC').trim(); if (!v) return;
   try { const j = await Bag.redeem(v); $('#code-in').value = ''; m.textContent = 'コードを使いました' + (j.note ? '（' + j.note + '）' : '') + '。' + (j.kind === 'all' ? '全キャラが仲間になりました' : '受け取りました'); afterState(); }
   catch (e) { m.textContent = e.code === 'used' ? 'このコードはもう使っています' : 'コードが違うか、期限が切れています'; }
 });
@@ -5737,7 +5754,10 @@ function togglePause() {
   }
   clearInputs(); show('s-pause');
 }
-function resume() { G.paused = false; show(null); }
+function resume() {
+  G.paused = false; show(null);
+  if (G.typeBack) { G.typeBack = false; const t = $('#v-text'); if (t && !$('#voice').hidden) t.focus(); }
+}
 $('#pause-btn').addEventListener('click', togglePause);
 G.view = lsGet('uw3d-view') === 'chase' ? 'chase' : 'top';
 function syncViewBtn() { $('#view-btn').textContent = G.view === 'chase' ? '背後' : '俯瞰'; }
@@ -5768,7 +5788,7 @@ nameInput.addEventListener('input', () => {
   G.myName = v; lsSet('uw3d-name', v);
   if (Net.backend) Net.set({ nm: v });
 });
-nameInput.addEventListener('blur', () => { if (!cleanName(nameInput.value)) nameInput.value = G.myName; });
+nameInput.addEventListener('blur', () => { nameInput.value = G.myName; });
 nameInput.addEventListener('keydown', e => { if (e.key === 'Enter') nameInput.blur(); });
 function renderLobby() {
   const s = Lobby.stat;
@@ -5881,7 +5901,7 @@ function renderRoom(list) {
 }
 $('#on-create').addEventListener('click', () => enterRoom(String(rnd(1000, 9999)), true));
 $('#on-join').addEventListener('click', () => {
-  const v = $('#on-code').value.replace(/\D/g, '');
+  const v = $('#on-code').value.normalize('NFKC').replace(/\D/g, '');
   if (v.length !== 4) { setOnStatus('4桁の部屋コードを入力してください。'); return; }
   enterRoom(v, false);
 });

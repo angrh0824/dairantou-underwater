@@ -18,7 +18,7 @@ const rand = n => { const a = new Uint8Array(n); crypto.getRandomValues(a); retu
 /* codes people type: no 0/O/1/I/L */
 const ABC = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
 const typed = n => [...rand(n)].map(b => ABC[b % ABC.length]).join('');
-const normCode = s => String(s || '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 24);
+const normCode = s => String(s || '').normalize('NFKC').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 24);
 const isChar = c => CHARS.includes(c);
 const isLook = l => Object.prototype.hasOwnProperty.call(LOOKS, l);
 
