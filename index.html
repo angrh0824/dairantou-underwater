@@ -317,7 +317,7 @@ ruby rt{font-size:.6em;font-weight:700;letter-spacing:0;opacity:.85}
 body.portrait #hud .side.p3{grid-column:1/3}
 body.portrait #hud .side.p4{grid-column:3/5}
 body:not(.hud4) #hud .side.p3,body:not(.hud4) #hud .side.p4{display:none}
-body.hud4 #banner{top:calc(env(safe-area-inset-top,0px) + 126px)}
+body.hud4 #banner{top:calc(env(safe-area-inset-top,0px) + 148px)}
 .side.low .hp{animation:lowhp .8s infinite alternate}
 @keyframes lowhp{to{border-color:var(--hurt);box-shadow:0 0 10px rgba(255,111,111,.6)}}
 .clock{display:flex;flex-direction:column;align-items:center;gap:4px}
@@ -382,6 +382,7 @@ body.portrait .pad.p2 .btns{bottom:calc(env(safe-area-inset-top,0px) + 76px)}
 #cutin.foe .ci-band,#cutin.foe .ci-stage{transform:rotate(7deg)}
 #cutin.foe #ci-face{left:auto;right:14%;animation-name:cifacef}
 #cutin.foe .ci-txt{right:auto;left:14%;align-items:flex-start;text-align:left;animation-name:citxtf}
+@media (orientation:portrait){#ci-face{height:min(calc(var(--bh) * 1.32),42vw)}#cutin .ci-txt{max-width:52vw}}
 @keyframes ciflash{0%{opacity:.85}100%{opacity:0}}
 @keyframes ciband{0%{clip-path:inset(48% 0 48% 0);opacity:.4}12%{clip-path:inset(0 0 0 0);opacity:1}80%{clip-path:inset(0 0 0 0);opacity:1}100%{clip-path:inset(50% 0 50% 0);opacity:0}}
 @keyframes cilines{from{background-position:0 0}to{background-position:-160px 0}}
@@ -2362,6 +2363,12 @@ function clearShots() {
 const fxLayer = $('#fx'), floaters = [];
 const _v = new THREE.Vector3();
 function project(x, y, z) { _v.set(x, y, z); _v.project(camera); return { x: (_v.x * 0.5 + 0.5) * innerWidth, y: (-_v.y * 0.5 + 0.5) * innerHeight, behind: _v.z > 1 }; }
+/* a label over someone's head (centred on p.x, standing on p.y), kept inside the screen when they are near its edge */
+function placeOver(el, p) {
+  const m = 8, w = el.offsetWidth, h = el.offsetHeight;
+  const x = w ? Math.min(innerWidth - m - w / 2, Math.max(m + w / 2, p.x)) : p.x, y = h ? Math.max(m + h, p.y) : p.y;
+  el.style.transform = 'translate(' + x.toFixed(1) + 'px,' + y.toFixed(1) + 'px) translate(-50%,-100%)';
+}
 function floater(text, x, y, z, cls, dur, vx, vy, color) {
   const el = document.createElement('div'); el.className = 'fl ' + cls; el.textContent = text;
   if (color) el.style.setProperty('--c', color);
@@ -4672,7 +4679,7 @@ function updateVoiceSay(dt) {
   const f = G.me;
   if (vsayT <= 0 || !f || !G.voice) { vsayT = 0; el.hidden = true; return; }
   const p = project(f.x, f.y + 3.0, f.z);
-  el.style.transform = 'translate(' + p.x.toFixed(1) + 'px,' + p.y.toFixed(1) + 'px) translate(-50%,-100%)';
+  placeOver(el, p);
   el.hidden = !!p.behind;
 }
 /* ================= ひとこと: 3-5 times a match your monster says what it thinks of you =================
@@ -4832,7 +4839,7 @@ function updateGrumble(dt) {
   const f = G.me;
   if (grrT <= 0 || !f || !G.voice) { grrT = 0; el.hidden = true; return; }
   const p = project(f.x, f.y + 3.9, f.z);
-  el.style.transform = 'translate(' + p.x.toFixed(1) + 'px,' + p.y.toFixed(1) + 'px) translate(-50%,-100%)';
+  placeOver(el, p);
   el.hidden = !!p.behind;
 }
 /* 技パネル */
@@ -6075,7 +6082,7 @@ function updateTags() {
     if (el.textContent !== pname(f)) el.textContent = pname(f);
     el.style.setProperty('--pc', PCOL[i]);
     const p = project(f.x, f.y + 2.7, f.z);
-    el.style.transform = 'translate(' + p.x.toFixed(1) + 'px,' + p.y.toFixed(1) + 'px) translate(-50%,-100%)';
+    placeOver(el, p);
     if (p.behind) el.hidden = true;
   });
   for (let i = G.fighters.length; i < tagEls.length; i++) tagEls[i].hidden = true;
@@ -6085,7 +6092,7 @@ function updateThink() {
   if (cpu) {
     if (el.hidden || el.dataset.who !== String(cpu.idx)) { el.hidden = false; el.dataset.who = String(cpu.idx); el.textContent = '💭 ' + cpu.ch.think; }
     const p = project(cpu.x, 3.1, cpu.z);
-    el.style.transform = 'translate(' + p.x.toFixed(1) + 'px,' + p.y.toFixed(1) + 'px) translate(-50%,-100%)';
+    placeOver(el, p);
   } else if (!el.hidden) el.hidden = true;
 }
 /* 背後視点: the camera sits behind your fighter and looks toward the nearest foe; the stick becomes camera-relative */
