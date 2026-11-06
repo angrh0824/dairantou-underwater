@@ -4938,7 +4938,7 @@ function tutSteps(me, dummy) {
     { t: '名前を呼んで狙う', ex: '「' + call + 'を狙え」', hint: '乱闘では狙う相手を選べます。「弱ってるやつ」「近いやつ」も使えます', ok: () => v().target === dummy },
     { t: '「泡」で？の泡を取りに行く', ex: '「泡」「おまかせ」', bub: 1, hint: '泡に触れると、18種類のおまかせ技のどれかが出ます', setup: () => { tut.gotBub = false; tutBubble(); }, ok: () => tut.gotBub },
     { t: '「真ん中」で場外から戻る', ex: '「真ん中」', hint: 'リングの外に落ちると負けです。端に追い込まれたら呼び戻しましょう',
-      setup: () => { applyOrder(me, v(), { act: 'wait' }); tutPlace(me, R - 1.4, 0); tutPlace(dummy, -(R - 3), 0); }, ok: () => hyp(me.x, me.z) < 2 },
+      setup: () => { applyOrder(me, v(), { act: 'wait' }); if (isPortrait()) { tutPlace(me, 0, -(R - 1.4)); tutPlace(dummy, 2.5, 0); } else { tutPlace(me, R - 1.4, 0); tutPlace(dummy, -(R - 3), 0); } }, ok: () => hyp(me.x, me.z) < 2 },
     { t: '「逃げろ」で距離をとる', ex: '「逃げろ」「離れて」', hint: '体力が少ないときに。もう一度「攻めろ」と言えば戦いに戻ります', ok: () => v().stance === 'flee' },
   ];
 }
