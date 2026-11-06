@@ -626,7 +626,7 @@ body.portrait .pad.p2 .btns{bottom:calc(env(safe-area-inset-top,0px) + 76px)}
     <header><p class="eyebrow" id="sel-who">あなたの潜水者</p><h2>潜水者を選ぶ</h2></header>
     <div class="roster" id="roster"></div>
     <div class="detail" id="detail"></div>
-    <p class="foot">ちく＝攻撃に混ざるちくちく成分。多いほど追加ダメージと毒が出やすい。</p>
+    <p class="foot">ちく＝攻撃に混ざるちくちく成分。多いほど追加ダメージと毒が出やすい。反動＝必殺技を撃ったときに自分が受けるダメージ。少ないほど楽。</p>
     <div class="seg" id="sel-count" role="group" aria-label="対戦人数"><span>人数</span><button type="button" data-n="2">2人</button><button type="button" data-n="3">3人</button><button type="button" data-n="4">4人</button><small id="sel-count-note"></small></div>
     <div class="seg" id="sel-foes" role="group" aria-label="対戦相手"></div>
     <div class="seg" id="sel-lv" role="group" aria-label="CPUの強さ"><span>強さ</span><button type="button" data-lv="0">よわい</button><button type="button" data-lv="1">ふつう</button><button type="button" data-lv="2">つよい</button><small id="sel-lv-note"></small></div>
@@ -4978,7 +4978,10 @@ function tutTick(dt) {
 function tutEnd() {
   const first = lsGet('uw3d-tut') !== '1';
   tut.done = true; lsSet('uw3d-tut', '1'); syncTitleMenu();
-  if (first) Bag.tutX().then(syncWallet);
+  if (first) Bag.tutX().then(n => {
+    syncWallet();
+    if (n > 0 && tut && tut.done) $('#tut-say').textContent = 'これで準備OK。ごほうびに ' + n + 'コイン！あとは乱闘で試してみよう';
+  });
   $('#tut').classList.remove('ok');
   $('#tut-n').textContent = 'おつかれさま！';
   $('#tut-say').textContent = 'これで準備OK。あとは乱闘で試してみよう';
