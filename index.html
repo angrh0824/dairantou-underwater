@@ -282,6 +282,11 @@ ruby rt{font-size:.6em;font-weight:700;letter-spacing:0;opacity:.85}
 .side{display:grid;gap:4px;min-width:0}
 .side .who{display:flex;gap:6px;align-items:center;font-weight:900;font-size:13px;min-width:0}
 .side .nm{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-shadow:0 1px 3px rgba(0,0,0,.6)}
+@media (max-width:480px){
+  #hud{gap:8px;padding-left:max(10px, env(safe-area-inset-left,0px));padding-right:max(10px, env(safe-area-inset-right,0px))}
+  .side .who{flex-wrap:wrap;row-gap:1px}
+  .side .nm{flex:1 1 auto;min-width:4.5em;font-size:12px}
+}
 .side .tag{flex:none;font-family:var(--display);font-size:10px;padding:2px 6px;border-radius:6px;background:var(--pc);color:var(--ink)}
 .side .tox{flex:none;font-size:10px;font-weight:900;color:#e7c3ff;border:1px solid #b98be0;border-radius:6px;padding:1px 5px}
 .side .slw{flex:none;font-size:10px;font-weight:900;color:#c9f7d8;border:1px solid #7fcf9e;border-radius:6px;padding:1px 5px}
@@ -2365,7 +2370,9 @@ const _v = new THREE.Vector3();
 function project(x, y, z) { _v.set(x, y, z); _v.project(camera); return { x: (_v.x * 0.5 + 0.5) * innerWidth, y: (-_v.y * 0.5 + 0.5) * innerHeight, behind: _v.z > 1 }; }
 /* a label over someone's head (centred on p.x, standing on p.y), kept inside the screen when they are near its edge */
 function placeOver(el, p) {
-  const m = 8, w = el.offsetWidth, h = el.offsetHeight;
+  const m = 8, t = el.textContent;
+  if (el._t !== t || !el._w) { el._t = t; el._w = el.offsetWidth; el._h = el.offsetHeight; }
+  const w = el._w, h = el._h;
   const x = w ? Math.min(innerWidth - m - w / 2, Math.max(m + w / 2, p.x)) : p.x, y = h ? Math.max(m + h, p.y) : p.y;
   el.style.transform = 'translate(' + x.toFixed(1) + 'px,' + y.toFixed(1) + 'px) translate(-50%,-100%)';
 }
@@ -2399,6 +2406,9 @@ function showBanner(e, title, text, kind) {
   const d = document.createElement('div'), bt = document.createElement('b'), sm = document.createElement('small');
   bt.textContent = title; sm.textContent = text; d.append(bt, sm); b.append(s, d);
   b.hidden = false; b.style.animation = 'none'; void b.offsetWidth; b.style.animation = '';
+  /* just under the HUD as it is laid out now (the CSS top is the fallback when the HUD is hidden) */
+  let low = 0; if (!$('#hud').hidden) for (const el of $$('#hud .side, #hud .clock')) { if (el.offsetParent) low = Math.max(low, el.getBoundingClientRect().bottom); }
+  b.style.top = low ? Math.round(low + 8) + 'px' : '';
   bannerT = 2.8;
 }
 
