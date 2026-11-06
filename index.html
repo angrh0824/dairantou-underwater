@@ -592,7 +592,7 @@ body.portrait .pad.p2 .btns{bottom:calc(env(safe-area-inset-top,0px) + 76px)}
     </div>
     <p class="wallet" id="title-coins"></p>
     <p class="bonus" id="title-bonus" hidden></p>
-    <p class="rules"><span>🎤 声だけで指示して戦う</span><span>90秒・体力100</span><span>場外に落ちたら負け</span><span>？の泡でおまかせ</span><span>おじゃま乱入あり</span></p>
+    <p class="rules"><span>🎤 声だけで指示して戦う</span><span>90秒・体力200</span><span>場外に落ちたら負け</span><span>？の泡でおまかせ</span><span>おじゃま乱入あり</span></p>
     <p class="rotate-hint"><i></i>スマホを横向きにすると遊びやすくなります</p>
   </div>
 </section>
@@ -699,69 +699,72 @@ if (!THREE) { $('#boot-err').hidden = false; return; }
 const R = 9, MAXSH = 42, MATCH_SEC = 90, SPCD = 6;
 /* MP: filled by chanting attack and air move names well; the 必殺 needs it full and empties it */
 const MP_MAX = 100;
+/* 体力 (every damage, heal and shield number is in these units), how far hits throw, and what 防御 is worth:
+   each point of 防御 over 17 takes DEF_TOUGH off every hit and DEF_HEAVY off how far it flies (below 17, the other way) */
+const MAX_HP = 200, KB_K = 0.85, DEF_TOUGH = 0.025, DEF_HEAVY = 0.02;
 const GRAV = 20, JUMP_V = 8.2, LEAP_V = 10;
 const PCOL = ['#7fe2ff', '#ff9cc2', '#ffd86e', '#8dffb4'];
 const ROSTER = [
   { id:'whale-man', name:'クジラおとこ', sub:'潮目を読んでいる会社員', sym:'🐋', glow:'#80d7ff',
-    st:{atk:23,def:17,rec:8,pri:4}, mv:{atk:'ウェールウォッチングアタック', def:'潮吹きバリア', sp:'深海出張・直行便'},
-    sp:'dash', spDesc:'長い距離を一直線に突進する', atkReach:1.35, atkKb:3.6, lunge:5, think:'潮目を読んでいる…' },
+    st:{atk:15,def:17,rec:8,pri:4}, mv:{atk:'ウェールウォッチングアタック', def:'潮吹きバリア', sp:'深海出張・直行便'},
+    sp:'dash', spDesc:'長い距離を一直線に突進する', atkReach:1.35, atkKb:2.7, lunge:5, think:'潮目を読んでいる…' },
   { id:'star-person', name:'ヒトデ・ノ・ヒトデ', sub:'五方向に謝れる', sym:'⭐', glow:'#ffceab',
-    st:{atk:16,def:20,rec:6,pri:12}, mv:{atk:'五方向ペチペチ', def:'砂浜の伏せ待ち', sp:'星形の事情聴取'},
-    sp:'star', spDesc:'回りながら相手を引き寄せ、五方向へ弾き飛ばす', atkReach:1.35, atkKb:3.0, lunge:3, think:'どの方向に謝るか迷っている…' },
+    st:{atk:20,def:20,rec:6,pri:12}, mv:{atk:'五方向ペチペチ', def:'砂浜の伏せ待ち', sp:'星形の事情聴取'},
+    sp:'star', spDesc:'回りながら相手を引き寄せ、五方向へ弾き飛ばす', atkReach:1.35, atkKb:3, lunge:3, think:'どの方向に謝るか迷っている…' },
   { id:'mantis-count', name:'シャコパンチ伯爵', sub:'拳だけは正確', sym:'🦐', glow:'#e4a7ff',
-    st:{atk:28,def:11,rec:15,pri:5}, mv:{atk:'伯爵式・水圧パンチ', def:'袖で目隠し', sp:'七色の高速会釈'},
-    sp:'flurry', spDesc:'目にも止まらない6連打。最後の一発で吹き飛ばす', atkReach:1.4, atkKb:3.2, lunge:3.5, atkRate:0.8, think:'会釈の角度を検討中…' },
+    st:{atk:20,def:11,rec:15,pri:5}, mv:{atk:'伯爵式・水圧パンチ', def:'袖で目隠し', sp:'七色の高速会釈'},
+    sp:'flurry', spDesc:'目にも止まらない6連打。最後の一発で吹き飛ばす', atkReach:1.4, atkKb:1.9, atkMul:0.77, lunge:3.5, atkRate:0.8, think:'会釈の角度を検討中…' },
   { id:'jelly-principal', name:'クラゲ校長', sub:'朝礼が三日続く', sym:'🪼', glow:'#ffa9ec',
-    st:{atk:15,def:18,rec:4,pri:24}, mv:{atk:'朝礼のしびれ話', def:'透明な威厳', sp:'全校一斉ぷるぷる'},
-    sp:'pulse', spDesc:'周りをまとめて電撃。ちくちくの毒が残る', atkReach:1.9, atkKb:2.8, lunge:2, think:'話の続きを思い出している…' },
+    st:{atk:20,def:18,rec:4,pri:24}, mv:{atk:'朝礼のしびれ話', def:'透明な威厳', sp:'全校一斉ぷるぷる'},
+    sp:'pulse', spDesc:'周りをまとめて電撃。ちくちくの毒が残る', atkReach:1.9, atkKb:2.8, atkMul:1.11, lunge:2, think:'話の続きを思い出している…' },
   { id:'shark-lost', name:'サメの忘れ物', sub:'自分が何者か忘れた', sym:'🦈', glow:'#9be6ff',
-    st:{atk:25,def:13,rec:10,pri:7}, mv:{atk:'忘却バイト', def:'物陰で思い出す', sp:'歯だけ先に帰宅'},
-    sp:'teeth', spDesc:'歯だけを飛ばす。行って、ちゃんと戻ってくる', atkReach:1.45, atkKb:3.8, lunge:4.5, think:'自分が何者か思い出している…' },
+    st:{atk:17,def:13,rec:10,pri:7}, mv:{atk:'忘却バイト', def:'物陰で思い出す', sp:'歯だけ先に帰宅'},
+    sp:'teeth', spDesc:'歯だけを飛ばす。行って、ちゃんと戻ってくる', atkReach:1.45, atkKb:3.1, atkMul:0.84, lunge:4.5, think:'自分が何者か思い出している…' },
   { id:'ink-pianist', name:'イカ墨ピアニスト', sub:'鍵盤が見えない', sym:'🦑', glow:'#a9a3ff',
-    st:{atk:21,def:16,rec:9,pri:11}, mv:{atk:'黒鍵しかない協奏曲', def:'墨色カーテン', sp:'アンコールは墨まみれ'},
-    sp:'ink', spDesc:'墨のかたまりを撃つ。墨だまりに入ると動きが鈍る', atkReach:1.6, atkKb:3.0, lunge:3, think:'黒鍵の場所を探している…' },
+    st:{atk:13,def:16,rec:9,pri:11}, mv:{atk:'黒鍵しかない協奏曲', def:'墨色カーテン', sp:'アンコールは墨まみれ'},
+    sp:'ink', spDesc:'墨のかたまりを撃つ。墨だまりに入ると動きが鈍る', atkReach:1.6, atkKb:2, atkMul:0.91, lunge:3, think:'黒鍵の場所を探している…' },
   { id:'seahorse-manager', name:'タツノオトシゴ課長', sub:'海流で会議に遅れる', sym:'🐴', glow:'#ffe28c',
-    st:{atk:18,def:21,rec:5,pri:10}, mv:{atk:'朝会スパイラル', def:'稟議の巻き付き', sp:'育児休暇ドラゴン'},
-    sp:'babies', spDesc:'子どもたちが相手を追いかけて体当たりする', atkReach:1.4, atkKb:3.2, lunge:3.5, think:'会議の時間を確かめている…' },
+    st:{atk:26,def:21,rec:5,pri:10}, mv:{atk:'朝会スパイラル', def:'稟議の巻き付き', sp:'育児休暇ドラゴン'},
+    sp:'babies', spDesc:'子どもたちが相手を追いかけて体当たりする', atkReach:1.4, atkKb:3.4, atkMul:1.29, lunge:3.5, think:'会議の時間を確かめている…' },
   { id:'puffer-gatekeeper', name:'フグの門番', sub:'入場条件は気分', sym:'🐡', glow:'#fff08a',
-    st:{atk:17,def:25,rec:7,pri:17}, mv:{atk:'入場拒否タックル', def:'まんまる警備網', sp:'毒舌ゲートオープン'},
-    sp:'puff', spDesc:'まんまるに膨らんでトゲと毒をまき散らす', atkReach:1.3, atkKb:3.8, lunge:5.5, think:'今日の気分を決めている…' },
+    st:{atk:9,def:25,rec:7,pri:17}, mv:{atk:'入場拒否タックル', def:'まんまる警備網', sp:'毒舌ゲートオープン'},
+    sp:'puff', spDesc:'まんまるに膨らんでトゲと毒をまき散らす', atkReach:1.3, atkKb:2.9, atkMul:0.85, lunge:5.5, think:'今日の気分を決めている…' },
   { id:'manta-house', name:'マンタが住む家', sub:'住所だけ立派', sym:'🛸', glow:'#9deaff',
-    st:{atk:20,def:22,rec:8,pri:5}, mv:{atk:'屋根ごとスライド', def:'居留守フィン', sp:'固定資産・大回転'},
-    sp:'spin', spDesc:'家ごと大回転しながら進み、何度も巻き込む', atkReach:1.5, atkKb:4.0, lunge:4.5, think:'住所を書き直している…' },
+    st:{atk:18,def:22,rec:8,pri:5}, mv:{atk:'屋根ごとスライド', def:'居留守フィン', sp:'固定資産・大回転'},
+    sp:'spin', spDesc:'家ごと大回転しながら進み、何度も巻き込む', atkReach:1.5, atkKb:4, lunge:4.5, think:'住所を書き直している…' },
   { id:'slug-fossil', name:'ウミウシの化石', sub:'昨日から動いてない', sym:'🐌', glow:'#96ffe5',
-    st:{atk:14,def:24,rec:3,pri:19}, mv:{atk:'古代のぬめり', def:'一億年の沈黙', sp:'絶滅寸前ラッシュ'},
+    st:{atk:21,def:24,rec:3,pri:19}, mv:{atk:'古代のぬめり', def:'一億年の沈黙', sp:'絶滅寸前ラッシュ'},
     sp:'rush', spDesc:'ぬめりながら突進して何度もぶつかる。ちくちくの毒が残る', atkReach:1.35, atkKb:2.8, lunge:2, think:'昨日の続きを考えている…' },
   { id:'octopus-snail', name:'タコ足のかたつむり', sub:'急いでいるつもり', sym:'🐙', glow:'#ffadb4',
-    st:{atk:20,def:15,rec:11,pri:15}, mv:{atk:'八本だけ早歩き', def:'殻の中で既読無視', sp:'ねじれた前進'},
-    sp:'zigzag', spDesc:'ねじれた軌道で前進して、まとめて押し出す', atkReach:1.5, atkKb:3.2, lunge:3.5, speedBonus:0.4, think:'急いでいるつもりになっている…' },
+    st:{atk:14,def:15,rec:11,pri:15}, mv:{atk:'八本だけ早歩き', def:'殻の中で既読無視', sp:'ねじれた前進'},
+    sp:'zigzag', spDesc:'ねじれた軌道で前進して、まとめて押し出す', atkReach:1.5, atkKb:3.2, atkMul:0.89, lunge:3.5, speedBonus:0.4, think:'急いでいるつもりになっている…' },
   { id:'crab-meeting', name:'カニの反省会', sub:'横にしか進まない議題', sym:'🦀', glow:'#ffb0a4',
-    st:{atk:22,def:19,rec:8,pri:9}, mv:{atk:'横歩き議事録', def:'甲羅の言い訳', sp:'満場一致のはさみ'},
+    st:{atk:23,def:19,rec:8,pri:9}, mv:{atk:'横歩き議事録', def:'甲羅の言い訳', sp:'満場一致のはさみ'},
     sp:'sweep', spDesc:'前方を広く薙ぎ払い、相手を真横へ飛ばす', atkReach:1.45, atkKb:3.4, lunge:3, speedBonus:0.6, think:'議題を横にずらしている…' },
   { id:'angler-note', name:'アンコウの置き手紙', sub:'光っているが読めない', sym:'💡', glow:'#f5e78f',
-    st:{atk:24,def:12,rec:13,pri:13}, mv:{atk:'既読させる灯り', def:'暗闇の置き逃げ', sp:'深海ポスト投函'},
-    sp:'lob', spDesc:'手紙を相手の足元へ投函。少し遅れて爆発する', atkReach:1.5, atkKb:3.4, lunge:3.5, think:'手紙の宛名を読もうとしている…' },
+    st:{atk:29,def:12,rec:13,pri:13}, mv:{atk:'既読させる灯り', def:'暗闇の置き逃げ', sp:'深海ポスト投函'},
+    sp:'lob', spDesc:'手紙を相手の足元へ投函。少し遅れて爆発する', atkReach:1.5, atkKb:3.4, atkMul:1.12, lunge:3.5, think:'手紙の宛名を読もうとしている…' },
   { id:'otter-robot', name:'ラッコ風ロボ', sub:'貝を割る音だけ本物', sym:'🤖', glow:'#a9e1ff',
-    st:{atk:19,def:23,rec:6,pri:8}, mv:{atk:'アルゴリズム貝割り', def:'省エネ浮遊', sp:'充電式おなか太鼓'},
-    sp:'drum', spDesc:'おなかを3回叩いて、衝撃波を広げる', atkReach:1.4, atkKb:3.6, lunge:3, think:'貝割りの手順を最適化している…' },
+    st:{atk:13,def:23,rec:6,pri:8}, mv:{atk:'アルゴリズム貝割り', def:'省エネ浮遊', sp:'充電式おなか太鼓'},
+    sp:'drum', spDesc:'おなかを3回叩いて、衝撃波を広げる', atkReach:1.4, atkKb:3.6, atkMul:0.89, lunge:3, think:'貝割りの手順を最適化している…' },
   { id:'garden-tower', name:'チンアナゴ・タワー', sub:'一本だけ帰らない', sym:'🏗️', glow:'#ffe2ba',
-    st:{atk:13,def:26,rec:4,pri:18}, mv:{atk:'砂から半分出る', def:'地盤ゆらぎません', sp:'全棟同時にのぞく'},
-    sp:'eels', spDesc:'相手の足元からチンアナゴが一斉に飛び出し、打ち上げる', atkReach:1.7, atkKb:3.0, lunge:1.5, think:'帰るかどうか一本だけ悩んでいる…' },
+    st:{atk:21,def:26,rec:4,pri:18}, mv:{atk:'砂から半分出る', def:'地盤ゆらぎません', sp:'全棟同時にのぞく'},
+    sp:'eels', spDesc:'相手の足元からチンアナゴが一斉に飛び出し、打ち上げる', atkReach:1.7, atkKb:3, lunge:1.5, think:'帰るかどうか一本だけ悩んでいる…' },
   { id:'coelacanth-dream', name:'シーラカンスの夢', sub:'起きても夢のまま', sym:'🐟', glow:'#cbd4ff',
-    st:{atk:18,def:20,rec:5,pri:16}, mv:{atk:'太古の寝返り', def:'化石みたいな昼寝', sp:'四億年後の既視感'},
+    st:{atk:20,def:20,rec:5,pri:16}, mv:{atk:'太古の寝返り', def:'化石みたいな昼寝', sp:'四億年後の既視感'},
     sp:'warp', spDesc:'消えて相手の背後に現れ、一撃。前にも見た気がする', atkReach:1.45, atkKb:3.4, lunge:3.5, think:'これが夢かどうか確かめている…' },
   { id:'turtle-printer', name:'カメのプリンター', sub:'印刷が遅いほど強い', sym:'🖨️', glow:'#b9ef8d',
-    st:{atk:16,def:27,rec:2,pri:9}, mv:{atk:'両面コピー押し出し', def:'紙詰まりシェル', sp:'一枚だけ色が違う'},
+    st:{atk:18,def:27,rec:2,pri:9}, mv:{atk:'両面コピー押し出し', def:'紙詰まりシェル', sp:'一枚だけ色が違う'},
     sp:'paper', spDesc:'紙を3枚発射。色違いの1枚だけ強い', atkReach:1.4, atkKb:5.6, lunge:2.5, think:'印刷中… 残り99%' },
   { id:'shrimp-cadet', name:'エビフライ候補生', sub:'まだ揚がっていない', sym:'🍤', glow:'#ffc29d',
-    st:{atk:26,def:12,rec:18,pri:6}, mv:{atk:'衣だけ先輩', def:'油の気配を消す', sp:'レモン待ち突撃'},
-    sp:'leap', spDesc:'高く跳び上がり、相手めがけて落ちてくる', atkReach:1.4, atkKb:3.6, lunge:5, think:'揚がるタイミングを待っている…' },
+    st:{atk:21,def:12,rec:18,pri:6}, mv:{atk:'衣だけ先輩', def:'油の気配を消す', sp:'レモン待ち突撃'},
+    sp:'leap', spDesc:'高く跳び上がり、相手めがけて落ちてくる', atkReach:1.4, atkKb:3.6, atkMul:0.92, lunge:5, think:'揚がるタイミングを待っている…' },
   { id:'clione-guard', name:'クリオネ警備員', sub:'笑顔で取り押さえる', sym:'👮', glow:'#edf4ff',
-    st:{atk:17,def:18,rec:7,pri:21}, mv:{atk:'羽衣の職質', def:'透明な規則', sp:'バッカルコーン封鎖'},
-    sp:'grab', spDesc:'触手で捕まえて、しばらく動けなくする。ちくちくの毒も', atkReach:1.6, atkKb:2.8, lunge:3, think:'職質の文言を考えている…' },
+    st:{atk:25,def:18,rec:7,pri:21}, mv:{atk:'羽衣の職質', def:'透明な規則', sp:'バッカルコーン封鎖'},
+    sp:'grab', spDesc:'触手で捕まえて、しばらく動けなくする。ちくちくの毒も', atkReach:1.6, atkKb:3.9, atkMul:1.29, lunge:3, think:'職質の文言を考えている…' },
   { id:'sea-cucumber-ceo', name:'ナマコの社長', sub:'決裁がとても遅い', sym:'🥒', glow:'#e1a5d1',
-    st:{atk:15,def:23,rec:4,pri:23}, mv:{atk:'稟議書ぬるり', def:'決裁を寝かせる', sp:'臓器の大規模再編'},
-    sp:'glue', spDesc:'ねばねばの糸を飛ばして、相手をその場に貼り付ける', atkReach:1.35, atkKb:2.6, lunge:2, think:'決裁を寝かせている…' },
+    st:{atk:23,def:23,rec:4,pri:23}, mv:{atk:'稟議書ぬるり', def:'決裁を寝かせる', sp:'臓器の大規模再編'},
+    sp:'glue', spDesc:'ねばねばの糸を飛ばして、相手をその場に貼り付ける', atkReach:1.35, atkKb:3.7, atkMul:1.24, lunge:2, think:'決裁を寝かせている…' },
 ];
 /* 空中攻撃: pressing 攻撃 while airborne. [name, kind] — stomp / dive / kick / spin / shot */
 const AIR = {
@@ -2385,8 +2388,12 @@ function derive(c) {
     spDmg: Math.round((13 + s.atk * 0.82 + s.pri * 0.45) * 0.5),
     shRate: 6 + s.def * 0.25,
     jump: JUMP_V * (1 - (s.def - 17) * 0.01),
+    tough: 1 - (s.def - 17) * DEF_TOUGH,
+    heavy: 1 - (s.def - 17) * DEF_HEAVY,
   };
 }
+/* what a hit takes off this fighter after its 防御 (at least 1) */
+const toughen = (t, d) => (d > 0 ? Math.max(1, Math.round(d * t.d.tough)) : 0);
 class Fighter {
   constructor(idx, ch, ctrl, n, look) {
     this.idx = idx; this.ch = ch; this.ctrl = ctrl; this.d = derive(ch); this.id = ''; this.nm = ''; this.left = false;
@@ -2395,10 +2402,10 @@ class Fighter {
     const a = -Math.PI / 2 + idx * Math.PI * 2 / (n || 2), r = (n || 2) > 2 ? 4.6 : 4;
     this.x = Math.sin(a) * r; this.z = Math.cos(a) * r; this.y = 0; this.vx = 0; this.vz = 0; this.vy = 0;
     this.face = this.faceT = Math.atan2(-this.x, -this.z);
-    this.hp = 100; this.shield = 0; this.state = 'idle'; this.move = null;
+    this.hp = MAX_HP; this.shield = 0; this.state = 'idle'; this.move = null;
     this.atkCd = 0; this.spCd = SPCD; this.mp = 0; this.hitstun = 0; this.poison = 0; this.poisonT = 0;
     this.guarding = false; this.flash = 0; this.squash = 0; this.ko = null; this.spin = 0;
-    this.animSeq = 0; this.animKind = ''; this.prevHp = 100; this.prevSh = 0; this.lagHp = 100;
+    this.animSeq = 0; this.animKind = ''; this.prevHp = MAX_HP; this.prevSh = 0; this.lagHp = MAX_HP;
     this.puff = 0; this.charge = 0; this.raise = 0; this.remote = null; this.callF = null;
     this.slowT = 0; this.slowK = 1; this.away = null; this.fade = 0;
   }
@@ -2425,11 +2432,11 @@ function hitAround(f, x, z, r, tol, mk) {
 }
 function aimAt(f, o, range) { if (o && !o.ko && hyp(o.x - f.x, o.z - f.z) < range) f.face = f.faceT = Math.atan2(o.x - f.x, o.z - f.z); }
 function endMove(f) { f.move = null; f.puff = 0; f.charge = 0; f.raise = 0; f.fade = 0; }
-function heal(f, v) { f.hp = Math.min(100, f.hp + v); }
+function heal(f, v) { f.hp = Math.min(MAX_HP, f.hp + v); }
 function addShield(f, v) { f.shield = clamp(f.shield + v, 0, MAXSH); }
 function atkDamage(a, t) {
   const base = Math.round(a.ch.st.atk * 0.3) + rnd(1, 3), pr = rnd(0, Math.round(a.ch.st.pri * 0.25));
-  return { d: Math.max(2, base - Math.round(t.ch.st.def * 0.06)) + pr, po: pr >= 3 ? 3 : 0 };
+  return { d: Math.max(2, base) + pr, po: pr >= 3 ? 3 : 0 };
 }
 
 /* set while a projectile is being moved, so its hits are marked as 飛び道具 (pj) for the guards that care */
@@ -2474,7 +2481,7 @@ function giveFx(a, t, h) {
 /* a = who hit (a fighter, or nothing for events); the defender's own guard (DEFK) decides how much gets through */
 function applyHit(t, h, a) {
   if (t.ko) return;
-  let d = h.d || 0, kx = h.kx || 0, kz = h.kz || 0, ky = h.ky || 0;
+  let d = h.ev ? h.d || 0 : toughen(t, h.d || 0), kx = h.kx || 0, kz = h.kz || 0, ky = h.ky || 0;
   if (h.jm) { t.atkCd = Math.max(t.atkCd, 1.3); t.mp = Math.max(0, (t.mp || 0) - 17); tagFl(t, '紙詰まり'); }
   if (h.gb && (t.guarding || t.shield > 0)) { t.shield = Math.max(0, t.shield - 14); burst(t.x, 1.1, t.z, 0xc8d6e0, 10, 5); tagFl(t, 'パキッ'); }
   const def = t.guarding && !h.ev && !h.gb ? DEFK[t.ch.def] : null;
@@ -2491,9 +2498,9 @@ function applyHit(t, h, a) {
   if (abs > 0) bubbles(t.x, 1.0, t.z, 3);
   const armor = t.move && t.move.armor;
   if (kx || kz || ky) {
-    const s = h.pull ? 1 : 1 + (100 - t.hp) / 65, k = armor ? 0.25 : 1;
+    const s = h.pull ? 1 : (1 + (MAX_HP - t.hp) / (MAX_HP * 0.65)) * KB_K * t.d.heavy, k = armor ? 0.25 : 1;
     t.vx = kx * s * k; t.vz = kz * s * k;
-    if (ky && !armor) t.vy = ky > 0 ? Math.max(t.vy, ky) : Math.min(t.vy, ky);
+    if (ky && !armor) { const y = h.pull ? ky : ky * t.d.heavy; t.vy = y > 0 ? Math.max(t.vy, y) : Math.min(t.vy, y); }
     if (!armor) { t.hitstun = g ? 0.1 : 0.12 + hyp(kx, kz) * s * 0.032; endMove(t); }
   }
   if (h.st && !armor && !g) { t.hitstun = Math.max(t.hitstun, h.st); endMove(t); }
@@ -2619,11 +2626,13 @@ const AIRMOVE = {
 /* ---------- 地上の攻撃: 20通り ----------
    run() plays every frame of the move on every device; hits only land on the attacker's own device (canHit).
    range = how far away it is worth swinging from (CPU and voice orders), min = too close for it. */
+/* a normal attack's hits: 攻撃 (atkDamage) x the move's own weight (mult) x the 潜水者's atkMul, a weight set by
+   CPU round robins for kits that land more or less often than their 攻撃 suggests */
 function atkHit(f, m, key, inside, mult, extra) {
   for (const t of foes(f)) {
     if (m.hits[key + t.idx] || !canHit(f, t) || !level(f, t) || !inside(t)) continue;
     m.hits[key + t.idx] = 1;
-    const r = atkDamage(f, t), n = unit(t.x - f.x, t.z - f.z), d = Math.max(1, Math.round(r.d * mult * (m.boost || 1)));
+    const r = atkDamage(f, t), n = unit(t.x - f.x, t.z - f.z), d = Math.max(1, Math.round(r.d * mult * (m.boost || 1) * (f.ch.atkMul || 1)));
     dealHit(f, t, Object.assign({ d, kx: n.x * f.ch.atkKb, kz: n.z * f.ch.atkKb, po: r.po }, extra ? extra(t, n, d) : null));
   }
 }
@@ -2661,7 +2670,7 @@ const ATKK = {
     damp(f, dt, 8);
     if (m.t < 0.12 || m.t > 0.24) return;
     if (!m.fx) { m.fx = 1; ring(f.x, 1.0, f.z, 0xffa9ec, 2.1, 0.3); burst(f.x, 1.2, f.z, 0xffa9ec, 10, 4); }
-    atkHit(f, m, 'a', within(f.x, f.z, 2.1), 0.55, (t, n) => ({ kx: n.x * 1.8, kz: n.z * 1.8, po: 4 }));
+    atkHit(f, m, 'a', within(f.x, f.z, 2.1), 0.75, (t, n) => ({ kx: n.x * 1.8, kz: n.z * 1.8, po: 4 }));
   } },
   bite: { dur: 0.36, cd: 1.05, lk: 1.5, range: 2.3, desc: '飛びついてかみつく。与えたダメージの一部だけ体力が戻る', run(f, m, dt, fx, fz) {
     damp(f, dt, 7);
@@ -2729,7 +2738,7 @@ const ATKK = {
     if (m.t < 0.12) { f.raise = m.t / 0.12; return; }
     if (m.t > 0.24) return;
     if (!m.fx) { m.fx = 1; for (let s = 0.8; s <= 4.4; s += 0.6) burst(f.x + fx * s, 1.3, f.z + fz * s, 0xfff2a8, 1, 1); }
-    atkHit(f, m, 'a', inArc(f, fx, fz, 4.5, 0.9), 0.55, (t, n) => ({ kx: -n.x * 6.5, kz: -n.z * 6.5, pull: 1 }));
+    atkHit(f, m, 'a', inArc(f, fx, fz, 4.5, 0.9), 0.75, (t, n) => ({ kx: -n.x * 6.5, kz: -n.z * 6.5, pull: 1 }));
   } },
   crack: { dur: 0.38, cd: 1.15, lk: 0.8, range: 2.0, desc: '貝を割る要領で、ガードと泡の盾を割る', run(f, m, dt, fx, fz) {
     damp(f, dt, 7);
@@ -2827,7 +2836,11 @@ const DEFK = {
     t.vanishCd = 1.5;
     const n = a ? unit(t.x - a.x, t.z - a.z) : { x: -Math.sin(t.face), z: -Math.cos(t.face) };
     burst(t.x, 1, t.z, 0xfff2a8, 10, 4);
-    let x = t.x + n.x * 2.6, z = t.z + n.z * 2.6; const e = hyp(x, z);
+    /* away from the hitter; when that is near the edge, to one side or past the hitter instead, never onto the brink */
+    const far = a ? hyp(t.x - a.x, t.z - a.z) + 2.6 : 2.6;
+    const spots = [[n.x, n.z, 2.6], [n.z, -n.x, 2.6], [-n.z, n.x, 2.6], [-n.x, -n.z, far]].map(([dx, dz, k]) => [t.x + dx * k, t.z + dz * k]);
+    let [x, z] = spots.find(([px, pz]) => hyp(px, pz) < R - 2.5) || spots.reduce((p, q) => (hyp(q[0], q[1]) < hyp(p[0], p[1]) ? q : p));
+    const e = hyp(x, z);
     if (e > R - 0.8) { x *= (R - 0.8) / e; z *= (R - 0.8) / e; }
     t.x = x; t.z = z; t.vx = t.vz = 0; burst(x, 1, z, 0xfff2a8, 6, 3); tagFl(t, '置き逃げ');
     return d;
@@ -3329,7 +3342,7 @@ function cpuThink(f, o, dt, b) {
     if (Math.random() < 0.1) b.strafe *= -1;
     mx = -nz * b.strafe * 0.6 + nx * 0.1; mz = nx * b.strafe * 0.6 + nz * 0.1;
     if (K.min && d < K.min) { mx -= nx; mz -= nz; }
-  } else if (RANGED.has(f.ch.sp) && d < 5 && f.spCd < 1.5) { mx = -nx; mz = -nz; }
+  } else if (RANGED.has(f.ch.sp) && d < 5 && f.spCd < 1.5 && f.mp >= MP_MAX) { mx = -nx; mz = -nz; }
   let bub = null, bd = 6;
   for (const b of bubs) { const dd = hyp(b.x - f.x, b.z - f.z); if (!b.pend && dd < bd) { bd = dd; bub = b; } }
   if (bub && !b.noBub && d > f.ch.atkReach + 0.8) {
@@ -3639,6 +3652,8 @@ function nameHit(t, d, m) {
 }
 /* 言霊: the rest of a hit's bonus, landing as the name is finished: damage only, no knock-back */
 function echoHit(a, t, d) {
+  /* shown as it lands, so through 防御 first (it then goes in as event damage, not reduced again) */
+  d = toughen(t, d);
   floater('言霊 +' + d, t.x, 2.7, t.z, 'call sp', 1.0, 0, 0.6, '#ffe8a0');
   burst(t.x, 1.4, t.z, 0xffe8a0, 6, 3);
   giveFx(a, t, { d });
@@ -3811,7 +3826,7 @@ function voiceThink(f, dt, v) {
         /* not charged yet: carry on as before (fighting, waiting, fleeing), and go for it the moment it is ready */
         if (f.spCd > 0.25) { stanceThink(f, dt, v, o); break; }
         const r = SP_RANGE[f.ch.sp] || [0, 3];
-        if (d < r[0]) steer(inp, -dx, -dz);
+        if (d < r[0]) { const e = hyp(f.x, f.z) || 1, k = e > R - 3.5 ? 1.2 : 0; steer(inp, -dx / (d || 1) - f.x / e * k, -dz / (d || 1) - f.z / e * k); }
         else if (d > r[1] - 0.4) steer(inp, dx, dz);
         else { inp.sx = inp.sz = 0; if (f.spCd <= 0) inp.spBuf = 0.2; }
         break;
@@ -3924,8 +3939,8 @@ function cpuDecide(f, b) {
   const o = v.target && !v.target.ko ? v.target : nearest(f), d = o ? hyp(o.x - f.x, o.z - f.z) : 99, r = Math.random();
   let act = null;
   if (hyp(f.x, f.z) > R - 2.2 && r < 0.6) act = 'center';
-  else if (f.spCd <= 0 && r < L.sp) act = 'special';
-  else if (f.hp < 30 && r < 0.3) act = 'flee';
+  else if (f.spCd <= 0 && f.mp >= MP_MAX && r < L.sp) act = 'special';
+  else if (f.hp < MAX_HP * 0.3 && r < 0.3) act = 'flee';
   else if (d > 4 && bubs.some(x => !x.pend) && r < 0.35) act = 'bubble';
   else if (r < 0.15) act = pickOne(['attack', 'combo', 'air']);
   else if (v.stance !== 'fight') act = 'fight';
@@ -3940,7 +3955,7 @@ function cpuDecide(f, b) {
    Two transports behind one interface:
    - inside Claude (signed in): the room capability (named room + presence)
    - anywhere else: PeerJS, a direct browser-to-browser connection; the room creator is the host */
-const PEER_PREFIX = 'dairantou-uw3d-v2-', MAXP = 4;
+const PEER_PREFIX = 'dairantou-uw3d-v3-', MAXP = 4;
 let peerLibP = null;
 function loadPeerLib() {
   if (window.Peer) return Promise.resolve(window.Peer);
@@ -3956,9 +3971,9 @@ function loadPeerLib() {
 /* Every backend exposes the same shape: myId(), hostId(), isHost(), peers() -> [{ id, presence, updatedAt }]
    for everyone except me, send(myPresence), full(), closed(), leave(). */
 async function roomBackend(room, code) {
-  const named = await room.join('uw3d2-' + code);
+  const named = await room.join('uw3d3-' + code);
   const peers = () => { try { return named.peers() || []; } catch (e) { return []; } };
-  const others = () => peers().filter(p => !p.sameTab && p.kind === 'viewer' && p.presence && p.presence.v === 2);
+  const others = () => peers().filter(p => !p.sameTab && p.kind === 'viewer' && p.presence && p.presence.v === 3);
   const api = {
     kind: 'room', code, heartbeat: false, full: () => false, closed: () => false,
     send(me) { try { const pr = named.presence(me); if (pr && pr.catch) pr.catch(() => {}); } catch (e) {} },
@@ -4050,7 +4065,7 @@ function peerBackend(code, create, opts) {
   }));
 }
 const Net = {
-  roomP: null, backend: null, code: '', me: { v: 2 }, dirty: false, last: 0,
+  roomP: null, backend: null, code: '', me: { v: 3 }, dirty: false, last: 0,
   hitSeq: 0, evSeq: 0, ixSeq: 0, goSeq: 0, goSeen: '', hits: [], seen: {}, live: {}, lost: {}, host: true, myIdx: 0,
   bw: [], bwSeen: new Set(), pub: false, searching: false,
   getRoom() {
@@ -4066,7 +4081,7 @@ const Net = {
     const room = await this.getRoom();
     this.pub = !!pub;
     this.backend = room ? await roomBackend(room, code) : await peerBackend(code, create, { busy: () => this.pub && ['vs', 'count', 'fight', 'end'].includes(G.phase) });
-    this.code = code; this.hits = []; this.goSeen = ''; this.me = { v: 2, ph: 'lobby', ch: G.roomPick, lk: Bag.look(ROSTER[G.roomPick]), rdy: !!pub, nm: G.myName }; this.dirty = true; this.push(true);
+    this.code = code; this.hits = []; this.goSeen = ''; this.me = { v: 3, ph: 'lobby', ch: G.roomPick, lk: Bag.look(ROSTER[G.roomPick]), rdy: !!pub, nm: G.myName }; this.dirty = true; this.push(true);
   },
   async leave() { const b = this.backend; this.backend = null; this.code = ''; if (b) { try { await b.leave(); } catch (e) {} } },
   set(p) { Object.assign(this.me, p); this.dirty = true; },
@@ -4108,7 +4123,7 @@ function ingestRemote(f, op) {
   const sn = Net.seen[f.id] || (Net.seen[f.id] = { a: 0, h: 0, e: 0, i: 0 });
   if (!Net.live[f.id]) { if (op.ko) return; Net.live[f.id] = true; }
   f.remote = { x: clamp(+op.x || 0, -30, 30), z: clamp(+op.z || 0, -30, 30), y: clamp(+op.y || 0, -30, 10), f: +op.f || 0, st: String(op.st || 'idle').slice(0, 8), g: !!op.g };
-  if (!f.ko && op.hp !== undefined) { f.hp = clamp(+op.hp || 0, 0, 100); f.shield = clamp(+op.sh || 0, 0, MAXSH); f.mp = clamp(+op.mp || 0, 0, MP_MAX); }
+  if (!f.ko && op.hp !== undefined) { f.hp = clamp(+op.hp || 0, 0, MAX_HP); f.shield = clamp(+op.sh || 0, 0, MAXSH); f.mp = clamp(+op.mp || 0, 0, MP_MAX); }
   if ((op.a | 0) > sn.a) { sn.a = op.a | 0; remoteAnim(f, op.an); }
   if (Array.isArray(op.hits)) for (const h of op.hits) if (h && (h.s | 0) > sn.h) { sn.h = h.s | 0; if (h.to === Net.id()) applyIncoming(G.me, h, f); }
   if (op.ev && (op.ev.s | 0) > sn.e) { sn.e = op.ev.s | 0; const k = op.ev.k | 0; if (EVENTS[k]) runEvent(f, fighterById(op.ev.to) || nearest(f) || G.me, k, false); }
@@ -4192,7 +4207,7 @@ function beginOnline(go, hostId) {
   Net.seen = {}; Net.live = {}; Net.lost = {}; Net.bw = []; Net.bwSeen = new Set();
   Net.set({ cl: [], bw: [], bb: [] });
   for (const e of Net.list()) { const p = e.presence; Net.seen[e.id] = { a: p.a | 0, h: maxSeq(p.hits), e: p.ev ? p.ev.s | 0 : 0, i: p.ix ? p.ix.s | 0 : 0 }; }
-  Net.set({ ph: 'fight', rdy: false, ko: 0, hp: 100, sh: 0, mp: 0, g: 0, st: 'idle' }); Net.push(true);
+  Net.set({ ph: 'fight', rdy: false, ko: 0, hp: MAX_HP, sh: 0, mp: 0, g: 0, st: 'idle' }); Net.push(true);
   const nms = ids.map((_, i) => cleanName(Array.isArray(go.nms) ? go.nms[i] : '') || 'P' + (i + 1));
   const looks = ids.map((_, i) => cleanLook(Array.isArray(go.lks) ? go.lks[i] : null));
   startMatch(chs.map(c => ROSTER[c] || ROSTER[0]), ids.map(id => (id === Net.id() ? 'human' : 'remote')), ids, nms, looks);
@@ -4756,9 +4771,9 @@ const Grumble = {
     }
     /* silence: after 12 s without an order, and again every 15 s while it lasts */
     if (now - this.lastOrder > 12000 && now - this.silentAt > 15000) { this.silentAt = now; this.ev('silent'); }
-    if (!this.low && f.hp < 25) { this.low = true; this.ev('lowhp'); }
+    if (!this.low && f.hp < MAX_HP * 0.25) { this.low = true; this.ev('lowhp'); }
     /* near the end, the ones still owed come out anyway, so every match has 3-5 */
-    if (now >= this.next && G.time < this.left * 10 + 5) this.ev(f.hp < 40 ? 'lowhp' : now - this.lastOrder > 6000 ? 'silent' : personaOf(f).mood === 'nice' ? 'cheer' : 'general');
+    if (now >= this.next && G.time < this.left * 10 + 5) this.ev(f.hp < MAX_HP * 0.4 ? 'lowhp' : now - this.lastOrder > 6000 ? 'silent' : personaOf(f).mood === 'nice' ? 'cheer' : 'general');
   },
   async say(kind) {
     const f = G.me, text = this.lastText, P = personaOf(f), cat = EVCAT[kind] || 'bad';
@@ -4775,7 +4790,7 @@ async function askGrumble(f, kind, last) {
   const ctl = new AbortController(), tm = setTimeout(() => ctl.abort(), 2500), P = personaOf(f);
   try {
     const res = await fetch(aiURL(), { method: 'POST', headers: aiHeaders(), signal: ctl.signal,
-      body: JSON.stringify({ kind: 'grumble', ev: kind, me: f.ch.name, sub: f.ch.sub, persona: P.p, mood: P.mood, last: String(last || '').slice(0, 40), hp: Math.round(f.hp) }) });
+      body: JSON.stringify({ kind: 'grumble', ev: kind, me: f.ch.name, sub: f.ch.sub, persona: P.p, mood: P.mood, last: String(last || '').slice(0, 40), hp: Math.round(f.hp * 100 / MAX_HP) }) });
     if (!res.ok) return null;
     const j = await res.json();
     return [...String(j.say || '')].filter(nameOk).join('').trim().slice(0, 32) || null;
@@ -4891,7 +4906,7 @@ function tutPlace(f, x, z) { f.x = x; f.z = z; f.vx = f.vz = 0; }
 function tutBubble() { clearBubs(); addBub(++G.bubSeq, 3, -2, false); }
 function tutRevive(f) {
   endMove(f); burst(f.x, 1, f.z, 0xdff6ff, 10, 4);
-  f.hp = 100; f.poison = 0; f.hitstun = 0; f.vx = f.vz = f.vy = 0; f.y = 0;
+  f.hp = MAX_HP; f.poison = 0; f.hitstun = 0; f.vx = f.vz = f.vy = 0; f.y = 0;
   tutPlace(f, 0, f === G.me ? -2.5 : 2.5);
 }
 function startTutorial() {
@@ -4920,7 +4935,7 @@ function tutGo(i) {
 function tutMp(on) { const b = $('#hud .side.p1 .mpb'); if (b) b.classList.toggle('hi', on); }
 function tutTick(dt) {
   if (!tut || tut.done || !G.me || !G.voice) return;
-  const d = tut.dummy; d.hp = 100; d.poison = 0;
+  const d = tut.dummy; d.hp = MAX_HP; d.poison = 0;
   if (tut.i < 0) { tutGo(0); return; }
   if (tut.okT > 0) { tut.okT -= dt; if (tut.okT <= 0) { if (tut.i + 1 < tut.steps.length) tutGo(tut.i + 1); else tutEnd(); } return; }
   const s = tut.steps[tut.i];
@@ -5452,11 +5467,11 @@ const nameTag = nm => '<em class="nx">言い切り×' + nameMax(nm).toFixed(1) +
 /* 足の速さとジャンプは防御の数値から決まる（守りが固いほど遅く、低く跳ぶ） */
 function feelOf(c) {
   const d = derive(c), sp = d.speed, jk = d.jump / JUMP_V;
-  return { sp, jk, spW: sp >= 5.7 ? 'はやい' : sp <= 5.2 ? 'おそい' : 'ふつう', jW: jk >= 1.02 ? '高い' : jk <= 0.94 ? '低い' : 'ふつう' };
+  return { sp, jk, tg: d.tough, spW: sp >= 5.7 ? 'はやい' : sp <= 5.2 ? 'おそい' : 'ふつう', jW: jk >= 1.02 ? '高い' : jk <= 0.94 ? '低い' : 'ふつう', tW: d.tough <= 0.9 ? 'かたい' : d.tough >= 1.07 ? 'もろい' : 'ふつう' };
 }
 function feelHTML(c) {
   const e = feelOf(c), row = (k, w, word) => '<span>' + k + '</span><span class="bar"><i style="width:' + Math.round(clamp(w, 0.05, 1) * 100) + '%"></i></span><span class="v">' + word + '</span>';
-  return row('速さ', (e.sp - 4.6) / 2.2, e.spW) + row('跳躍', (e.jk - 0.85) / 0.25, e.jW);
+  return row('速さ', (e.sp - 4.6) / 2.2, e.spW) + row('跳躍', (e.jk - 0.85) / 0.25, e.jW) + row('硬さ', (1.2 - e.tg) / 0.5, e.tW);
 }
 function detailHTML(c) {
   const st = [['攻撃', c.st.atk], ['防御', c.st.def], ['反動', c.st.rec], ['ちく', c.st.pri]], own = Bag.owns(c);
@@ -6003,13 +6018,13 @@ function renderFighter(f, time, dt) {
   if (ds <= -1) floater('盾 -' + Math.round(-ds), f.x - 0.6, 2.0, f.z, 'shd', 0.8, 0, 1.1);
   else if (ds >= 6) floater('盾 +' + Math.round(ds), f.x + 0.6, 2.0, f.z, 'shd', 0.9, 0, 1.1);
   f.prevHp = f.hp; f.prevSh = f.shield;
-  f.lagHp = Math.max(f.hp, f.lagHp - dt * 28);
+  f.lagHp = Math.max(f.hp, f.lagHp - dt * 0.28 * MAX_HP);
 }
 function updateHUD() {
   if ($('#hud').hidden || G.fighters.length < 2) return;
   G.fighters.forEach((f, i) => {
-    const h = hudEls[i], hp = Math.max(0, f.hp);
-    h.cur.style.width = hp + '%'; h.lag.style.width = f.lagHp + '%'; h.sh.style.width = (f.shield / MAXSH * 100) + '%';
+    const h = hudEls[i], hp = Math.max(0, f.hp) * 100 / MAX_HP;
+    h.cur.style.width = hp + '%'; h.lag.style.width = (f.lagHp * 100 / MAX_HP) + '%'; h.sh.style.width = (f.shield / MAXSH * 100) + '%';
     h.mp.style.width = clamp(f.mp / MP_MAX * 100, 0, 100) + '%'; h.mpb.classList.toggle('full', f.mp >= MP_MAX);
     h.tox.hidden = !(f.poison > 0); h.root.classList.toggle('low', hp <= 30 && !f.ko); h.root.classList.toggle('out', !!f.ko);
     h.slw.hidden = !(f.slowT > 0); if (f.slowT > 0) h.slw.textContent = f.slowK === 0 ? 'ねばねば' : 'のろのろ';
