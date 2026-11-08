@@ -1615,6 +1615,8 @@ const LOOKS = [
   { id: 'h-cat', slot: 'head', r: 1, name: 'ねこみみ', sym: '🐱', fit: 1 },
   { id: 'h-bunny', slot: 'head', r: 1, name: 'うさみみ', sym: '🐰', fit: 1 },
   { id: 'h-tiara', slot: 'head', r: 2, name: 'ティアラ', sym: '💎', fit: 1 },
+  { id: 'h-flower', slot: 'head', r: 1, name: 'はなかんむり', sym: '💐', fit: 1 },
+  { id: 'h-oni', slot: 'head', r: 0, name: 'おにのつの', sym: '👹', fit: 1 },
   { id: 'p-fish', slot: 'pet', r: 0, name: 'こざかな', sym: '🐟' },
   { id: 'p-bubbles', slot: 'pet', r: 0, name: 'あわトリオ', sym: '💧' },
   { id: 'p-plankton', slot: 'pet', r: 0, name: 'ひかるプランクトン', sym: '✨' },
@@ -1636,12 +1638,17 @@ const LOOKS = [
   { id: 'f-sun', slot: 'face', r: 1, name: 'サングラス', sym: '🕶️' },
   { id: 'f-heart', slot: 'face', r: 1, name: 'ハートのメガネ', sym: '💕' },
   { id: 'f-groucho', slot: 'face', r: 2, name: 'へんそうメガネ', sym: '🥸' },
+  { id: 'f-star', slot: 'face', r: 0, name: 'ほしのメガネ', sym: '🌟' },
+  { id: 'f-goggle', slot: 'face', r: 1, name: 'すいちゅうメガネ', sym: '🥽' },
   /* back: on the back behind the neck ring, so the same 潜水者 as wear */
   { id: 'b-bag', slot: 'back', r: 0, name: 'ランドセル', sym: '🎒' },
   { id: 'b-devil', slot: 'back', r: 1, name: 'こあくまのはね', sym: '😈' },
   { id: 'b-butterfly', slot: 'back', r: 1, name: 'ちょうのはね', sym: '🦋' },
   { id: 'b-angel', slot: 'back', r: 2, name: 'てんしのはね', sym: '👼' },
   { id: 'b-jet', slot: 'back', r: 2, name: 'ジェットパック', sym: '🚀' },
+  { id: 'b-tank', slot: 'back', r: 0, name: 'ダイビングタンク', sym: '🤿' },
+  { id: 'b-fin', slot: 'back', r: 1, name: 'サメのひれ', sym: '🦈' },
+  { id: 'b-balloon', slot: 'back', r: 2, name: 'ふうせん', sym: '🎈' },
   /* r 3: sold in the shop only (with the game's server), never in the capsule */
   { id: 'c-neon', slot: 'col', r: 3, name: 'ネオン', sym: '💜', neon: 1 },
   { id: 'h-ribbon', slot: 'head', r: 3, name: 'おおきなリボン', sym: '🎀' },
@@ -2143,6 +2150,23 @@ const FACE = {
     for (const [sd, dn] of [[0.15, 0.45], [0.3, 0.95], [0.4, 1.45], [0.42, 1.95], [0.36, 2.4], [0.28, 2.8]]) pts.push(look.out(a.clone().addScaledVector(side, sd * e.r).addScaledVector(up, -dn * e.r), e.dir, tube * 3));
     return [[placeQ(new THREE.TorusGeometry(1.38, 0.13, 6, 22), at, e.r), gold], [new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 12, tube, 4, false), gold]];
   },
+  /* party glasses: see-through yellow stars */
+  'f-star'(eyes, look, md, m) {
+    const parts = [], yel = m('#ffd84a', { roughness: 0.35, transparent: true, opacity: 0.8, emissive: '#ffb800', emissiveIntensity: 0.3 }); fitLenses(look, eyes, 1.55, 1.4, 0.2);
+    for (const e of eyes) parts.push([placeQ(starGeo(1.6, 0.25), lensAt(e), e.r), yel]);
+    if (eyes.length === 2) parts.push([bridgeGeo(look, eyes[0], eyes[1], 1.2, Math.max(0.012, eyes[0].r * 0.1)), yel]);
+    return parts;
+  },
+  /* swim goggles: thick rims round pale blue lenses */
+  'f-goggle'(eyes, look, md, m) {
+    const parts = [], rim = m('#2a2f3a', { roughness: 0.5 }), lens = m('#8fe6ff', { roughness: 0.1, transparent: true, opacity: 0.45, emissive: '#2fb8ff', emissiveIntensity: 0.25 }); fitLenses(look, eyes, 1.5, 1.35, 0.3);
+    for (const e of eyes) {
+      const r = new THREE.TorusGeometry(1.45, 0.26, 8, 22); r.scale(1, 0.85, 1); parts.push([placeQ(r, lensAt(e), e.r), rim]);
+      const l = new THREE.SphereGeometry(1.42, 18, 8); l.scale(1, 0.83, 0.22); parts.push([placeQ(l, lensAt(e, 0.04), e.r), lens]);
+    }
+    if (eyes.length === 2) parts.push([bridgeGeo(look, eyes[0], eyes[1], 1.45, Math.max(0.016, eyes[0].r * 0.16)), rim]);
+    return parts;
+  },
   /* the disguise: thick glasses, eyebrows, a big nose and a moustache, all sitting on the skin */
   'f-groucho'(eyes, look, md, m) {
     const parts = FACE['f-round'](eyes, look, md, m), black = m('#191a22', { roughness: 0.85 }), skin = m('#f2a990', { roughness: 0.6 }), cover = md.faceCover = [];
@@ -2194,7 +2218,7 @@ function buildFace(md, id, m) {
    (hidden when it does); no: pieces that would run into something there. */
 const BACKAT = {
   'whale-man': { c: [0, 1.2, 0], R: [0.985, 0.8865, 1.1623], at: [0.98, Math.PI], k: 1 },
-  'shark-lost': { c: [0, 1.0, 0], R: [0.7092, 0.6895, 1.4283], at: [1.0, 0], k: 0.8 },
+  'shark-lost': { c: [0, 1.0, 0], R: [0.7092, 0.6895, 1.4283], at: [1.0, 0], k: 0.8, no: ['b-balloon'] },
   'puffer-gatekeeper': { on: 'puff', c: [0, 0, 0], R: [0.837, 0.837, 0.837], at: [0.68, Math.PI], k: 0.9, under: P => P.spikes },
   'octopus-snail': { on: 'shell', c: [0, 0, 0], R: [0.3786, 0.6107, 0.6107], at: [0.15, Math.PI], k: 0.65 },
   'angler-note': { c: [0, 1.0, 0], R: [0.8865, 0.8156, 0.8865], at: [0.6, Math.PI], k: 0.95 },
@@ -2254,6 +2278,25 @@ const BACK = {
     flap.translate(0, 0.08 * k, 0.115 * k); clasp.translate(0, -0.06 * k, 0.135 * k);
     return { solid: [[body, red], [flap, dark], [clasp, m(...GOLD)]], half: [0.21 * k, 0.22 * k, 0.1 * k] };
   },
+  /* a yellow scuba tank with its valve */
+  'b-tank'(B, m) {
+    const k = B.k, yel = m('#f2c84b', { roughness: 0.35, metalness: 0.2 }), dark = m('#2a2f3a', { roughness: 0.5 });
+    const t = new THREE.CylinderGeometry(0.11 * k, 0.11 * k, 0.46 * k, 16);
+    const top = new THREE.SphereGeometry(0.11 * k, 16, 8, 0, Math.PI * 2, 0, Math.PI / 2); top.translate(0, 0.23 * k, 0);
+    const bot = new THREE.SphereGeometry(0.11 * k, 16, 8, 0, Math.PI * 2, Math.PI / 2, Math.PI / 2); bot.translate(0, -0.23 * k, 0);
+    const valve = new THREE.CylinderGeometry(0.035 * k, 0.035 * k, 0.09 * k, 10); valve.translate(0, 0.37 * k, 0);
+    const knob = new THREE.CylinderGeometry(0.05 * k, 0.05 * k, 0.025 * k, 12); knob.rotateZ(Math.PI / 2); knob.translate(0, 0.39 * k, 0);
+    const band = new THREE.CylinderGeometry(0.115 * k, 0.115 * k, 0.05 * k, 16); band.translate(0, 0.05 * k, 0);
+    return { solid: [[t, yel], [top, yel], [bot, yel], [valve, dark], [knob, dark], [band, dark]], half: [0.115 * k, 0.4 * k, 0.11 * k] };
+  },
+  /* a shark fin standing up from the back, leaning away from the head */
+  'b-fin'(B, m) {
+    const k = B.k, g = new THREE.ConeGeometry(0.22 * k, 0.5 * k, 4); g.translate(0, 0.25 * k, 0); g.scale(0.3, 1, 1); g.rotateX(Math.PI / 2 + 0.4);
+    const fin = g.toNonIndexed(); fin.computeVertexNormals();
+    return { solid: [[fin, m('#5f7f93', { roughness: 0.5 })]], half: [0.07 * k, 0.2 * k, 0] };
+  },
+  /* a balloon on a string, floating above and swaying */
+  'b-balloon'(B, m) { return { balloon: true }; },
   /* a jetpack: two tanks with nozzles and flickering flames */
   'b-jet'(B, m) {
     const k = B.k, metal = m('#b9c4d0', { metalness: 0.6, roughness: 0.3 }), red = m('#d8344c', { roughness: 0.4 }), parts = [], flames = [];
@@ -2302,6 +2345,17 @@ function buildBack(md, id, m) {
       put(h, w.geo, w.mat); h.userData.base = -w.s * w.sweep; h.userData.amp = w.s * w.flap; res.wings.push(h);
     }
     res.fast = !!out.fast;
+  }
+  if (out.balloon) {
+    /* the string runs up and away from the body (whichever way the back faces); the balloon sways and trails behind on the move (lookAnim) */
+    const k = B.k, sw = new THREE.Group(), red = m('#ff4f6d', { roughness: 0.25, emissive: '#7a0a20', emissiveIntensity: 0.25 }), L = 0.95 * k; grp.add(sw);
+    const away = new THREE.Vector3(B.fr.n.x, 0, B.fr.n.z); if (away.lengthSq() < 0.09) away.set(0, 0, -1); away.normalize();
+    sw.quaternion.copy(B.q).invert().multiply(new THREE.Quaternion().setFromUnitVectors(UPV, new THREE.Vector3(0, 1, 0).addScaledVector(away, 0.62).normalize())); sw.userData.q0 = sw.quaternion.clone();
+    put(sw, new THREE.CylinderGeometry(0.006, 0.006, L, 4), m('#f4f1ea', { roughness: 0.8 }), 0, L / 2, 0);
+    put(sw, new THREE.SphereGeometry(0.2 * k, 16, 12), red, 0, L + 0.21 * k, 0).scale.set(1, 1.15, 1);
+    put(sw, new THREE.ConeGeometry(0.035 * k, 0.05 * k, 8), red, 0, L - 0.005, 0);
+    grp.position.addScaledVector(n, clear(0.03 * k, 0.03 * k, 0) + 0.01);
+    res.balloon = sw;
   }
   /* small parts it covers (a pufferfish's spikes) */
   if (B.f.under) { const r = out.half ? Math.max(out.half[0], out.half[1]) : 0.42 * B.k; for (const o of B.f.under(md.P)) if (o && o.parent === B.par && o.position.distanceTo(B.fr.p) < r + 0.12) o.visible = false; }
@@ -2370,6 +2424,17 @@ const HEADFIT = {
     }
     return { parts, cover: [bandCover(ring)] };
   },
+  /* a crown of flowers on the head band */
+  'h-flower'(f, k, m) {
+    const ring = neckRing(f, f.w * 1.1, f.t * 1.7), mt = m('#ffffff', { roughness: 0.75, name: 'lei' }); mt.map = PAT.lei();
+    return { parts: [[loopGeo(f, ring, puffy(ring), Math.max(2, Math.round(ringLen(f, ring) / (4 * ring.w))), 0), mt]], cover: [bandCover(ring)] };
+  },
+  /* two little yellow oni horns on a dark band */
+  'h-oni'(f, k, m) {
+    const ring = neckRing(f, f.w * 0.4, f.t * 0.5), band = m('#2b2b33', { roughness: 0.6 }), horn = m('#f2c84b', { roughness: 0.4 }), parts = [[loopGeo(f, ring, puffy(ring), 0, 0), band]];
+    for (const s of [-1, 1]) { const at = standFrame(f, ring, s * 0.55, 0.3, ring.l0, [0.1, -s * 0.25]); const g = new THREE.ConeGeometry(0.075, 0.24, 12); g.translate(0, 0.15, 0); parts.push([stand(g, at, k), horn]); }
+    return { parts, cover: [bandCover(ring)] };
+  },
   /* a thin gold tiara: points along the front, a pink gem in the middle */
   'h-tiara'(f, k, m) {
     const ring = neckRing(f, f.w * 0.35, f.t * 0.5), gold = m(...GOLD), gem = m('#ff5fa2', { roughness: 0.15, metalness: 0.3, emissive: '#ff2f7a', emissiveIntensity: 0.35 }), parts = [[loopGeo(f, ring, puffy(ring), 0, 0), gold]];
@@ -2432,6 +2497,7 @@ function lookAnim(md, s, time) {
     const b = k.back, sp = b.fast ? 16 : s.moving ? 11 : 4;
     for (const h of b.wings) h.rotation.y = h.userData.base - h.userData.amp * (0.5 + 0.5 * Math.sin(time * sp + md.phase));
     if (b.flames) for (const f of b.flames) f.scale.y = 0.7 + Math.random() * 0.4 + (s.moving ? 0.25 : 0);
+    if (b.balloon) b.balloon.quaternion.copy(b.balloon.userData.q0).multiply(SWAY.setFromEuler(new THREE.Euler(Math.sin(time * 1.7 + md.phase) * 0.14 - (s.moving ? 0.25 : 0), 0, Math.cos(time * 1.3 + md.phase) * 0.12)));
   }
   if (k.pet) {
     const a = time * 1.3 + md.phase;
@@ -2439,6 +2505,7 @@ function lookAnim(md, s, time) {
     k.pet.rotation.y = a + Math.PI / 2; k.pet.visible = !s.ko; k.pet.scale.setScalar(k.ps * Math.max(0.001, 1 - (s.fade || 0)));
   }
 }
+const SWAY = new THREE.Quaternion();
 /* a part's own material, also while a silhouette has swapped it out (see silhouette) */
 const mat0 = o => o.userData.mat0 || o.material;
 const IDLE = { moving: false, guard: false, atkP: 0, spP: 0, shake: 0, flash: 0, ko: false, spin: 0, shield: 0, puff: 0, charge: 0, raise: 0, squash: 0, away: false, fade: 0, air: false, airK: '', airP: 0 };
