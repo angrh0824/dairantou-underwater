@@ -2352,8 +2352,8 @@ const HEADFIT = {
     const ring = neckRing(f, f.w * 0.45, f.t * 0.6), black = m('#d9823b', { roughness: 0.7 }), pink = m('#ffb3cf', { roughness: 0.6 }), parts = [[loopGeo(f, ring, puffy(ring), 0, 0), black]];
     for (const s of [-1, 1]) {
       const at = standFrame(f, ring, s * 0.85, 0.3, ring.l0, [0, -s * 0.2]);
-      const ear = new THREE.ConeGeometry(0.17, 0.32, 4); ear.rotateY(Math.PI / 4); ear.scale(1, 1, 0.38); ear.translate(0, 0.19, 0);
-      const inner = new THREE.ConeGeometry(0.11, 0.22, 4); inner.rotateY(Math.PI / 4); inner.scale(1, 1, 0.2); inner.translate(0, 0.17, 0.045);
+      const ear = new THREE.ConeGeometry(0.24, 0.44, 4); ear.rotateY(Math.PI / 4); ear.scale(1, 1, 0.36); ear.translate(0, 0.25, 0);
+      const inner = new THREE.ConeGeometry(0.155, 0.3, 4); inner.rotateY(Math.PI / 4); inner.scale(1, 1, 0.2); inner.translate(0, 0.22, 0.06);
       parts.push([stand(ear.toNonIndexed(), at, k), black], [stand(inner.toNonIndexed(), at, k), pink]);
     }
     for (const [g] of parts.slice(1)) g.computeVertexNormals();
