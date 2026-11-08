@@ -6165,7 +6165,7 @@ async function turnCapsule(n) {
   rv.hidden = false; rv.style.setProperty('--rc', R.c); rv.style.animation = 'none'; void rv.offsetWidth; rv.style.animation = '';
   const news = got.filter(x => !x.dup).length, back = got.reduce((a, x) => a + x.back, 0);
   rv.innerHTML = '<span class="rs">' + pick.it.sym + '</span><span><span class="rr">' + R.name + '・' + SLOT_NAME[pick.it.slot] + '</span><b>' + pick.it.name + '</b><small>' +
-    (got.length > 1 ? 'NEW ' + news + '個' + (back ? '・かぶりで ' + back + 'コインもどりました' : '') + '。' : pick.dup ? 'もう持っていたので ' + pick.back + 'コインもどりました。' : 'NEW！ ') + (fits(pick.it.id, ROSTER[G.picks[0] | 0].id) ? 'いまは試しに着せています' : 'いまの潜水者はまだ着られません') + '</small></span>';
+    (got.length > 1 ? 'NEW ' + news + '個' + (back ? '・かぶりで ' + back + 'コインもどりました' : '') + '。' : pick.dup ? 'もう持っていたので ' + pick.back + 'コインもどりました。' : 'NEW！ ') + (fits(pick.it.id, ROSTER[G.picks[0] | 0].id) ? 'いまは試しに着せています' : 'いまの潜水者にはまだ合いません（コレクションに合う潜水者を書いています）') + '</small></span>';
   renderBag(); bagPreview(pick.it.id);
 }
 $('#bag-ad-btn').addEventListener('click', () => { if (Ads.reward) Ads.reward(); });
