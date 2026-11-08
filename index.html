@@ -2061,14 +2061,25 @@ function findEyes(md) {
    is in front of p (or less than gap behind it). withCloth: clothes count too (a moustache rests on a scarf) */
 function faceLook(md, par, eyes, withCloth) {
   const skip = new Set(); for (const e of eyes) { skip.add(e.o); if (e.pu) skip.add(e.pu); }
-  const meshes = [], ray = new THREE.Raycaster(), w = new THREE.Vector3(), wd = new THREE.Vector3();
-  md.inner.traverse(o => { if (!o.isMesh || !o.visible || skip.has(o)) return; for (let a = o; a; a = a.parent) if ((a.userData.cloth && !(withCloth && a.userData.cloth === 'wear')) || !a.visible) return; meshes.push(o); });
+  const meshes = [], balls = [], ray = new THREE.Raycaster(), w = new THREE.Vector3(), wd = new THREE.Vector3(), o0 = new THREE.Vector3(), lo = new THREE.Vector3(), ld = new THREE.Vector3(), m3 = new THREE.Matrix3();
+  md.inner.traverse(o => {
+    if (!o.isMesh || !o.visible || skip.has(o)) return;
+    for (let a = o; a; a = a.parent) if ((a.userData.cloth && !(withCloth && a.userData.cloth === 'wear')) || !a.visible) return;
+    /* balls (most bodies) are met exactly and quickly; anything else by its triangles */
+    if (o.geometry.type === 'SphereGeometry') { const inv = o.matrixWorld.clone().invert(); balls.push({ inv, m: m3.clone().setFromMatrix4(inv), r: o.geometry.parameters.radius }); } else meshes.push(o);
+  });
   return {
     out(p, dir, gap) {
       par.localToWorld(w.copy(p)); wd.copy(dir).transformDirection(par.matrixWorld);
-      ray.set(w.clone().addScaledVector(wd, 2), wd.clone().negate());
-      const hit = ray.intersectObjects(meshes, false)[0];
-      return hit && hit.distance < 2 + gap ? par.worldToLocal(hit.point.clone()).addScaledVector(dir, gap) : p.clone();
+      o0.copy(w).addScaledVector(wd, 2); ray.set(o0, wd.clone().negate());
+      const hit = ray.intersectObjects(meshes, false)[0]; let best = hit ? hit.distance : Infinity;
+      for (const b of balls) {
+        lo.copy(o0).applyMatrix4(b.inv); ld.copy(wd).negate().applyMatrix3(b.m);
+        const A = ld.dot(ld), B = 2 * lo.dot(ld), C = lo.dot(lo) - b.r * b.r, D = B * B - 4 * A * C;
+        if (D < 0) continue;
+        const t = (-B - Math.sqrt(D)) / (2 * A); if (t > 0 && t < best) best = t;
+      }
+      return best < 2 + gap ? par.worldToLocal(o0.clone().addScaledVector(wd, -best)).addScaledVector(dir, gap) : p.clone();
     },
   };
 }
