@@ -1451,6 +1451,8 @@ function buildOtterBot(g, m, P) {
   put(g, sph(0.22, 10, 8), lite, 0, 1.64, 0.4).scale.set(1.2, 0.8, 0.8);
   put(g, sph(0.06, 6, 5), dark, 0, 1.72, 0.57);
   P.visor = put(g, box(0.6, 0.11, 0.05), new THREE.MeshBasicMaterial({ color: 0x7fe2ff }), 0, 1.9, 0.42);
+  /* where glasses go on the visor (not drawn): this robot has no eyes of its own */
+  P.eyes = [-1, 1].map(s => { const e = put(g, sph(0.065, 6, 4), m('#000000'), s * 0.15, 1.9, 0.41); e.visible = false; e.userData.dir = new THREE.Vector3(0, 0, 1); return e; });
   for (const s of [-1, 1]) { put(g, sph(0.11, 8, 6), metal, s * 0.36, 2.14, 0); for (const k of [-1, 1]) put(g, cyl(0.008, 0.008, 0.36, 4), dark, s * 0.36, 1.63 + k * 0.03, 0.44).rotation.z = Math.PI / 2 + s * k * 0.15; }
   put(g, cyl(0.02, 0.02, 0.32, 5), dark, 0, 2.32, 0);
   P.ant = put(g, sph(0.06, 8, 6), new THREE.MeshBasicMaterial({ color: 0xff6f6f }), 0, 2.5, 0);
@@ -2109,7 +2111,7 @@ function buildWear(md, id, m) {
    it, in the eye's own part, so eyes on stalks carry their own lens. Each lens is moved forward until nothing of the face is
    in front of its rim, and whatever else sits on the face (a bridge between two eyes in one part, a nose, a chain) is laid on
    the skin, found by looking at the face from the front. Glasses the 潜水者 already wears (P.glasses) step aside. */
-const NO_FACE = ['otter-robot', 'manta-house'], FACE_NO = { 'seahorse-manager': ['f-groucho'] };
+const NO_FACE = ['manta-house'], FACE_NO = { 'seahorse-manager': ['f-groucho'] };
 function findEyes(md) {
   const rad = o => o.geometry.parameters.radius * Math.max(o.scale.x, o.scale.y, o.scale.z);
   if (md.P.eyes) return md.P.eyes.map(o => ({ o, r: rad(o), dir: o.userData.dir.clone(), pu: null, front: 1.2 }));
@@ -2300,6 +2302,8 @@ const BACKAT = {
   'manta-house': { c: [0, 0.8, 0], R: [0.7092, 0.2758, 0.9358], at: [1.0, Math.PI], k: 0.75, no: ['b-angel', 'b-devil', 'b-butterfly'] },
   'otter-robot': { c: [0, 0.95, 0], R: [0.58, 1.2, 0.58], at: [0.25, Math.PI], k: 0.8 },
   'clione-guard': { c: [0, 1.15, 0], R: [0.4186, 0.6156, 0.4186], at: [-0.3, Math.PI], k: 0.55 },
+  /* on top between the horns and the first cerata (big wings would reach the horns) */
+  'slug-fossil': { c: [0, 0.45, 0], R: [0.611, 0.414, 1.231], at: [1.1, 0], k: 0.6, no: ['b-angel', 'b-butterfly'] },
 };
 function backFrame(md) {
   const f = BACKAT[md.type]; if (!f) return null;
