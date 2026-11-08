@@ -21,9 +21,11 @@ export const LOOKS = {
   'c-sakura': 0, 'c-wakaba': 0, 'c-yozora': 0, 'c-yuyake': 0, 'c-yuki': 1, 'c-sumi': 1, 'c-kogane': 1, 'c-niji': 2,
   'h-flower': 0, 'h-cloud': 0, 'h-bubble': 0, 'h-heart': 0, 'h-star': 1, 'h-halo': 1, 'h-crown': 2,
   'p-fish': 0, 'p-bubbles': 0, 'p-plankton': 0, 'p-jelly': 1, 'p-star': 1, 'p-shark': 2,
+  /* ふく: 体に合わせて着るもの。着られる潜水者はゲーム側の NECK で決まる */
+  'w-muffler': 1,
   'c-neon': 3, 'h-ribbon': 3, 'h-witch': 3, 'p-whale': 3, 'p-ufo': 3, 'h-medal': 3,
 };
-export const SLOT_OF = id => ({ c: 'col', h: 'head', p: 'pet' })[String(id)[0]] || '';
+export const SLOT_OF = id => ({ c: 'col', h: 'head', p: 'pet', w: 'wear' })[String(id)[0]] || '';
 
 /* コイン（遊んでためる。お金では買えない） */
 export const COIN = {

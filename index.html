@@ -165,6 +165,7 @@ ruby rt{font-size:.6em;font-weight:700;letter-spacing:0;opacity:.85}
 .loot li.r1{border-color:#9fd8ff}
 .loot li.r2{border-color:var(--lamp)}
 .loot li.r3{border-color:var(--p2)}
+.loot .fit{margin:6px 0 0;font-size:11px;color:var(--mist);line-height:1.4}
 .odds{font-size:12px;color:var(--mist);line-height:1.7}
 .odds summary{cursor:pointer;color:var(--foam)}
 .adrow{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
@@ -1073,12 +1074,19 @@ function eggAt(c, R, la, lo, lift) {
   const up = new THREE.Vector3(-sl * so * R[0], cl * R[1], -sl * co * R[2]).normalize();
   return { p, n, up };
 }
-/* a patch of skin, lifted just off the body so it never flickers: fn(u, v) gives [la, lo] for u left→right, v bottom→top */
-function eggSkin(c, R, lift, nu, nv, fn) {
-  const pos = [], idx = [];
-  for (let j = 0; j <= nv; j++) for (let i = 0; i <= nu; i++) { const [la, lo] = fn(i / nu, j / nv), { p } = eggAt(c, R, la, lo, lift); pos.push(p.x, p.y, p.z); }
+/* a patch of skin, lifted just off the body so it never flickers: fn(u, v) gives [la, lo] for u left→right, v bottom→top
+   (or [la, lo, lift] when the lift changes across the patch). uv is (u, v). seam: the patch goes all the way round, so its
+   first and last columns meet and share their shading (a ring with no visible join) */
+function eggSkin(c, R, lift, nu, nv, fn, seam) {
+  const pos = [], uv = [], idx = [];
+  for (let j = 0; j <= nv; j++) for (let i = 0; i <= nu; i++) { const f = fn(i / nu, j / nv), { p } = eggAt(c, R, f[0], f[1], f.length > 2 ? f[2] : lift); pos.push(p.x, p.y, p.z); uv.push(i / nu, j / nv); }
   for (let j = 0; j < nv; j++) for (let i = 0; i < nu; i++) { const a = j * (nu + 1) + i, d = a + nu + 1; idx.push(a, a + 1, d + 1, a, d + 1, d); }
-  const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setIndex(idx); g.computeVertexNormals(); return g;
+  const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2)); g.setIndex(idx); g.computeVertexNormals();
+  if (seam) {
+    const N = g.attributes.normal, s = new THREE.Vector3(), t = new THREE.Vector3();
+    for (let j = 0; j <= nv; j++) { const a = j * (nu + 1), b = a + nu; s.fromBufferAttribute(N, a).add(t.fromBufferAttribute(N, b)).normalize(); N.setXYZ(a, s.x, s.y, s.z); N.setXYZ(b, s.x, s.y, s.z); }
+  }
+  return g;
 }
 /* the body's own surface around direction dir, ang radians out: a belly or chin with a clean edge */
 function eggCap(g, mat, c, R, lift, dir, ang) {
@@ -1132,7 +1140,7 @@ function buildWhale(g, m, P) {
   /* a long smile, then a necktie hanging from the chin */
   put(g, eggSkin(C, R, 0.014, 20, 1, (u, v) => { const lo = (u * 2 - 1) * 0.5; return [-0.03 + 0.09 * (lo / 0.5) ** 2 + (v - 0.5) * 0.045, lo]; }), dark);
   const kn = eggAt(C, R, -0.17, 0, 0.022), knot = put(g, sph(0.07, 10, 8), tie, kn.p.x, kn.p.y, kn.p.z);
-  knot.quaternion.setFromUnitVectors(UPV, kn.up); knot.scale.set(1.5, 0.85, 0.42);
+  knot.quaternion.setFromUnitVectors(UPV, kn.up); knot.scale.set(1.5, 0.85, 0.42); P.knot = knot;
   put(g, eggSkin(C, R, 0.03, 2, 10, (u, v) => {
     const la = -0.22 - (1 - v) * 0.5, hw = v < 0.22 ? 0.12 * v / 0.22 : 0.12 - 0.075 * (v - 0.22) / 0.78;
     return [la, (u * 2 - 1) * hw / (R[0] * Math.cos(la))];
@@ -1603,6 +1611,8 @@ const LOOKS = [
   { id: 'p-jelly', slot: 'pet', r: 1, name: 'ちびクラゲ', sym: '🎐' },
   { id: 'p-star', slot: 'pet', r: 1, name: 'ちびヒトデ', sym: '🌟' },
   { id: 'p-shark', slot: 'pet', r: 2, name: 'ちびザメ', sym: '🦈' },
+  /* wear: lies on the body, so only the 潜水者 fitted for it in NECK can wear it */
+  { id: 'w-muffler', slot: 'wear', r: 1, name: 'もこもこマフラー', sym: '🧣' },
   /* r 3: sold in the shop only (with the game's server), never in the capsule */
   { id: 'c-neon', slot: 'col', r: 3, name: 'ネオン', sym: '💜', neon: 1 },
   { id: 'h-ribbon', slot: 'head', r: 3, name: 'おおきなリボン', sym: '🎀' },
@@ -1611,10 +1621,10 @@ const LOOKS = [
   { id: 'p-whale', slot: 'pet', r: 3, name: 'ちびクジラ', sym: '🐳' },
   { id: 'p-ufo', slot: 'pet', r: 3, name: 'ちびUFO', sym: '🛸' },
 ];
-const LOOK = Object.fromEntries(LOOKS.map(x => [x.id, x])), SLOTS = ['col', 'head', 'pet'], SLOT_NAME = { col: 'カラー', head: 'あたま', pet: 'おとも' };
+const LOOK = Object.fromEntries(LOOKS.map(x => [x.id, x])), SLOTS = ['col', 'head', 'pet', 'wear'], SLOT_NAME = { col: 'カラー', head: 'あたま', pet: 'おとも', wear: 'ふく' };
 /* anything from storage or another player is checked: unknown ids, or an item in the wrong slot, become nothing */
 function cleanLook(o) {
-  const L = { col: '', head: '', pet: '' };
+  const L = { col: '', head: '', pet: '', wear: '' };
   if (o && typeof o === 'object') for (const sl of SLOTS) { const x = LOOK[o[sl]]; if (x && x.slot === sl) L[sl] = x.id; }
   return L;
 }
@@ -1731,9 +1741,110 @@ function buildPet(id, g, m) {
     for (const s of [-1, 1]) put(g, sph(0.02, 6, 5), m('#141820'), s * 0.045, 0.025, 0.1);
   }
 }
+/* ---- ふく: clothes that lie on the body. Each 潜水者 needs its own fitting, so only the ones in NECK can wear them ----
+   The body is the ellipsoid its builder uses (centre c, radii R, in the part named by on: '' is the whole 潜水者, else P[on]).
+   up: which way the neck runs, as an angle on the body's middle line (π/2 straight up for a round body, near 0 for a long fish
+   whose head points ahead). h: where the scarf sits along it, in radians from the body's middle (+ toward up), on the chin
+   side, at the sides and at the back: a scarf hangs low under the chin and rides higher behind, clear of flippers and fins.
+   w: its width, t: how far its middle puffs out. k: where the knot sits around it (0 the chin side, + toward +x).
+   tails: the two hanging ends as [down, sideways] in radians on the skin from the knot. under: small parts it covers (hidden
+   when they sit under the scarf). The scarf is part of the body, so it follows every squash, turn and fade. */
+const NECK = {
+  'whale-man': { c: [0, 1.2, 0], R: [0.985, 0.8865, 1.1623], up: Math.PI / 2, h: [-0.27, 0.34, 0.55], w: 0.24, t: 0.075, k: 0.62, tails: [[0.5, -0.02], [0.42, 0.22]], under: P => [P.knot] },
+  'shark-lost': { c: [0, 1.0, 0], R: [0.7092, 0.6895, 1.4283], up: 0.16, h: [0.6, 0.5, 0.32], w: 0.22, t: 0.07, k: 1.35, tails: [[0.36, -0.12], [0.3, 0.06]] },
+  'puffer-gatekeeper': { on: 'puff', c: [0, 0, 0], R: [0.837, 0.837, 0.837], up: Math.PI / 2, h: [-0.42, -0.44, -0.55], w: 0.22, t: 0.07, k: 0.5, tails: [[0.38, -0.02], [0.3, 0.22]], under: P => P.spikes },
+};
+const fits = (id, ch) => { const x = LOOK[id]; return !!x && (x.slot !== 'wear' || !!NECK[ch]); };
+const fitNames = () => Object.keys(NECK).map(id => ROSTER.find(c => c.id === id).name).join('・');
+/* the knitted stripes, made once and shared (x runs along the scarf, y across it) */
+let knitTex = null;
+function knit() {
+  if (knitTex) return knitTex;
+  const c = document.createElement('canvas'); c.width = 64; c.height = 16; const x = c.getContext('2d');
+  x.fillStyle = '#d8423f'; x.fillRect(0, 0, 64, 16);
+  x.fillStyle = '#f6ecd6'; x.fillRect(0, 0, 9, 16); x.fillRect(15, 0, 4, 16);
+  /* ribs along the scarf */
+  for (let y = 0; y < 16; y += 2) { x.fillStyle = 'rgba(40,0,10,0.16)'; x.fillRect(0, y, 64, 1); }
+  knitTex = new THREE.CanvasTexture(c); knitTex.wrapS = THREE.RepeatWrapping; knitTex.anisotropy = 4;
+  return knitTex;
+}
+/* one mesh from several (position, normal, uv, index), so a whole piece of clothing is one draw */
+function mergeGeo(list) {
+  const pos = [], nor = [], uv = [], idx = [];
+  for (const g of list) {
+    const base = pos.length / 3, P = g.attributes.position.array, N = g.attributes.normal.array, U = g.attributes.uv.array, I = g.index.array;
+    for (let i = 0; i < P.length; i++) { pos.push(P[i]); nor.push(N[i]); }
+    for (let i = 0; i < U.length; i++) uv.push(U[i]);
+    for (let i = 0; i < I.length; i++) idx.push(I[i] + base);
+    g.dispose();
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('normal', new THREE.Float32BufferAttribute(nor, 3)); g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2)); g.setIndex(idx);
+  return g;
+}
+const laLo = u => [Math.asin(clamp(u.y, -1, 1)), Math.atan2(u.x, u.z)];
+/* the neck ring on the unit sphere (the body divided by its radii), round the axis up. A point on it is p radians round from
+   the chin side and q(p) from the axis, q following h smoothly (three cosine terms through the chin, side and back heights).
+   at(p, s, o): the point p round and s across the scarf (-1 its lower edge, +1 its upper edge). across(u): where unit-sphere
+   point u is across it (|s| < 1 on the scarf). lift(u): how high the scarf stands over the skin there (0 off it) */
+function neckRing(f) {
+  const R = f.R, l0 = 0.02, [hf, hs, hb] = f.h, A0 = (hs + (hf + hb) / 2) / 2, A1 = (hf - hb) / 2, A2 = ((hf + hb) / 2 - hs) / 2;
+  const q = p => Math.PI / 2 - (A0 + A1 * Math.cos(p) + A2 * Math.cos(2 * p));
+  const ax = new THREE.Vector3(0, Math.sin(f.up), Math.cos(f.up)), e1 = new THREE.Vector3(0, -Math.cos(f.up), Math.sin(f.up)), e2 = new THREE.Vector3(1, 0, 0);
+  const d = new THREE.Vector3(), a = new THREE.Vector3(), b = new THREE.Vector3();
+  const pt = (p, qq, o) => (o || new THREE.Vector3()).copy(ax).multiplyScalar(Math.cos(qq)).addScaledVector(e1, Math.sin(qq) * Math.cos(p)).addScaledVector(e2, Math.sin(qq) * Math.sin(p));
+  const sk = v => v.set(v.x * R[0], v.y * R[1], v.z * R[2]);
+  /* half the width as an angle: w/2 over how far the skin moves per radian of q, measured square to the ring */
+  const half = p => {
+    sk(pt(p, q(p) + Math.PI / 2, d)); sk(pt(p + 0.01, q(p + 0.01), a)).sub(sk(pt(p - 0.01, q(p - 0.01), b))).normalize();
+    const L = d.length(), cs = d.dot(a) / L; return f.w / 2 / (L * Math.sqrt(Math.max(0.2, 1 - cs * cs)));
+  };
+  const at = (p, s, o) => pt(p, q(p) - s * half(p), o);
+  const across = u => { const p = Math.atan2(u.dot(e2), u.dot(e1)); return (q(p) - u.angleTo(ax)) / half(p); };
+  const lift = u => { const s = across(u); return Math.abs(s) < 1 ? l0 + f.t * Math.pow(1 - s * s, 0.3) : 0; };
+  return { at, across, lift, l0 };
+}
+function buildWear(md, id, m) {
+  const f = NECK[md.type]; if (!f || id !== 'w-muffler') return null;
+  const par = f.on ? md.P[f.on] : md.inner, { c, R } = f, ring = neckRing(f), U = new THREE.Vector3(), parts = [];
+  /* the loop, plain red: rows packed toward the edges, which drop steeply to the skin so nothing shows under them */
+  const loop = eggSkin(c, R, 0, 40, 6, (u, v) => [...laLo(ring.at(u * Math.PI * 2, -Math.cos(Math.PI * v), U)), ring.l0 + f.t * Math.pow(Math.sin(Math.PI * v), 0.6)], true), UV = loop.attributes.uv;
+  for (let i = 0; i < UV.count; i++) UV.setX(i, 0.6);
+  parts.push(loop);
+  /* the knot, and the two striped ends hanging from it over the loop and down the skin, fringed at the bottom */
+  const [kla, klo] = laLo(ring.at(f.k, 0, U)), tw = f.w * 0.4, cover = [];
+  for (const [dn, sd] of f.tails) {
+    const tl = eggSkin(c, R, 0, 6, 10, (u, v) => {
+      const la = kla - dn * (1 - v) - (v === 0 && Math.round(u * 6) % 2 === 0 ? 0.05 : 0), lo0 = klo + sd * (1 - v), cl = Math.cos(la);
+      const lo = lo0 + (u * 2 - 1) * tw / (cl * Math.hypot(R[0] * Math.cos(lo0), R[2] * Math.sin(lo0)));
+      U.set(cl * Math.sin(lo), Math.sin(la), cl * Math.cos(lo));
+      return [la, lo, Math.max(0.022, ring.lift(U) + 0.012)];
+    });
+    const TU = tl.attributes.uv, tlen = dn * R[1];
+    for (let i = 0; i < TU.count; i++) TU.setXY(i, TU.getY(i) * tlen / 0.8, TU.getX(i));
+    parts.push(tl);
+    for (let j = 0; j <= 6; j++) cover.push(eggAt(c, R, kla - dn * (1 - j / 6), klo + sd * (1 - j / 6), 0).p);
+  }
+  const kn = eggAt(c, R, kla, klo, ring.l0 + f.t * 0.85), across = eggAt(c, R, ...laLo(ring.at(f.k, 0.5, U)), 0).p.sub(eggAt(c, R, kla, klo, 0).p);
+  across.addScaledVector(kn.n, -across.dot(kn.n)).normalize();
+  const kg = new THREE.SphereGeometry(f.w * 0.42, 10, 7), KU = kg.attributes.uv;
+  kg.applyMatrix4(new THREE.Matrix4().compose(kn.p, new THREE.Quaternion().setFromRotationMatrix(new THREE.Matrix4().makeBasis(new THREE.Vector3().crossVectors(across, kn.n), across, kn.n)), new THREE.Vector3(1.25, 0.95, 0.62)));
+  for (let i = 0; i < KU.count; i++) KU.setXY(i, 0.62, 0.5);
+  parts.push(kg);
+  const mt = m('#ffffff', { roughness: 0.92, name: 'knit' }); mt.map = knit();
+  const mesh = put(par, mergeGeo(parts), mt);
+  /* what the scarf covers: a part whose spot on the skin is under the loop or a hanging end */
+  if (f.under) for (const o of f.under(md.P)) {
+    if (!o || o.parent !== par) continue;
+    U.set((o.position.x - c[0]) / R[0], (o.position.y - c[1]) / R[1], (o.position.z - c[2]) / R[2]).normalize();
+    const sp = eggAt(c, R, ...laLo(U), 0).p, pad = 0.1;
+    if (Math.abs(ring.across(U)) < 1 + pad * 2 / f.w || cover.some(q => q.distanceTo(sp) < tw + pad)) o.visible = false;
+  }
+  return mesh;
+}
 /* put a look on a freshly built model; the colour change only touches the body built before it */
 function dressModel(md, look, m) {
-  const L = cleanLook(look); if (!L.col && !L.head && !L.pet) return;
+  const L = cleanLook(look); if (!L.col && !L.head && !L.pet && !L.wear) return;
   const body = md.mats.filter(mt => mt.color && !mt.userData.shared);
   for (const mt of body) { mt.userData.c0 = mt.color.clone(); }
   const main = body.find(mt => { mt.color.getHSL(HSL); return HSL.s >= 0.15 && HSL.l > 0.1 && HSL.l < 0.88; });
@@ -1750,6 +1861,7 @@ function dressModel(md, look, m) {
     buildPet(L.pet, g, m); k.pet = g; k.ps = 1.5;
     k.pr = Math.max(1.15, Math.max(box.max.x - box.min.x, box.max.z - box.min.z) / 2 + 0.45); k.py = Math.max(0.7, box.max.y * 0.55);
   }
+  if (L.wear) k.wear = buildWear(md, L.wear, m);
 }
 function lookAnim(md, s, time) {
   const k = md.look;
@@ -5048,7 +5160,7 @@ const Bag = {
   mine() { const i = G.picks[0] | 0; return this.owns(ROSTER[i]) ? i : Math.max(0, ROSTER.findIndex(c => this.owns(c))); },
   has(id) { return this.s.items.includes(id); },
   /* what this 潜水者 wears, keeping only items you have */
-  look(ch) { const L = cleanLook(this.s.wear[ch.id]); for (const sl of SLOTS) if (L[sl] && !this.has(L[sl])) L[sl] = ''; return L; },
+  look(ch) { const L = cleanLook(this.s.wear[ch.id]); for (const sl of SLOTS) if (L[sl] && (!this.has(L[sl]) || !fits(L[sl], ch.id))) L[sl] = ''; return L; },
   canTry(ch) { return !this.owns(ch) && !this.s.tried.includes(ch.id); },
   /* coins from playing count against today's cap; gifts (login, tutorial) do not */
   room() { if (this.remote) return this.s.room | 0; if (this.s.day !== dayKey()) { this.s.day = dayKey(); this.s.dayEarn = 0; } return Math.max(0, DAY_CAP - this.s.dayEarn); },
@@ -5134,7 +5246,7 @@ const Bag = {
     try { const j = await this.api('/api/pull', { n }); const out = (j.results || [j]).filter(x => LOOK[x.item]).map(x => ({ it: LOOK[x.item], dup: !!x.dup, back: x.back | 0 })); return out.length ? out : null; } catch (e) { return null; }
   },
   async wearX(ch, slot, id) {
-    const L = this.look(ch); L[slot] = id && this.has(id) && LOOK[id].slot === slot ? id : '';
+    const L = this.look(ch); L[slot] = id && this.has(id) && LOOK[id].slot === slot && fits(id, ch.id) ? id : '';
     if (!this.remote) { this.s.wear[ch.id] = L; this.save(); return; }
     this.s.wear[ch.id] = L;
     try { await this.api('/api/wear', { ch: ch.id, look: L }); } catch (e) {}
@@ -5169,9 +5281,9 @@ function fightInfo(r) {
 }
 const matchCoins = r => { const i = fightInfo(r); return i ? fightWant(i) : 0; };
 /* CPUs wear something now and then, so you see what the capsule holds */
-function cpuLook() {
-  const L = { col: '', head: '', pet: '' };
-  if (Math.random() < 0.5) for (const sl of SLOTS) if (Math.random() < 0.5) { const pool = LOOKS.filter(x => x.slot === sl && x.r < 3); L[sl] = pool[Math.floor(Math.random() * pool.length)].id; }
+function cpuLook(i) {
+  const L = { col: '', head: '', pet: '', wear: '' }, ch = ROSTER[i].id;
+  if (Math.random() < 0.5) for (const sl of SLOTS) if (Math.random() < 0.5) { const pool = LOOKS.filter(x => x.slot === sl && x.r < 3 && fits(x.id, ch)); if (pool.length) L[sl] = pool[Math.floor(Math.random() * pool.length)].id; }
   return L;
 }
 function syncWallet() {
@@ -5370,7 +5482,7 @@ function openBag() {
 }
 function bagPreview(id) {
   const i = G.picks[0] | 0, L = Bag.look(ROSTER[i]);
-  if (id) L[LOOK[id].slot] = id;
+  if (id && fits(id, ROSTER[i].id)) L[LOOK[id].slot] = id;
   redressShowcase(i, L); layoutShowcase('select', i);
 }
 const yen = n => n.toLocaleString('ja-JP') + '円';
@@ -5385,7 +5497,8 @@ function renderBag() {
   $('#bag-list').innerHTML = SLOTS.map(sl => {
     const its = LOOKS.filter(x => x.slot === sl && (x.r < 3 || Bag.shopOpen() || Bag.has(x.id))), got = its.filter(x => Bag.has(x.id)).length;
     return '<div><h4>' + SLOT_NAME[sl] + '（' + got + '/' + its.length + '）</h4><ul>' + its.map(x => Bag.has(x.id)
-      ? '<li class="r' + x.r + '"><i>' + x.sym + '</i>' + x.name + '</li>' : '<li class="no r' + x.r + '"><i>？</i>' + rareName(x.r) + '</li>').join('') + '</ul></div>';
+      ? '<li class="r' + x.r + '"><i>' + x.sym + '</i>' + x.name + '</li>' : '<li class="no r' + x.r + '"><i>？</i>' + rareName(x.r) + '</li>').join('') + '</ul>' +
+      (sl === 'wear' ? '<p class="fit">' + fitNames() + ' が着られます（ほかの潜水者はこれから）</p>' : '') + '</div>';
   }).join('');
   const per = r => LOOKS.filter(x => x.r === r).length;
   $('#bag-odds').innerHTML = RARE.map((R, r) => R.name + ' ' + Math.round(R.p * 100) + '%（' + per(r) + '種、1つあたり ' + (R.p / per(r) * 100).toFixed(2) + '%）。持っているものが出たら ' + R.back + 'コインもどる').join('<br>') +
@@ -5416,7 +5529,7 @@ async function turnCapsule(n) {
   rv.hidden = false; rv.style.setProperty('--rc', R.c); rv.style.animation = 'none'; void rv.offsetWidth; rv.style.animation = '';
   const news = got.filter(x => !x.dup).length, back = got.reduce((a, x) => a + x.back, 0);
   rv.innerHTML = '<span class="rs">' + pick.it.sym + '</span><span><span class="rr">' + R.name + '・' + SLOT_NAME[pick.it.slot] + '</span><b>' + pick.it.name + '</b><small>' +
-    (got.length > 1 ? 'NEW ' + news + '個' + (back ? '・かぶりで ' + back + 'コインもどりました' : '') + '。' : pick.dup ? 'もう持っていたので ' + pick.back + 'コインもどりました。' : 'NEW！ ') + 'いまは試しに着せています</small></span>';
+    (got.length > 1 ? 'NEW ' + news + '個' + (back ? '・かぶりで ' + back + 'コインもどりました' : '') + '。' : pick.dup ? 'もう持っていたので ' + pick.back + 'コインもどりました。' : 'NEW！ ') + (fits(pick.it.id, ROSTER[G.picks[0] | 0].id) ? 'いまは試しに着せています' : 'いまの潜水者は着られません（' + fitNames() + ' が着られます）') + '</small></span>';
   renderBag(); bagPreview(pick.it.id);
 }
 $('#bag-ad-btn').addEventListener('click', () => { if (Ads.reward) Ads.reward(); });
@@ -5577,8 +5690,8 @@ function collectHTML(c) {
   }
   if (G.type !== 'cpu') return '';
   const w = Bag.look(c), any = Bag.s.items.length;
-  return '<div class="seg"><span>着せ替え</span>' + SLOTS.map(sl => '<select data-slot="' + sl + '" aria-label="' + SLOT_NAME[sl] + '"' + (any ? '' : ' disabled') + '><option value="">' + SLOT_NAME[sl] + '：なし</option>' +
-    LOOKS.filter(x => x.slot === sl && Bag.has(x.id)).map(x => '<option value="' + x.id + '"' + (w[sl] === x.id ? ' selected' : '') + '>' + x.sym + ' ' + x.name + '</option>').join('') + '</select>').join('') +
+  return '<div class="seg"><span>着せ替え</span>' + SLOTS.filter(sl => sl !== 'wear' || NECK[c.id]).map(sl => '<select data-slot="' + sl + '" aria-label="' + SLOT_NAME[sl] + '"' + (any ? '' : ' disabled') + '><option value="">' + SLOT_NAME[sl] + '：なし</option>' +
+    LOOKS.filter(x => x.slot === sl && Bag.has(x.id) && fits(x.id, c.id)).map(x => '<option value="' + x.id + '"' + (w[sl] === x.id ? ' selected' : '') + '>' + x.sym + ' ' + x.name + '</option>').join('') + '</select>').join('') +
     (any ? '' : '<small>「コレクション」のカプセルで集めると着せられます</small>') + coins + '</div>';
 }
 $('#detail').addEventListener('click', async e => {
