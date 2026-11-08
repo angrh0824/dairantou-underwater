@@ -1628,6 +1628,7 @@ const LOOKS = [
   { id: 'p-dolphin', slot: 'pet', r: 2, name: 'ちびイルカ', sym: '🐬' },
   { id: 'h-note', slot: 'head', r: 0, name: 'おんぷ', sym: '🎵' },
   { id: 'h-rainbow', slot: 'head', r: 1, name: 'にじ', sym: '🌈' },
+  { id: 'h-santa', slot: 'head', r: 1, name: 'サンタぼうし', sym: '🎅' },
   /* wear: lies on the body, so only the 潜水者 fitted for it in NECK can wear it */
   { id: 'w-muffler', slot: 'wear', r: 1, name: 'もこもこマフラー', sym: '🧣' },
   { id: 'w-bowtie', slot: 'wear', r: 0, name: 'ちょうネクタイ', sym: '🤵' },
@@ -1637,6 +1638,8 @@ const LOOKS = [
   { id: 'w-pendant', slot: 'wear', r: 1, name: 'ハートのペンダント', sym: '💖' },
   { id: 'w-fur', slot: 'wear', r: 2, name: 'ピンクのファー', sym: '🦩' },
   { id: 'w-tie', slot: 'wear', r: 0, name: 'しましまネクタイ', sym: '👔' },
+  { id: 'w-ruff', slot: 'wear', r: 1, name: 'ひだのえりまき', sym: '🤡' },
+  { id: 'w-silk', slot: 'wear', r: 0, name: 'みずいろスカーフ', sym: '🎐' },
   /* face: fitted to each one's own eyes (see findEyes) */
   { id: 'f-round', slot: 'face', r: 0, name: 'まるメガネ', sym: '👓' },
   { id: 'f-mono', slot: 'face', r: 0, name: 'かためがね', sym: '🧐' },
@@ -1757,6 +1760,12 @@ function buildHead(id, g, m) {
     put(g, sph(0.07, 12, 9), nm, -0.04, -0.1, 0).scale.set(1.3, 1, 0.8);
     put(g, cyl(0.014, 0.014, 0.26, 6), nm, 0.045, 0.02, 0);
     const fl = put(g, box(0.1, 0.03, 0.02), nm, 0.09, 0.12, 0); fl.rotation.z = -0.6;
+  } else if (id === 'h-santa') {
+    /* a red Santa hat with a white brim and pompom, its tip flopping over */
+    const red = m('#d8343c', { roughness: 0.7 }), white = m('#fbf8f2', { roughness: 0.9 });
+    put(g, torus(0.15, 0.045, 8, 20), white, 0, -0.06, 0).rotation.x = Math.PI / 2;
+    const c = put(g, cone(0.15, 0.3, 14), red, 0.02, 0.09, 0); c.rotation.z = -0.35;
+    put(g, sph(0.045, 10, 8), white, 0.12, 0.21, 0);
   } else if (id === 'h-rainbow') {
     /* a small rainbow arch */
     ['#ff5a5a', '#ffb347', '#ffe066', '#7ddc6b', '#5bb8ff', '#a77bff'].forEach((c, i) => put(g, new THREE.TorusGeometry(0.2 - i * 0.022, 0.012, 6, 24, Math.PI), m(c, { roughness: 0.5, emissive: c, emissiveIntensity: 0.25 }), 0, -0.08, 0));
@@ -1890,6 +1899,8 @@ const PAT = {
   }),
   /* yellow with navy stripes running across */
   tie: () => tex('tie', 32, 32, x => { x.fillStyle = '#f5c842'; x.fillRect(0, 0, 32, 32); x.strokeStyle = '#25336e'; x.lineWidth = 3; for (let i = -32; i < 64; i += 16) { x.beginPath(); x.moveTo(i, 0); x.lineTo(i + 32, 32); x.stroke(); } }),
+  /* pale blue silk with small white dots */
+  silk: () => tex('silk', 32, 32, x => { x.fillStyle = '#7fc8ff'; x.fillRect(0, 0, 32, 32); x.fillStyle = '#ffffff'; for (const [a, b] of [[8, 8], [24, 24], [24, 8], [8, 24]]) { x.beginPath(); x.arc(a, b, 2.2, 0, Math.PI * 2); x.fill(); } }),
   /* pink feathers */
   fur: () => tex('fur', 64, 32, x => {
     x.fillStyle = '#ff9fd0'; x.fillRect(0, 0, 64, 32); x.lineWidth = 1;
@@ -2046,6 +2057,22 @@ const WEAR = {
       parts: [[chain, m(...GOLD)], [bail, m(...GOLD)], [onFrame(heartGeo(0.1, 0.04), fr, k, k, k), m('#e8264f', { roughness: 0.2, metalness: 0.2, emissive: '#7a0018', emissiveIntensity: 0.35 })]],
       cover: [bandCover(neckRing(f, 0.06, 0)), dotCover(fr.p, 0.14 * k)], bib: true,
     };
+  },
+  /* a white pleated ruff collar */
+  'w-ruff'(f, k, m) {
+    const ring = neckRing(f, f.w * 0.95, f.t * 1.45), mt = m('#fbf7ef', { roughness: 0.85 });
+    const pleat = (p, v) => ring.l0 + ring.t * Math.pow(Math.sin(Math.PI * v), 0.5) * (0.72 + 0.28 * Math.abs(Math.sin(p * 9)));
+    const g = eggSkin(f.c, f.R, 0, 72, 6, (u, v) => [...laLo(ring.at(u * Math.PI * 2, -Math.cos(Math.PI * v))), pleat(u * Math.PI * 2, v)], true);
+    return { parts: [[g, mt]], cover: [bandCover(ring)] };
+  },
+  /* a thin silk scarf in pale blue with white dots, tied in a small bow at the side */
+  'w-silk'(f, k, m) {
+    const ring = neckRing(f, f.w * 0.62, f.t * 0.45), mt = m('#ffffff', { roughness: 0.4, name: 'silk' }); mt.map = PAT.silk();
+    const parts = [[loopGeo(f, ring, puffy(ring), Math.round(ringLen(f, ring) / 0.16), 0), mt]];
+    const fr = ringFrame(f, ring, f.k, 0, ring.l0 + ring.t * 0.9);
+    for (const sd of [-1, 1]) { const b = new THREE.SphereGeometry(0.06, 10, 7); b.scale(1.3, 0.75, 0.45); b.translate(sd * 0.065, 0, 0); b.rotateZ(sd * 0.25); parts.push([onFrame(b, fr, k, k, k), mt]); }
+    parts.push([onFrame(new THREE.SphereGeometry(0.03, 8, 6), fr, k, k, k * 0.7), mt]);
+    return { parts, cover: [bandCover(ring), dotCover(fr.p, 0.12 * k)] };
   },
   /* a fluffy pink feather boa */
   'w-fur'(f, k, m) {
