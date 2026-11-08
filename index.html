@@ -1116,14 +1116,16 @@ function eyeOn(g, m, c, R, la, lo, r, lift) {
   put(g, sph(r * 0.55, 8, 6), m('#141820', { roughness: 0.25 }), p.x + d.x * r * 0.62, p.y + d.y * r * 0.62, p.z + d.z * r * 0.62);
 }
 /* glasses on a round face, for eyes at ±lo: a rim around each facing out along the skin, and a bridge arching over the nose */
+/* (returns its pieces, so clothes on the face can take their place) */
 function glassesOn(g, mat, c, R, la, lo, rr, tube, lift) {
-  const ends = [-1, 1].map(s => {
+  const made = [], ends = [-1, 1].map(s => {
     const e = eggAt(c, R, la, s * lo, lift);
-    put(g, torus(rr, tube, 6, 18), mat, e.p.x, e.p.y, e.p.z).quaternion.setFromUnitVectors(ZV, e.n);
+    made.push(put(g, torus(rr, tube, 6, 18), mat, e.p.x, e.p.y, e.p.z)); made[made.length - 1].quaternion.setFromUnitVectors(ZV, e.n);
     return e.p.clone().addScaledVector(new THREE.Vector3().crossVectors(e.up, e.n), -s * rr);
   });
   const mid = eggAt(c, R, la + 0.03, 0, lift).p, ctl = mid.clone().multiplyScalar(2).sub(ends[0].clone().add(ends[1]).multiplyScalar(0.5));
-  put(g, new THREE.TubeGeometry(new THREE.QuadraticBezierCurve3(ends[0], ctl, ends[1]), 8, tube * 0.8, 5, false), mat);
+  made.push(put(g, new THREE.TubeGeometry(new THREE.QuadraticBezierCurve3(ends[0], ctl, ends[1]), 8, tube * 0.8, 5, false), mat));
+  return made;
 }
 /* a grin on the skin: lo spans ±w, top / bottom edges meet at the corners (la = corner); returns the patch and its edge functions */
 function grin(c, R, lift, w, top, bot, corner, nu, nv) {
@@ -1166,7 +1168,7 @@ function buildMantis(g, m, P) {
     put(st, sph(0.07, 8, 6), m('#141820'), 0, 0.45, 0.13);
     P.stalks.push(st);
   }
-  put(P.stalks[1], torus(0.17, 0.025, 6, 16), m('#e9c45a', { metalness: 0.5, roughness: 0.3 }), 0, 0.45, 0.14);
+  P.glasses = [put(P.stalks[1], torus(0.17, 0.025, 6, 16), m('#e9c45a', { metalness: 0.5, roughness: 0.3 }), 0, 0.45, 0.14)];
   const hat = m('#15151c');
   put(g, cyl(0.27, 0.27, 0.03, 14), hat, 0, 1.6, 0.4); put(g, cyl(0.16, 0.17, 0.32, 14), hat, 0, 1.77, 0.4); put(g, cyl(0.172, 0.172, 0.06, 14), m('#b0304a'), 0, 1.66, 0.4);
   for (const s of [-1, 1]) {
@@ -1185,7 +1187,7 @@ function buildJelly(g, m, P) {
   /* the face sits on the bell (lifted a little more than needed: the bell breathes) */
   const C = [0, 1.45, 0], R = [0.95, 0.855, 0.95];
   for (const s of [-1, 1]) eyeOn(g, m, C, R, 0.42, s * 0.35, 0.12, 0.03);
-  glassesOn(g, m('#20202a'), C, R, 0.42, 0.35, 0.16, 0.025, 0.05);
+  P.glasses = glassesOn(g, m('#20202a'), C, R, 0.42, 0.35, 0.16, 0.025, 0.05);
   for (const s of [-1, 1]) {
     const e = eggAt(C, R, 0.15, s * 0.13, 0.03), mu = put(g, sph(0.12, 8, 6), m('#2a2230'), e.p.x, e.p.y, e.p.z);
     mu.quaternion.setFromUnitVectors(ZV, e.n); mu.rotateZ(-s * 0.3); mu.scale.set(1.3, 0.45, 0.5);
@@ -1361,7 +1363,7 @@ function buildSeahorse(g, m, P) {
   /* eyes a little to the sides of the head, the glasses following its curve */
   const HC = [0, 1.95, 0.05], HR = [0.2955, 0.2955, 0.2955];
   for (const s of [-1, 1]) eyeOn(g, m, HC, HR, 0.2, s * 0.85, 0.09, 0.025);
-  glassesOn(g, ink, HC, HR, 0.2, 0.85, 0.11, 0.018, 0.047);
+  P.glasses = glassesOn(g, ink, HC, HR, 0.2, 0.85, 0.11, 0.018, 0.047);
   P.fin = put(g, sph(0.28, 8, 6), lite, 0, 1.25, -0.42); P.fin.scale.set(0.12, 0.8, 0.6);
   P.lift = 0.08;
 }
@@ -1467,7 +1469,7 @@ function buildEels(g, m, P) {
     put(e, cyl(0.1, 0.11, h, 8), mt, 0, h / 2, 0);
     const hd = new THREE.Group(); hd.position.y = h; e.add(hd);
     put(hd, sph(0.13, 10, 8), mt, 0, 0.03, 0.04).scale.set(0.9, 1, 1.15);
-    for (const s of [-1, 1]) put(hd, sph(0.035, 6, 5), m('#141820'), s * 0.08, 0.08, 0.12);
+    for (const s of [-1, 1]) { const ey = put(hd, sph(0.035, 6, 5), m('#141820'), s * 0.08, 0.08, 0.12); if (i === 0) { ey.userData.dir = new THREE.Vector3(s * 0.35, 0.12, 0.93).normalize(); (P.eyes = P.eyes || []).push(ey); } }
     if (i % 2 === 0) for (let k = 0; k < 4; k++) { const f = 0.2 + k * 0.18, rr = 0.11 - 0.01 * f + 0.012; put(e, sph(0.03, 4, 3), spot, Math.sin(k * 2.1) * rr, h * f, Math.cos(k * 2.1) * rr); }
     if (i === 0) { put(hd, sph(0.16, 10, 6), hat, 0, 0.13, 0.02).scale.y = 0.55; put(hd, cyl(0.21, 0.21, 0.02, 12), hat, 0, 0.1, 0.02); }
     P.eels.push(e);
@@ -1492,7 +1494,7 @@ function buildCoela(g, m, P) {
   /* sleepy closed eyes: a lid bump on the skin with a dark arc lying on it */
   for (const s of [-1, 1]) {
     const e = eggAt([0, 1.0, 0], [0.611, 0.709, 1.33], 0.3, s * 0.62, 0.02), k = 0.115;
-    put(g, sph(0.12, 10, 8), body, e.p.x, e.p.y, e.p.z);
+    const bump = put(g, sph(0.12, 10, 8), body, e.p.x, e.p.y, e.p.z); bump.userData.dir = e.n.clone(); (P.eyes = P.eyes || []).push(bump);
     const lid = put(g, new THREE.TorusGeometry(0.075, 0.018, 5, 12, Math.PI), dark, e.p.x + e.n.x * k, e.p.y + e.n.y * k, e.p.z + e.n.z * k);
     lid.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(new THREE.Vector3().crossVectors(e.up, e.n), e.up, e.n)); lid.rotateZ(Math.PI);
   }
@@ -1511,7 +1513,7 @@ function buildShrimp(g, m, P) {
     put(g, sph(r, 12, 9), i < 2 ? shell : batter, 0, y, z);
     if (i >= 2) for (let k = 0; k < 7; k++) { const a = k * 0.9 + i, b = (k % 3 - 1) * 0.6; put(g, sph(r * 0.22, 5, 4), crumb, Math.sin(a) * Math.cos(b) * r, y + Math.sin(b) * r, z + Math.cos(a) * Math.cos(b) * r); }
   });
-  put(g, cone(0.06, 0.42, 5), shell, 0, 1.55, 0.86).rotation.x = Math.PI / 2;
+  P.nose = put(g, cone(0.06, 0.42, 5), shell, 0, 1.55, 0.86); P.nose.rotation.x = Math.PI / 2;
   eyes(g, m, [[-0.17, 1.6, 0.74], [0.17, 1.6, 0.74]], 0.09);
   P.ant = [];
   for (const s of [-1, 1]) { const a = new THREE.Group(); a.position.set(s * 0.14, 1.72, 0.66); a.rotation.set(-0.5, 0, -s * 0.5); g.add(a); put(a, cyl(0.018, 0.008, 1.3, 4), m('#c45a32'), 0, 0.64, 0); P.ant.push(a); }
@@ -1619,6 +1621,12 @@ const LOOKS = [
   { id: 'w-lei', slot: 'wear', r: 1, name: 'フラワーレイ', sym: '🌺' },
   { id: 'w-pendant', slot: 'wear', r: 1, name: 'ハートのペンダント', sym: '💖' },
   { id: 'w-fur', slot: 'wear', r: 2, name: 'ピンクのファー', sym: '🦩' },
+  /* face: fitted to each one's own eyes (see findEyes) */
+  { id: 'f-round', slot: 'face', r: 0, name: 'まるメガネ', sym: '👓' },
+  { id: 'f-mono', slot: 'face', r: 0, name: 'かためがね', sym: '🧐' },
+  { id: 'f-sun', slot: 'face', r: 1, name: 'サングラス', sym: '🕶️' },
+  { id: 'f-heart', slot: 'face', r: 1, name: 'ハートのメガネ', sym: '💕' },
+  { id: 'f-groucho', slot: 'face', r: 2, name: 'へんそうメガネ', sym: '🥸' },
   /* r 3: sold in the shop only (with the game's server), never in the capsule */
   { id: 'c-neon', slot: 'col', r: 3, name: 'ネオン', sym: '💜', neon: 1 },
   { id: 'h-ribbon', slot: 'head', r: 3, name: 'おおきなリボン', sym: '🎀' },
@@ -1627,10 +1635,10 @@ const LOOKS = [
   { id: 'p-whale', slot: 'pet', r: 3, name: 'ちびクジラ', sym: '🐳' },
   { id: 'p-ufo', slot: 'pet', r: 3, name: 'ちびUFO', sym: '🛸' },
 ];
-const LOOK = Object.fromEntries(LOOKS.map(x => [x.id, x])), SLOTS = ['col', 'head', 'pet', 'wear'], SLOT_NAME = { col: 'カラー', head: 'あたま', pet: 'おとも', wear: 'ふく' };
+const LOOK = Object.fromEntries(LOOKS.map(x => [x.id, x])), SLOTS = ['col', 'head', 'pet', 'wear', 'face'], SLOT_NAME = { col: 'カラー', head: 'あたま', pet: 'おとも', wear: 'ふく', face: 'かお' };
 /* anything from storage or another player is checked: unknown ids, or an item in the wrong slot, become nothing */
 function cleanLook(o) {
-  const L = { col: '', head: '', pet: '', wear: '' };
+  const L = { col: '', head: '', pet: '', wear: '', face: '' };
   if (o && typeof o === 'object') for (const sl of SLOTS) { const x = LOOK[o[sl]]; if (x && x.slot === sl) L[sl] = x.id; }
   return L;
 }
@@ -1779,7 +1787,7 @@ const NECK = {
   'sea-cucumber-ceo': { on: 'body', c: [0, 0, 0.4], R: [0.46, 0.46, 2.0], up: 0, h: [-0.04, -0.05, -0.05], w: 0.18, t: 0.06, k: 1.2, tails: [[0.4, -0.03], [0.32, 0.18]], under: P => [...P.bumps, ...P.dots], chest: P => P.tie },
 };
 const neckPart = (md, f) => (typeof f.on === 'function' ? f.on(md.P) : f.on ? md.P[f.on] : md.inner);
-const fits = (id, ch) => { const x = LOOK[id]; return !!x && (x.slot !== 'wear' || (!!NECK[ch] && !(NECK[ch].no || []).includes(id))); };
+const fits = (id, ch) => { const x = LOOK[id]; return !!x && (x.slot === 'face' ? !NO_FACE.includes(ch) && !(FACE_NO[ch] || []).includes(id) : x.slot !== 'wear' || (!!NECK[ch] && !(NECK[ch].no || []).includes(id))); };
 /* who can wear clothes, said the short way round */
 function fitNote() {
   const yes = ROSTER.filter(c => NECK[c.id]), no = ROSTER.filter(c => !NECK[c.id]);
@@ -1967,7 +1975,7 @@ const WEAR = {
 };
 function buildWear(md, id, m) {
   const f = NECK[md.type], make = WEAR[id]; if (!f || !make || (f.no || []).includes(id)) return null;
-  const par = neckPart(md, f), out = make(f, f.w / 0.24, m), grp = new THREE.Group(), byMat = new Map();
+  const par = neckPart(md, f), out = make(f, f.w / 0.24, m), grp = new THREE.Group(), byMat = new Map(); grp.userData.cloth = true;
   for (const [g, mt] of out.parts) { if (!byMat.has(mt)) byMat.set(mt, []); byMat.get(mt).push(g); }
   for (const [mt, gs] of byMat) put(grp, gs.length > 1 ? mergeGeo(gs) : gs[0], mt);
   par.add(grp);
@@ -1987,9 +1995,152 @@ function buildWear(md, id, m) {
   }
   return grp;
 }
+/* ---- かお: glasses and such, fitted to each 潜水者's own eyes (found on the built model, so they fit everyone with eyes) ----
+   An eye is a ball with a smaller dark pupil in front of it, in the same part (a builder can name its eyes in P.eyes instead,
+   each with userData.dir: sleepy lids, eyes without whites). The pupil says which way the eye looks; glasses sit in front of
+   it, in the eye's own part, so eyes on stalks carry their own lens. Each lens is moved forward until nothing of the face is
+   in front of its rim, and whatever else sits on the face (a bridge between two eyes in one part, a nose, a chain) is laid on
+   the skin, found by looking at the face from the front. Glasses the 潜水者 already wears (P.glasses) step aside. */
+const NO_FACE = ['otter-robot', 'manta-house'], FACE_NO = { 'seahorse-manager': ['f-groucho'] };
+function findEyes(md) {
+  const rad = o => o.geometry.parameters.radius * Math.max(o.scale.x, o.scale.y, o.scale.z);
+  if (md.P.eyes) return md.P.eyes.map(o => ({ o, r: rad(o), dir: o.userData.dir.clone(), pu: null, front: 1.2 }));
+  const out = [];
+  md.inner.traverse(o => {
+    if (!o.isMesh || o.geometry.type !== 'SphereGeometry' || !o.parent || o.geometry.parameters.thetaLength < Math.PI - 1e-6) return;
+    const r = rad(o); if (r > 0.25 || r < 0.03) return;
+    for (const p of o.parent.children) {
+      if (p === o || !p.isMesh || p.geometry.type !== 'SphereGeometry') continue;
+      const pr = rad(p), c = mat0(p).color;
+      if (pr < r * 0.4 || pr > r * 0.7 || c.r + c.g + c.b > 0.4) continue;
+      const d = p.position.clone().sub(o.position), len = d.length();
+      /* front: how far the pupil reaches, in eye radii */
+      if (len > r * 0.3 && len < r * 0.9) { out.push({ o, r, dir: d.normalize(), pu: p, front: (len + pr) / r }); break; }
+    }
+  });
+  return out;
+}
+/* looking at the face of part par: out(p, dir, gap) is p, or the first thing met looking back along dir at p plus gap if that
+   is in front of p (or less than gap behind it) */
+function faceLook(md, par, eyes) {
+  const skip = new Set(); for (const e of eyes) { skip.add(e.o); if (e.pu) skip.add(e.pu); }
+  const meshes = [], ray = new THREE.Raycaster(), w = new THREE.Vector3(), wd = new THREE.Vector3();
+  md.inner.traverse(o => { if (!o.isMesh || !o.visible || skip.has(o)) return; for (let a = o; a; a = a.parent) if (a.userData.cloth || !a.visible) return; meshes.push(o); });
+  return {
+    out(p, dir, gap) {
+      par.localToWorld(w.copy(p)); wd.copy(dir).transformDirection(par.matrixWorld);
+      ray.set(w.clone().addScaledVector(wd, 2), wd.clone().negate());
+      const hit = ray.intersectObjects(meshes, false)[0];
+      return hit && hit.distance < 2 + gap ? par.worldToLocal(hit.point.clone()).addScaledVector(dir, gap) : p.clone();
+    },
+  };
+}
+/* put each lens forward (e.off, times its radius) so its rim of radius rr (in eye radii) clears the face, at least min */
+function fitLenses(look, eyes, rr, min, tube) {
+  for (const e of eyes) {
+    const lo = Math.max(min, e.front + tube), q = new THREE.Quaternion().setFromUnitVectors(ZV, e.dir), c = e.o.position.clone().addScaledVector(e.dir, e.r * lo);
+    let need = 0;
+    for (let i = 0; i < 20; i++) {
+      const a = i / 20 * Math.PI * 2, s = c.clone().add(new THREE.Vector3(Math.cos(a), Math.sin(a), 0).multiplyScalar(e.r * (rr + tube)).applyQuaternion(q));
+      need = Math.max(need, look.out(s, e.dir, e.r * tube + 0.014).sub(s).dot(e.dir));
+    }
+    e.off = lo + need / e.r;
+  }
+}
+const lensAt = (e, more) => ({ p: e.o.position.clone().addScaledVector(e.dir, e.r * (e.off + (more || 0))), q: new THREE.Quaternion().setFromUnitVectors(ZV, e.dir) });
+const placeQ = (geo, at, s) => geo.applyMatrix4(new THREE.Matrix4().compose(at.p, at.q, new THREE.Vector3(s, s, s)));
+/* a bridge from the inner edge of the left lens to the right one, over the skin between (or straight through the air) */
+function bridgeGeo(look, L, R, rr, tube) {
+  const a = lensAt(L).p, b = lensAt(R).p, right = b.clone().sub(a).normalize(), fwd = L.dir.clone().add(R.dir).normalize();
+  const sq = d => right.clone().addScaledVector(d, -right.dot(d)).normalize();
+  const p0 = a.clone().addScaledVector(sq(L.dir), rr * L.r), p1 = b.clone().addScaledVector(sq(R.dir), -rr * R.r), pts = [p0];
+  for (let i = 1; i <= 7; i++) pts.push(look.out(p0.clone().lerp(p1, i / 8), fwd, tube * 3 + 0.006));
+  pts.push(p1);
+  return new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 16, tube, 5, false);
+}
+/* the face pieces: each gets the eyes of one part (sorted left to right) and lays out [geometry, material] in that part */
+const RIM = ['#1d1d26', { roughness: 0.4 }];
+const FACE = {
+  /* round black glasses */
+  'f-round'(eyes, look, md, m) {
+    const parts = [], rim = m(...RIM); fitLenses(look, eyes, 1.3, 1.2, 0.13);
+    for (const e of eyes) parts.push([placeQ(new THREE.TorusGeometry(1.3, 0.13, 6, 20), lensAt(e), e.r), rim]);
+    if (eyes.length === 2) parts.push([bridgeGeo(look, eyes[0], eyes[1], 1.3, Math.max(0.012, eyes[0].r * 0.1)), rim]);
+    return parts;
+  },
+  /* dark, shiny sunglasses (the lens in front of the pupil) */
+  'f-sun'(eyes, look, md, m) {
+    const parts = [], rim = m(...RIM), lens = m('#10131b', { roughness: 0.12, metalness: 0.5 }); fitLenses(look, eyes, 1.35, 1.5, 0.3);
+    for (const e of eyes) {
+      parts.push([placeQ(new THREE.TorusGeometry(1.35, 0.14, 6, 20), lensAt(e), e.r), rim]);
+      const g = new THREE.SphereGeometry(1.33, 18, 6); g.scale(1, 0.92, 0.2); parts.push([placeQ(g, lensAt(e), e.r), lens]);
+    }
+    if (eyes.length === 2) parts.push([bridgeGeo(look, eyes[0], eyes[1], 1.35, Math.max(0.012, eyes[0].r * 0.11)), rim]);
+    return parts;
+  },
+  /* pink heart lenses */
+  'f-heart'(eyes, look, md, m) {
+    const parts = [], pink = m('#ff5fa2', { roughness: 0.3, transparent: true, opacity: 0.85, emissive: '#ff2f7a', emissiveIntensity: 0.25 }); fitLenses(look, eyes, 1.45, 1.45, 0.2);
+    for (const e of eyes) parts.push([placeQ(heartGeo(1.45, 0.25), lensAt(e), e.r), pink]);
+    if (eyes.length === 2) parts.push([bridgeGeo(look, eyes[0], eyes[1], 1.2, Math.max(0.012, eyes[0].r * 0.1)), pink]);
+    return parts;
+  },
+  /* a gold monocle on the right eye, its chain hanging down over the skin */
+  'f-mono'(eyes, look, md, m) {
+    const e = md.monoEye; if (!eyes.includes(e)) return [];
+    fitLenses(look, [e], 1.38, 1.2, 0.13);
+    /* the chain hangs from the outer edge of the lens (this is the eye furthest to +x) */
+    const at = lensAt(e), gold = m(...GOLD), side = new THREE.Vector3(1, 0, 0).addScaledVector(e.dir, -e.dir.x).normalize(), up = new THREE.Vector3(0, 1, 0).applyQuaternion(at.q), tube = Math.max(0.008, e.r * 0.06);
+    const a = at.p.clone().addScaledVector(side, 1.38 * e.r), pts = [a];
+    for (const [sd, dn] of [[0.15, 0.45], [0.3, 0.95], [0.4, 1.45], [0.42, 1.95], [0.36, 2.4], [0.28, 2.8]]) pts.push(look.out(a.clone().addScaledVector(side, sd * e.r).addScaledVector(up, -dn * e.r), e.dir, tube * 3));
+    return [[placeQ(new THREE.TorusGeometry(1.38, 0.13, 6, 22), at, e.r), gold], [new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 12, tube, 4, false), gold]];
+  },
+  /* the disguise: thick glasses, eyebrows, a big nose and a moustache, all sitting on the skin */
+  'f-groucho'(eyes, look, md, m) {
+    const parts = FACE['f-round'](eyes, look, md, m), black = m('#191a22', { roughness: 0.85 }), skin = m('#f2a990', { roughness: 0.6 }), cover = md.faceCover = [];
+    if (eyes.length !== 2) return parts;
+    const [L, R] = eyes, r = (L.r + R.r) / 2, a = lensAt(L).p, b = lensAt(R).p, right = b.clone().sub(a).normalize(), fwd = L.dir.clone().add(R.dir).normalize();
+    const up = new THREE.Vector3().crossVectors(fwd, right).normalize(), q = new THREE.Quaternion().setFromRotationMatrix(new THREE.Matrix4().makeBasis(right, up, fwd));
+    const mid = L.o.position.clone().lerp(R.o.position, 0.5), put3 = (g, p, sx, sy, sz) => g.applyMatrix4(new THREE.Matrix4().compose(p, q, new THREE.Vector3(sx, sy, sz)));
+    /* a piece of half-size (x, y, z) at p, moved forward until its back clears the face */
+    const clear = (p, x, y, z) => { let need = 0; for (const [i, j] of [[0, 0], [1, 0], [-1, 0], [0, 1], [0, -1], [0.7, 0.7], [-0.7, 0.7], [0.7, -0.7], [-0.7, -0.7]]) { const sp = p.clone().addScaledVector(right, i * x).addScaledVector(up, j * y).addScaledVector(fwd, -z * (1 - 0.6 * Math.hypot(i, j))); need = Math.max(need, look.out(sp, fwd, 0.018).sub(sp).dot(fwd)); } return p.clone().addScaledVector(fwd, need); };
+    const nose = clear(mid.clone().addScaledVector(up, -0.95 * r).addScaledVector(fwd, -0.4 * r), 0.62 * r, 0.6 * r, 0.7 * r);
+    parts.push([put3(new THREE.SphereGeometry(1, 12, 9), nose, 0.62 * r, 0.6 * r, 0.7 * r), skin]);
+    cover.push([nose, 0.7 * r]); if (md.P.nose) md.P.nose.visible = false;
+    for (const s of [-1, 1]) {
+      const st = clear(mid.clone().addScaledVector(up, -1.7 * r).addScaledVector(right, s * 0.55 * r).addScaledVector(fwd, -0.5 * r), 0.62 * r, 0.24 * r, 0.3 * r), br = clear((s < 0 ? a : b).clone().addScaledVector(up, 1.75 * r).addScaledVector(fwd, -0.5 * r), 0.85 * r, 0.18 * r, 0.15 * r);
+      parts.push([put3(new THREE.SphereGeometry(1, 10, 6), st, 0.62 * r, 0.24 * r, 0.3 * r), black], [put3(new THREE.BoxGeometry(1.7, 0.36, 0.3), br, r, r, r), black]);
+      cover.push([st, 0.62 * r], [br, 0.85 * r]);
+    }
+    return parts;
+  },
+};
+function buildFace(md, id, m) {
+  if (NO_FACE.includes(md.type) || !FACE[id] || (FACE_NO[md.type] || []).includes(id)) return null;
+  md.root.updateMatrixWorld(true);
+  const eyes = findEyes(md); if (!eyes.length) return null;
+  md.monoEye = eyes.reduce((a, e) => (e.o.getWorldPosition(new THREE.Vector3()).x > a.o.getWorldPosition(new THREE.Vector3()).x ? e : a));
+  const parts = new Map();
+  for (const e of eyes) { const p = e.o.parent; if (!parts.has(p)) parts.set(p, []); parts.get(p).push(e); }
+  if (md.P.glasses) for (const o of md.P.glasses) o.visible = false;
+  const made = [];
+  for (const [par, list] of parts) {
+    list.sort((a, b) => a.o.position.x - b.o.position.x);
+    const byMat = new Map(), grp = new THREE.Group(); grp.userData.cloth = true;
+    for (const [g, mt] of FACE[id](list.slice(0, 2), faceLook(md, par, eyes), md, m)) { if (!byMat.has(mt)) byMat.set(mt, []); byMat.get(mt).push(g); }
+    if (!byMat.size) continue;
+    for (const [mt, gs] of byMat) put(grp, gs.length > 1 ? mergeGeo(gs) : gs[0], mt);
+    par.add(grp); made.push(grp);
+    /* small parts the disguise covers (a pufferfish's spikes) */
+    const nk = NECK[md.type];
+    if (md.faceCover && nk && nk.under) for (const o of nk.under(md.P)) if (o && o.parent === par && md.faceCover.some(([p, r]) => o.position.distanceTo(p) < r + 0.12)) o.visible = false;
+    md.faceCover = null;
+  }
+  return made;
+}
 /* put a look on a freshly built model; the colour change only touches the body built before it */
 function dressModel(md, look, m) {
-  const L = cleanLook(look); if (!L.col && !L.head && !L.pet && !L.wear) return;
+  const L = cleanLook(look); if (!L.col && !L.head && !L.pet && !L.wear && !L.face) return;
   const body = md.mats.filter(mt => mt.color && !mt.userData.shared);
   for (const mt of body) { mt.userData.c0 = mt.color.clone(); }
   const main = body.find(mt => { mt.color.getHSL(HSL); return HSL.s >= 0.15 && HSL.l > 0.1 && HSL.l < 0.88; });
@@ -2007,11 +2158,14 @@ function dressModel(md, look, m) {
     k.pr = Math.max(1.15, Math.max(box.max.x - box.min.x, box.max.z - box.min.z) / 2 + 0.45); k.py = Math.max(0.7, box.max.y * 0.55);
   }
   if (L.wear) k.wear = buildWear(md, L.wear, m);
+  if (L.face) k.face = buildFace(md, L.face, m);
 }
 function lookAnim(md, s, time) {
   const k = md.look;
   if (k.rainbow) recolor(md, LOOK['c-niji'], time);
   if (k.head) { k.head.position.y = k.hy + Math.sin(time * 2.2 + md.phase) * 0.05; k.head.rotation.y = time * 0.9; }
+  /* glasses step aside while a clione's cones come out of its head */
+  if (k.face && md.P.cones) for (const g of k.face) g.visible = !md.P.cones.visible;
   if (k.pet) {
     const a = time * 1.3 + md.phase;
     k.pet.position.set(Math.sin(a) * k.pr, k.py + Math.sin(time * 3.1) * 0.12, Math.cos(a) * k.pr);
@@ -5427,7 +5581,7 @@ function fightInfo(r) {
 const matchCoins = r => { const i = fightInfo(r); return i ? fightWant(i) : 0; };
 /* CPUs wear something now and then, so you see what the capsule holds */
 function cpuLook(i) {
-  const L = { col: '', head: '', pet: '', wear: '' }, ch = ROSTER[i].id;
+  const L = { col: '', head: '', pet: '', wear: '', face: '' }, ch = ROSTER[i].id;
   if (Math.random() < 0.5) for (const sl of SLOTS) if (Math.random() < 0.5) { const pool = LOOKS.filter(x => x.slot === sl && x.r < 3 && fits(x.id, ch)); if (pool.length) L[sl] = pool[Math.floor(Math.random() * pool.length)].id; }
   return L;
 }
@@ -5643,7 +5797,7 @@ function renderBag() {
     const its = LOOKS.filter(x => x.slot === sl && (x.r < 3 || Bag.shopOpen() || Bag.has(x.id))), got = its.filter(x => Bag.has(x.id)).length;
     return '<div><h4>' + SLOT_NAME[sl] + '（' + got + '/' + its.length + '）</h4><ul>' + its.map(x => Bag.has(x.id)
       ? '<li class="r' + x.r + '"><i>' + x.sym + '</i>' + x.name + '</li>' : '<li class="no r' + x.r + '"><i>？</i>' + rareName(x.r) + '</li>').join('') + '</ul>' +
-      (sl === 'wear' ? '<p class="fit">' + fitNote() + '</p>' : '') + '</div>';
+      (sl === 'wear' ? '<p class="fit">' + fitNote() + '</p>' : sl === 'face' ? '<p class="fit">' + NO_FACE.map(id => ROSTER.find(c => c.id === id).name).join('、') + ' はかけられません</p>' : '') + '</div>';
   }).join('');
   const per = r => LOOKS.filter(x => x.r === r).length;
   $('#bag-odds').innerHTML = RARE.map((R, r) => R.name + ' ' + Math.round(R.p * 100) + '%（' + per(r) + '種、1つあたり ' + (R.p / per(r) * 100).toFixed(2) + '%）。持っているものが出たら ' + R.back + 'コインもどる').join('<br>') +
@@ -5835,7 +5989,7 @@ function collectHTML(c) {
   }
   if (G.type !== 'cpu') return '';
   const w = Bag.look(c), any = Bag.s.items.length;
-  return '<div class="seg"><span>着せ替え</span>' + SLOTS.filter(sl => sl !== 'wear' || NECK[c.id]).map(sl => '<select data-slot="' + sl + '" aria-label="' + SLOT_NAME[sl] + '"' + (any ? '' : ' disabled') + '><option value="">' + SLOT_NAME[sl] + '：なし</option>' +
+  return '<div class="seg"><span>着せ替え</span>' + SLOTS.filter(sl => (sl !== 'wear' || NECK[c.id]) && (sl !== 'face' || !NO_FACE.includes(c.id))).map(sl => '<select data-slot="' + sl + '" aria-label="' + SLOT_NAME[sl] + '"' + (any ? '' : ' disabled') + '><option value="">' + SLOT_NAME[sl] + '：なし</option>' +
     LOOKS.filter(x => x.slot === sl && Bag.has(x.id) && fits(x.id, c.id)).map(x => '<option value="' + x.id + '"' + (w[sl] === x.id ? ' selected' : '') + '>' + x.sym + ' ' + x.name + '</option>').join('') + '</select>').join('') +
     (any ? '' : '<small>「コレクション」のカプセルで集めると着せられます</small>') + coins + '</div>';
 }

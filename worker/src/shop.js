@@ -214,7 +214,7 @@ export async function handleApi(req, env, cors, path) {
       const c = inp.ch; if (!isChar(c)) return J({ error: 'bad' }, 400);
       const mine = new Set((await all(env, "SELECT item FROM owned WHERE player = ? AND kind = 'look'", id)).map(r => r.item));
       let wear = {}; try { wear = JSON.parse(p.wear || '{}'); } catch (e) { wear = {}; }
-      const L = { col: '', head: '', pet: '', wear: '' }, w = inp.look && typeof inp.look === 'object' ? inp.look : {};
+      const L = { col: '', head: '', pet: '', wear: '', face: '' }, w = inp.look && typeof inp.look === 'object' ? inp.look : {};
       for (const sl of Object.keys(L)) if (mine.has(w[sl]) && SLOT_OF(w[sl]) === sl) L[sl] = w[sl];
       wear[c] = L;
       await run(env, 'UPDATE players SET wear = ? WHERE id = ?', JSON.stringify(wear), id);
