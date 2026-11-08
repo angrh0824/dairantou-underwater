@@ -1141,7 +1141,7 @@ function buildWhale(g, m, P) {
   put(g, eggSkin(C, R, 0.014, 20, 1, (u, v) => { const lo = (u * 2 - 1) * 0.5; return [-0.03 + 0.09 * (lo / 0.5) ** 2 + (v - 0.5) * 0.045, lo]; }), dark);
   const kn = eggAt(C, R, -0.17, 0, 0.022), knot = put(g, sph(0.07, 10, 8), tie, kn.p.x, kn.p.y, kn.p.z);
   knot.quaternion.setFromUnitVectors(UPV, kn.up); knot.scale.set(1.5, 0.85, 0.42); P.knot = knot;
-  put(g, eggSkin(C, R, 0.03, 2, 10, (u, v) => {
+  P.tie = put(g, eggSkin(C, R, 0.03, 2, 10, (u, v) => {
     const la = -0.22 - (1 - v) * 0.5, hw = v < 0.22 ? 0.12 * v / 0.22 : 0.12 - 0.075 * (v - 0.22) / 0.78;
     return [la, (u * 2 - 1) * hw / (R[0] * Math.cos(la))];
   }), tie);
@@ -1180,7 +1180,7 @@ function buildMantis(g, m, P) {
 function buildJelly(g, m, P) {
   const bellMat = m('#c86fb6', { transparent: true, opacity: 0.8, emissive: '#ff9fe6', emissiveIntensity: 0.35, side: THREE.DoubleSide, roughness: 0.25 });
   P.bell = put(g, new THREE.SphereGeometry(0.95, 27, 15, 0, Math.PI * 2, 0, Math.PI / 2), bellMat, 0, 1.45, 0); P.bell.scale.y = 0.9; P.glow = bellMat;
-  put(g, torus(0.93, 0.07, 6, 28), bellMat, 0, 1.45, 0).rotation.x = Math.PI / 2;
+  P.rim = put(g, torus(0.93, 0.07, 6, 28), bellMat, 0, 1.45, 0); P.rim.rotation.x = Math.PI / 2;
   put(g, sph(0.42, 12, 9), m('#ffd8f3', { emissive: '#ffb8ef', emissiveIntensity: 0.7, transparent: true, opacity: 0.85 }), 0, 1.62, 0);
   /* the face sits on the bell (lifted a little more than needed: the bell breathes) */
   const C = [0, 1.45, 0], R = [0.95, 0.855, 0.95];
@@ -1325,8 +1325,8 @@ function buildSquid(g, m, P) {
   put(g, sph(0.55, 14, 10), body, 0, 1.3, 0).scale.set(1, 0.95, 0.9);
   eyes(g, m, [[-0.27, 1.38, 0.42], [0.27, 1.38, 0.42]], 0.15);
   const bt = m('#f2f2f7');
-  for (const s of [-1, 1]) put(g, cone(0.1, 0.2, 4), bt, s * 0.11, 1.0, 0.46).rotation.z = s * Math.PI / 2;
-  put(g, sph(0.05, 6, 5), bt, 0, 1.0, 0.48);
+  P.tie = [-1, 1].map(s => put(g, cone(0.1, 0.2, 4), bt, s * 0.11, 1.0, 0.46)); P.tie.forEach((o, i) => { o.rotation.z = (i ? 1 : -1) * Math.PI / 2; });
+  P.tie.push(put(g, sph(0.05, 6, 5), bt, 0, 1.0, 0.48));
   P.tents = [];
   for (let i = 0; i < 8; i++) {
     const a = (i + 0.5) / 8 * Math.PI * 2, t = new THREE.Group(); t.position.set(Math.sin(a) * 0.32, 0.9, Math.cos(a) * 0.28); g.add(t);
@@ -1345,8 +1345,8 @@ function buildSeahorse(g, m, P) {
   P.pouch = new THREE.Group(); P.pouch.position.set(0, 1.1, 0.3); g.add(P.pouch);
   put(P.pouch, sph(0.3, 10, 8), lite, 0, 0, 0).scale.set(0.85, 1.05, 0.6);
   const QR = [0.251, 0.31, 0.177];
-  put(P.pouch, eggSkin([0, 0, 0], QR, 0.012, 2, 10, (u, v) => { const la = -0.4 + v * 1.25, hw = v < 0.2 ? 0.07 * v / 0.2 : 0.07 - 0.035 * (v - 0.2) / 0.8; return [la, (u * 2 - 1) * hw / (QR[0] * Math.cos(la))]; }), tie);
-  const kn = eggAt([0, 0, 0], QR, 0.92, 0, 0.02), knot = put(P.pouch, sph(0.05, 8, 6), tie, kn.p.x, kn.p.y, kn.p.z);
+  P.tie = put(P.pouch, eggSkin([0, 0, 0], QR, 0.012, 2, 10, (u, v) => { const la = -0.4 + v * 1.25, hw = v < 0.2 ? 0.07 * v / 0.2 : 0.07 - 0.035 * (v - 0.2) / 0.8; return [la, (u * 2 - 1) * hw / (QR[0] * Math.cos(la))]; }), tie);
+  const kn = eggAt([0, 0, 0], QR, 0.92, 0, 0.02), knot = P.knot = put(P.pouch, sph(0.05, 8, 6), tie, kn.p.x, kn.p.y, kn.p.z);
   knot.quaternion.setFromUnitVectors(UPV, kn.up); knot.scale.set(1.4, 0.9, 0.6);
   put(g, torus(0.15, 0.065, 6, 16), gold, 0, 0.3, -0.3).rotation.y = Math.PI / 2;
   put(g, cyl(0.06, 0.1, 0.5, 8), gold, 0, 1.86, 0.4).rotation.x = Math.PI / 2 + 0.25;
@@ -1356,7 +1356,7 @@ function buildSeahorse(g, m, P) {
   for (let i = 0; i < 5; i++) {
     const y = 1.55 - i * 0.24; let best = null;
     for (const [by, bz, br] of balls) { const r = br * 0.985, dy = y - by; if (Math.abs(dy) < r) { const z = bz - Math.sqrt(r * r - dy * dy); if (!best || z < best.z) best = { z, n: new THREE.Vector3(0, dy, z - bz).normalize() }; } }
-    const sp = put(g, cone(0.045, 0.14, 4), dark, 0, y + best.n.y * 0.06, best.z + best.n.z * 0.06); sp.quaternion.setFromUnitVectors(UPV, best.n);
+    const sp = put(g, cone(0.045, 0.14, 4), dark, 0, y + best.n.y * 0.06, best.z + best.n.z * 0.06); sp.quaternion.setFromUnitVectors(UPV, best.n); (P.spines = P.spines || []).push(sp);
   }
   /* eyes a little to the sides of the head, the glasses following its curve */
   const HC = [0, 1.95, 0.05], HR = [0.2955, 0.2955, 0.2955];
@@ -1478,7 +1478,7 @@ function buildCoela(g, m, P) {
   put(g, sph(1, 16, 12), body, 0, 1.0, 0).scale.set(0.62, 0.72, 1.35);
   for (let i = 0; i < 12; i++) {
     const z = 0.9 - (i % 6) * 0.32, s = i < 6 ? 1 : -1, y = 1.0 + ((i * 7) % 5 - 2) * 0.1, k = Math.sqrt(Math.max(0, 1 - (z / 1.35) ** 2 - ((y - 1) / 0.72) ** 2));
-    put(g, sph(0.055, 5, 4), lite, s * 0.62 * k, y, z);
+    (P.dots = P.dots || []).push(put(g, sph(0.055, 5, 4), lite, s * 0.62 * k, y, z));
   }
   P.fins = [];
   for (const [x, y, z] of [[-0.42, 0.62, 0.45], [0.42, 0.62, 0.45], [-0.3, 0.5, -0.45], [0.3, 0.5, -0.45]]) {
@@ -1546,14 +1546,14 @@ function buildCucumber(g, m, P) {
   const b = new THREE.Group(); b.position.set(0, 0.55, 0); g.add(b); P.body = b;
   put(b, cyl(0.45, 0.45, 1.5, 14), skin, 0, 0, 0).rotation.x = Math.PI / 2;
   put(b, sph(0.45, 14, 10), skin, 0, 0, 0.75); put(b, sph(0.45, 14, 10), skin, 0, 0, -0.75);
-  for (let i = 0; i < 14; i++) { const z = 0.9 - (i % 7) * 0.3, a = (i < 7 ? 1 : -1) * (0.5 + (i % 3) * 0.25); put(b, cone(0.07, 0.2, 5), lite, Math.sin(a) * 0.44, Math.cos(a) * 0.44, z).rotation.z = -a; }
-  for (let i = 0; i < 8; i++) put(b, sph(0.045, 5, 4), lite, i % 2 ? 0.2 : -0.2, -0.42, 0.75 - Math.floor(i / 2) * 0.45);
+  for (let i = 0; i < 14; i++) { const z = 0.9 - (i % 7) * 0.3, a = (i < 7 ? 1 : -1) * (0.5 + (i % 3) * 0.25); (P.bumps = P.bumps || []).push(put(b, cone(0.07, 0.2, 5), lite, Math.sin(a) * 0.44, Math.cos(a) * 0.44, z)); P.bumps[P.bumps.length - 1].rotation.z = -a; }
+  for (let i = 0; i < 8; i++) (P.dots = P.dots || []).push(put(b, sph(0.045, 5, 4), lite, i % 2 ? 0.2 : -0.2, -0.42, 0.75 - Math.floor(i / 2) * 0.45));
   P.tents = [];
   for (let i = 0; i < 6; i++) { const a = i / 6 * Math.PI * 2, t = put(b, cone(0.06, 0.3, 5), lite, Math.cos(a) * 0.22, Math.sin(a) * 0.22, 1.25); t.rotation.x = Math.PI / 2; P.tents.push(t); }
   eyes(b, m, [[-0.2, 0.25, 1.08], [0.2, 0.25, 1.08]], 0.08);
   const hat = new THREE.Group(); hat.position.set(0, 0.42, 0.75); b.add(hat);
   put(hat, cyl(0.3, 0.3, 0.03, 14), black, 0, 0, 0); put(hat, cyl(0.2, 0.2, 0.38, 14), black, 0, 0.2, 0); put(hat, cyl(0.205, 0.205, 0.07, 14), red, 0, 0.06, 0);
-  put(b, box(0.12, 0.1, 0.05), red, 0, -0.05, 1.2); put(b, cone(0.09, 0.3, 4), red, 0, -0.25, 1.17).rotation.x = Math.PI;
+  P.tie = [put(b, box(0.12, 0.1, 0.05), red, 0, -0.05, 1.2), put(b, cone(0.09, 0.3, 4), red, 0, -0.25, 1.17)]; P.tie[1].rotation.x = Math.PI;
   const st = new THREE.Group(); st.position.set(0.62, 0, 0.55); g.add(st); P.stamp = st;
   put(st, cyl(0.1, 0.1, 0.32, 10), m('#b7343f'), 0, 0.16, 0); put(st, sph(0.11, 8, 6), m('#7a1f28'), 0, 0.36, 0);
 }
@@ -1613,6 +1613,12 @@ const LOOKS = [
   { id: 'p-shark', slot: 'pet', r: 2, name: 'ちびザメ', sym: '🦈' },
   /* wear: lies on the body, so only the 潜水者 fitted for it in NECK can wear it */
   { id: 'w-muffler', slot: 'wear', r: 1, name: 'もこもこマフラー', sym: '🧣' },
+  { id: 'w-bowtie', slot: 'wear', r: 0, name: 'ちょうネクタイ', sym: '🦋' },
+  { id: 'w-bell', slot: 'wear', r: 0, name: 'すずのくびわ', sym: '🔔' },
+  { id: 'w-bandana', slot: 'wear', r: 0, name: 'みずたまバンダナ', sym: '🤠' },
+  { id: 'w-lei', slot: 'wear', r: 1, name: 'フラワーレイ', sym: '🌺' },
+  { id: 'w-pendant', slot: 'wear', r: 1, name: 'ハートのペンダント', sym: '💖' },
+  { id: 'w-fur', slot: 'wear', r: 2, name: 'ピンクのファー', sym: '🦩' },
   /* r 3: sold in the shop only (with the game's server), never in the capsule */
   { id: 'c-neon', slot: 'col', r: 3, name: 'ネオン', sym: '💜', neon: 1 },
   { id: 'h-ribbon', slot: 'head', r: 3, name: 'おおきなリボン', sym: '🎀' },
@@ -1742,40 +1748,86 @@ function buildPet(id, g, m) {
   }
 }
 /* ---- ふく: clothes that lie on the body. Each 潜水者 needs its own fitting, so only the ones in NECK can wear them ----
-   The body is the ellipsoid its builder uses (centre c, radii R, in the part named by on: '' is the whole 潜水者, else P[on]).
-   up: which way the neck runs, as an angle on the body's middle line (π/2 straight up for a round body, near 0 for a long fish
-   whose head points ahead). h: where the scarf sits along it, in radians from the body's middle (+ toward up), on the chin
-   side, at the sides and at the back: a scarf hangs low under the chin and rides higher behind, clear of flippers and fins.
-   w: its width, t: how far its middle puffs out. k: where the knot sits around it (0 the chin side, + toward +x).
-   tails: the two hanging ends as [down, sideways] in radians on the skin from the knot. under: small parts it covers (hidden
-   when they sit under the scarf). The scarf is part of the body, so it follows every squash, turn and fade. */
+   The neck is a ring on one of the 潜水者's round parts: the ellipsoid its builder uses (centre c, radii R), in the part named
+   by on ('' the whole 潜水者, a P key, or a function of P). up: which way the neck runs, as an angle on the part's middle line
+   (π/2 straight up for a round body, near 0 for a long fish whose head points ahead). h: where the ring sits along it, in
+   radians from the part's middle (+ toward up), on the chin side, at the sides and at the back: low under the chin and higher
+   behind, clear of flippers and fins. w: a scarf's width there (every piece of clothing is sized from it), t: how far a scarf
+   puffs out. k: where a scarf's knot sits round the ring (0 the chin side, + toward +x); tails: its two hanging ends as
+   [down, sideways] in radians on the skin. under: small parts that clothes may cover (hidden when they do); chest: what the
+   潜水者 wears on its chest (a necktie), hidden under a bow tie, a bell, a bandana or a pendant. no: clothes that do not
+   fit this 潜水者 (a hanging piece that would run into its arms). l0: how close to the skin a band lies (small necks).
+   hide: parts that any piece of clothing takes the place of.
+   Clothes are part of the body, so they follow every squash, turn and fade. */
 const NECK = {
-  'whale-man': { c: [0, 1.2, 0], R: [0.985, 0.8865, 1.1623], up: Math.PI / 2, h: [-0.27, 0.34, 0.55], w: 0.24, t: 0.075, k: 0.62, tails: [[0.5, -0.02], [0.42, 0.22]], under: P => [P.knot] },
+  'whale-man': { c: [0, 1.2, 0], R: [0.985, 0.8865, 1.1623], up: Math.PI / 2, h: [-0.27, 0.34, 0.55], w: 0.24, t: 0.075, k: 0.62, tails: [[0.5, -0.02], [0.42, 0.22]], under: P => [P.knot], chest: P => [P.knot, P.tie] },
   'shark-lost': { c: [0, 1.0, 0], R: [0.7092, 0.6895, 1.4283], up: 0.16, h: [0.6, 0.5, 0.32], w: 0.22, t: 0.07, k: 1.35, tails: [[0.36, -0.12], [0.3, 0.06]] },
   'puffer-gatekeeper': { on: 'puff', c: [0, 0, 0], R: [0.837, 0.837, 0.837], up: Math.PI / 2, h: [-0.42, -0.44, -0.55], w: 0.22, t: 0.07, k: 0.5, tails: [[0.38, -0.02], [0.3, 0.22]], under: P => P.spikes },
+  'octopus-snail': { on: 'head', c: [0, 0, 0], R: [0.4728, 0.4964, 0.4492], up: Math.PI / 2, h: [-0.64, -0.3, -0.78], w: 0.14, t: 0.045, k: 0.6, tails: [[0.32, -0.02], [0.26, 0.2]] },
+  'angler-note': { c: [0, 1.0, 0], R: [0.8865, 0.8156, 0.8865], up: Math.PI / 2, h: [-0.78, -0.85, -0.7], w: 0.24, t: 0.075, k: 0.6, tails: [[0.3, -0.02], [0.25, 0.18]] },
+  'garden-tower': { on: P => P.eels[0], c: [0, 1.43, 0], R: [0.104, 0.6, 0.104], up: Math.PI / 2, h: [0, 0, 0], w: 0.075, t: 0.028, k: 0.7, tails: [[0.22, -0.05], [0.17, 0.4]], l0: 0.008 },
+  'coelacanth-dream': { c: [0, 1.0, 0], R: [0.611, 0.709, 1.33], up: 0.12, h: [0.64, 0.36, 0.0], w: 0.2, t: 0.065, k: 1.3, tails: [[0.3, -0.18], [0.24, -0.02]], under: P => P.dots },
+  'turtle-printer': { on: 'head', c: [0, 0.08, 0.2], R: [0.335, 0.301, 0.368], up: 0.41, h: [-0.15, -0.3, -0.35], w: 0.13, t: 0.045, k: 0.5, tails: [[0.25, -0.05], [0.2, 0.18]] },
+  /* on the bell's rim, in place of the rim itself (its face floats on the breathing bell, the clothes breathe with it) */
+  'jelly-principal': { on: 'bell', c: [0, 0, 0], R: [0.95, 0.95, 0.95], up: Math.PI / 2, h: [0.012, 0.012, 0.012], w: 0.11, t: 0.045, k: 0.6, tails: [[0.25, -0.02], [0.2, 0.2]], hide: P => [P.rim], no: ['w-bandana'] },
+  /* on the neck ball, between the head and the body; anything hanging lower would run into the pouch */
+  'seahorse-manager': { c: [0, 1.6, -0.06], R: [0.266, 0.266, 0.266], up: Math.PI / 2, h: [0.15, 0.05, 0.05], w: 0.1, t: 0.035, k: 0.9, tails: [], under: P => P.spines, chest: P => [P.tie, P.knot], l0: 0.012, no: ['w-bandana', 'w-pendant'] },
+  'ink-pianist': { c: [0, 1.3, 0], R: [0.542, 0.515, 0.488], up: Math.PI / 2, h: [-0.32, -0.15, 0.0], w: 0.15, t: 0.05, k: 1.1, tails: [[0.3, 0.0], [0.24, 0.22]], chest: P => P.tie, no: ['w-bandana'] },
+  'mantis-count': { c: [0, 1.15, 0.5], R: [0.5417, 0.4442, 0.5687], up: 0.29, h: [0.15, -0.18, -0.5], w: 0.15, t: 0.05, k: 1.2, tails: [[0.3, 0.0], [0.24, 0.22]] },
+  'shrimp-cadet': { c: [0, 1.42, 0.42], R: [0.4137, 0.4137, 0.4137], up: 0.445, h: [-0.2, -0.35, -0.45], w: 0.15, t: 0.05, k: 1.1, tails: [[0.3, 0.0], [0.24, 0.22]] },
+  /* the body is a capsule: near the ring it is a long ellipsoid as wide as the cylinder */
+  'sea-cucumber-ceo': { on: 'body', c: [0, 0, 0.4], R: [0.46, 0.46, 2.0], up: 0, h: [-0.04, -0.05, -0.05], w: 0.18, t: 0.06, k: 1.2, tails: [[0.4, -0.03], [0.32, 0.18]], under: P => [...P.bumps, ...P.dots], chest: P => P.tie },
 };
-const fits = (id, ch) => { const x = LOOK[id]; return !!x && (x.slot !== 'wear' || !!NECK[ch]); };
-const fitNames = () => Object.keys(NECK).map(id => ROSTER.find(c => c.id === id).name).join('・');
-/* the knitted stripes, made once and shared (x runs along the scarf, y across it) */
-let knitTex = null;
-function knit() {
-  if (knitTex) return knitTex;
-  const c = document.createElement('canvas'); c.width = 64; c.height = 16; const x = c.getContext('2d');
-  x.fillStyle = '#d8423f'; x.fillRect(0, 0, 64, 16);
-  x.fillStyle = '#f6ecd6'; x.fillRect(0, 0, 9, 16); x.fillRect(15, 0, 4, 16);
-  /* ribs along the scarf */
-  for (let y = 0; y < 16; y += 2) { x.fillStyle = 'rgba(40,0,10,0.16)'; x.fillRect(0, y, 64, 1); }
-  knitTex = new THREE.CanvasTexture(c); knitTex.wrapS = THREE.RepeatWrapping; knitTex.anisotropy = 4;
-  return knitTex;
+const neckPart = (md, f) => (typeof f.on === 'function' ? f.on(md.P) : f.on ? md.P[f.on] : md.inner);
+const fits = (id, ch) => { const x = LOOK[id]; return !!x && (x.slot !== 'wear' || (!!NECK[ch] && !(NECK[ch].no || []).includes(id))); };
+/* who can wear clothes, said the short way round */
+function fitNote() {
+  const yes = ROSTER.filter(c => NECK[c.id]), no = ROSTER.filter(c => !NECK[c.id]);
+  if (!no.length) return 'みんな着られます';
+  return no.length < yes.length ? no.map(c => c.name).join('、') + ' はまだ着られません（ほかのみんなは着られます）' : yes.map(c => c.name).join('、') + ' が着られます（ほかの潜水者はこれから）';
 }
-/* one mesh from several (position, normal, uv, index), so a whole piece of clothing is one draw */
+/* small patterns drawn once and shared by every piece of clothing (x runs along a band, y across it) */
+const TEX = {};
+function tex(key, w, h, draw) {
+  if (TEX[key]) return TEX[key];
+  const c = document.createElement('canvas'); c.width = w; c.height = h; draw(c.getContext('2d'));
+  const t = TEX[key] = new THREE.CanvasTexture(c); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.anisotropy = 4; return t;
+}
+const PAT = {
+  /* red knit with two cream stripes, ribbed along its length */
+  knit: () => tex('knit', 64, 16, x => {
+    x.fillStyle = '#d8423f'; x.fillRect(0, 0, 64, 16);
+    x.fillStyle = '#f6ecd6'; x.fillRect(0, 0, 9, 16); x.fillRect(15, 0, 4, 16);
+    x.fillStyle = 'rgba(40,0,10,0.16)'; for (let y = 0; y < 16; y += 2) x.fillRect(0, y, 64, 1);
+  }),
+  /* white polka dots on red */
+  dots: () => tex('dots', 32, 32, x => {
+    x.fillStyle = '#d23b3b'; x.fillRect(0, 0, 32, 32); x.fillStyle = '#fff4ea';
+    for (const [a, b] of [[8, 8], [24, 24]]) { x.beginPath(); x.arc(a, b, 3.4, 0, Math.PI * 2); x.fill(); }
+  }),
+  /* four flowers in a row on leaves */
+  lei: () => tex('lei', 128, 32, x => {
+    x.fillStyle = '#3f9a5a'; x.fillRect(0, 0, 128, 32);
+    ['#ff7fb4', '#ffd84a', '#fff6f0', '#ff9a4a'].forEach((col, i) => {
+      const cx = 16 + i * 32;
+      x.fillStyle = col; for (let j = 0; j < 5; j++) { const a = j / 5 * Math.PI * 2 + i; x.beginPath(); x.arc(cx + Math.cos(a) * 8, 16 + Math.sin(a) * 8, 7.5, 0, Math.PI * 2); x.fill(); }
+      x.fillStyle = i === 1 ? '#ff8a3a' : '#ffe27a'; x.beginPath(); x.arc(cx, 16, 4, 0, Math.PI * 2); x.fill();
+    });
+  }),
+  /* pink feathers */
+  fur: () => tex('fur', 64, 32, x => {
+    x.fillStyle = '#ff9fd0'; x.fillRect(0, 0, 64, 32); x.lineWidth = 1;
+    for (let i = 0; i < 260; i++) { const a = (i * 37) % 64, b = (i * 53) % 32, l = 3 + (i % 5); x.strokeStyle = i % 3 ? 'rgba(255,232,246,0.55)' : 'rgba(190,60,130,0.35)'; x.beginPath(); x.moveTo(a, b); x.lineTo(a + l * 0.6, b + l); x.stroke(); }
+  }),
+};
+/* one mesh from several, so each material of a piece of clothing is one draw (geometry without uv or index is fine) */
 function mergeGeo(list) {
   const pos = [], nor = [], uv = [], idx = [];
   for (const g of list) {
-    const base = pos.length / 3, P = g.attributes.position.array, N = g.attributes.normal.array, U = g.attributes.uv.array, I = g.index.array;
+    const base = pos.length / 3, P = g.attributes.position.array, N = g.attributes.normal.array, n = P.length / 3;
     for (let i = 0; i < P.length; i++) { pos.push(P[i]); nor.push(N[i]); }
-    for (let i = 0; i < U.length; i++) uv.push(U[i]);
-    for (let i = 0; i < I.length; i++) idx.push(I[i] + base);
+    if (g.attributes.uv) { const U = g.attributes.uv.array; for (let i = 0; i < U.length; i++) uv.push(U[i]); } else for (let i = 0; i < n; i++) uv.push(0.5, 0.5);
+    if (g.index) { const I = g.index.array; for (let i = 0; i < I.length; i++) idx.push(I[i] + base); } else for (let i = 0; i < n; i++) idx.push(base + i);
     g.dispose();
   }
   const g = new THREE.BufferGeometry();
@@ -1785,10 +1837,12 @@ function mergeGeo(list) {
 const laLo = u => [Math.asin(clamp(u.y, -1, 1)), Math.atan2(u.x, u.z)];
 /* the neck ring on the unit sphere (the body divided by its radii), round the axis up. A point on it is p radians round from
    the chin side and q(p) from the axis, q following h smoothly (three cosine terms through the chin, side and back heights).
-   at(p, s, o): the point p round and s across the scarf (-1 its lower edge, +1 its upper edge). across(u): where unit-sphere
-   point u is across it (|s| < 1 on the scarf). lift(u): how high the scarf stands over the skin there (0 off it) */
-function neckRing(f) {
-  const R = f.R, l0 = 0.02, [hf, hs, hb] = f.h, A0 = (hs + (hf + hb) / 2) / 2, A1 = (hf - hb) / 2, A2 = ((hf + hb) / 2 - hs) / 2;
+   w: the width of the band laid along it (default the scarf's), t: how far that band puffs out.
+   at(p, s, o): the point p round and s across the band (-1 its lower edge, +1 its upper edge). across(u): where unit-sphere
+   point u is across it (|s| < 1 on the band). lift(u): how high the band stands over the skin there (0 off it) */
+function neckRing(f, w, t) {
+  w = w || f.w; t = t === undefined ? f.t : t;
+  const R = f.R, l0 = f.l0 || 0.02, [hf, hs, hb] = f.h, A0 = (hs + (hf + hb) / 2) / 2, A1 = (hf - hb) / 2, A2 = ((hf + hb) / 2 - hs) / 2;
   const q = p => Math.PI / 2 - (A0 + A1 * Math.cos(p) + A2 * Math.cos(2 * p));
   const ax = new THREE.Vector3(0, Math.sin(f.up), Math.cos(f.up)), e1 = new THREE.Vector3(0, -Math.cos(f.up), Math.sin(f.up)), e2 = new THREE.Vector3(1, 0, 0);
   const d = new THREE.Vector3(), a = new THREE.Vector3(), b = new THREE.Vector3();
@@ -1797,50 +1851,141 @@ function neckRing(f) {
   /* half the width as an angle: w/2 over how far the skin moves per radian of q, measured square to the ring */
   const half = p => {
     sk(pt(p, q(p) + Math.PI / 2, d)); sk(pt(p + 0.01, q(p + 0.01), a)).sub(sk(pt(p - 0.01, q(p - 0.01), b))).normalize();
-    const L = d.length(), cs = d.dot(a) / L; return f.w / 2 / (L * Math.sqrt(Math.max(0.2, 1 - cs * cs)));
+    const L = d.length(), cs = d.dot(a) / L; return w / 2 / (L * Math.sqrt(Math.max(0.2, 1 - cs * cs)));
   };
   const at = (p, s, o) => pt(p, q(p) - s * half(p), o);
   const across = u => { const p = Math.atan2(u.dot(e2), u.dot(e1)); return (q(p) - u.angleTo(ax)) / half(p); };
-  const lift = u => { const s = across(u); return Math.abs(s) < 1 ? l0 + f.t * Math.pow(1 - s * s, 0.3) : 0; };
-  return { at, across, lift, l0 };
+  const lift = u => { const s = across(u); return Math.abs(s) < 1 ? l0 + t * Math.pow(1 - s * s, 0.3) : 0; };
+  return { at, across, lift, l0, w, t };
 }
-function buildWear(md, id, m) {
-  const f = NECK[md.type]; if (!f || id !== 'w-muffler') return null;
-  const par = f.on ? md.P[f.on] : md.inner, { c, R } = f, ring = neckRing(f), U = new THREE.Vector3(), parts = [];
-  /* the loop, plain red: rows packed toward the edges, which drop steeply to the skin so nothing shows under them */
-  const loop = eggSkin(c, R, 0, 40, 6, (u, v) => [...laLo(ring.at(u * Math.PI * 2, -Math.cos(Math.PI * v), U)), ring.l0 + f.t * Math.pow(Math.sin(Math.PI * v), 0.6)], true), UV = loop.attributes.uv;
-  for (let i = 0; i < UV.count; i++) UV.setX(i, 0.6);
-  parts.push(loop);
-  /* the knot, and the two striped ends hanging from it over the loop and down the skin, fringed at the bottom */
-  const [kla, klo] = laLo(ring.at(f.k, 0, U)), tw = f.w * 0.4, cover = [];
-  for (const [dn, sd] of f.tails) {
-    const tl = eggSkin(c, R, 0, 6, 10, (u, v) => {
-      const la = kla - dn * (1 - v) - (v === 0 && Math.round(u * 6) % 2 === 0 ? 0.05 : 0), lo0 = klo + sd * (1 - v), cl = Math.cos(la);
-      const lo = lo0 + (u * 2 - 1) * tw / (cl * Math.hypot(R[0] * Math.cos(lo0), R[2] * Math.sin(lo0)));
-      U.set(cl * Math.sin(lo), Math.sin(la), cl * Math.cos(lo));
-      return [la, lo, Math.max(0.022, ring.lift(U) + 0.012)];
+/* the skin at ring point p, s across, lifted: where (p), which way is out (n), toward the head across the ring (up), along it (side) */
+function ringFrame(f, ring, p, s, lift) {
+  const [la, lo] = laLo(ring.at(p, s)), e = eggAt(f.c, f.R, la, lo, lift), b = eggAt(f.c, f.R, ...laLo(ring.at(p, s + 0.3)), 0).p.sub(eggAt(f.c, f.R, la, lo, 0).p);
+  const up = b.addScaledVector(e.n, -b.dot(e.n)).normalize();
+  return { p: e.p, n: e.n, up, side: new THREE.Vector3().crossVectors(up, e.n), la, lo };
+}
+/* a small solid piece built round its own centre (x along the ring, y toward the head, z out of the skin), set onto a frame */
+function onFrame(geo, fr, sx, sy, sz) {
+  const q = new THREE.Quaternion().setFromRotationMatrix(new THREE.Matrix4().makeBasis(fr.side, fr.up, fr.n));
+  return geo.applyMatrix4(new THREE.Matrix4().compose(fr.p, q, new THREE.Vector3(sx, sy, sz)));
+}
+/* a band right round the neck along ring, standing lift(p, v) over the skin (v 0..1 across); uv x = x0 + reps round it, y across.
+   Its rows are packed toward the edges, which drop steeply to the skin so nothing shows under them */
+function loopGeo(f, ring, lift, reps, x0) {
+  const g = eggSkin(f.c, f.R, 0, 40, 6, (u, v) => [...laLo(ring.at(u * Math.PI * 2, -Math.cos(Math.PI * v))), lift(u * Math.PI * 2, v)], true), UV = g.attributes.uv;
+  for (let i = 0; i < UV.count; i++) UV.setX(i, x0 + UV.getX(i) * reps);
+  return g;
+}
+const puffy = ring => (p, v) => ring.l0 + ring.t * Math.pow(Math.sin(Math.PI * v), 0.6);
+function ringLen(f, ring) { let L = 0, a = null; for (let i = 0; i <= 40; i++) { const b = eggAt(f.c, f.R, ...laLo(ring.at(i / 40 * Math.PI * 2, 0)), 0).p; if (a) L += a.distanceTo(b); a = b; } return L; }
+/* what a piece of clothing covers, as tests on a skin point sp (unit-sphere u): its band, or near a spot */
+const bandCover = ring => (sp, u) => Math.abs(ring.across(u)) < 1 + 0.2 / ring.w;
+const dotCover = (p, r) => sp => sp.distanceTo(p) < r + 0.1;
+const GOLD = ['#ffd25a', { metalness: 0.6, roughness: 0.3, emissive: '#7a5200', emissiveIntensity: 0.3 }];
+/* the clothes: each lays out its pieces as [geometry, material] for one 潜水者's neck f (k: its size against the whale's)
+   and says what it covers */
+const WEAR = {
+  /* a chunky striped scarf, the knot and two fringed ends hanging over the loop and down the skin */
+  'w-muffler'(f, k, m) {
+    const ring = neckRing(f), U = new THREE.Vector3(), { c, R } = f, mt = m('#ffffff', { roughness: 0.92, name: 'knit' }); mt.map = PAT.knit();
+    const geos = [loopGeo(f, ring, puffy(ring), 0, 0.6)], cover = [bandCover(ring)];
+    const [kla, klo] = laLo(ring.at(f.k, 0, U)), tw = f.w * 0.4;
+    for (const [dn, sd] of f.tails) {
+      const tl = eggSkin(c, R, 0, 6, 10, (u, v) => {
+        const la = kla - dn * (1 - v) - (v === 0 && Math.round(u * 6) % 2 === 0 ? 0.05 : 0), lo0 = klo + sd * (1 - v), cl = Math.cos(la);
+        const lo = lo0 + (u * 2 - 1) * tw / (cl * Math.hypot(R[0] * Math.cos(lo0), R[2] * Math.sin(lo0)));
+        U.set(cl * Math.sin(lo), Math.sin(la), cl * Math.cos(lo));
+        return [la, lo, Math.max(0.022, ring.lift(U) + 0.012)];
+      });
+      const TU = tl.attributes.uv, tlen = dn * R[1];
+      for (let i = 0; i < TU.count; i++) TU.setXY(i, TU.getY(i) * tlen / 0.8, TU.getX(i));
+      geos.push(tl);
+      for (let j = 0; j <= 6; j++) cover.push(dotCover(eggAt(c, R, kla - dn * (1 - j / 6), klo + sd * (1 - j / 6), 0).p, tw));
+    }
+    const kg = onFrame(new THREE.SphereGeometry(f.w * 0.42, 10, 7), ringFrame(f, ring, f.k, 0, ring.l0 + f.t * 0.85), 1.25, 0.95, 0.62), KU = kg.attributes.uv;
+    for (let i = 0; i < KU.count; i++) KU.setXY(i, 0.62, 0.5);
+    geos.push(kg);
+    return { parts: geos.map(g => [g, mt]), cover };
+  },
+  /* a red bow tie under the chin */
+  'w-bowtie'(f, k, m) {
+    const ring = neckRing(f), fr = ringFrame(f, ring, 0, 0.15, ring.l0 + 0.06 * k), geos = [], z = 1.25 * k;
+    for (const s of [-1, 1]) { const g = new THREE.ConeGeometry(0.1, 0.2, 4).toNonIndexed(); g.rotateZ(s * Math.PI / 2); g.translate(s * 0.1, 0, 0); geos.push(g); }
+    geos.push(new THREE.BoxGeometry(0.075, 0.085, 0.07).toNonIndexed());
+    const g = mergeGeo(geos); g.computeVertexNormals(); onFrame(g, fr, z, z, 0.5 * z);
+    return { parts: [[g, m('#d8344c', { roughness: 0.35 })]], cover: [dotCover(fr.p, 0.2 * z)], bib: true };
+  },
+  /* a red leather collar with a golden bell */
+  'w-bell'(f, k, m) {
+    const ring = neckRing(f, f.w * 0.4, f.t * 0.32), br = 0.085 * k, fr = ringFrame(f, ring, 0, -1.9, ring.l0 + br * 0.85);
+    const bell = new THREE.SphereGeometry(br, 12, 9); bell.scale(1, 1, 0.9);
+    const loop = new THREE.TorusGeometry(br * 0.32, br * 0.1, 5, 10); loop.translate(0, br * 0.98, 0);
+    const slit = new THREE.BoxGeometry(br * 1.05, br * 0.14, br * 0.4); slit.translate(0, -br * 0.4, br * 0.72);
+    const hole = new THREE.SphereGeometry(br * 0.16, 6, 5); hole.translate(0, -br * 0.4, br * 0.86);
+    return {
+      parts: [[loopGeo(f, ring, puffy(ring), 0, 0), m('#c0392b', { roughness: 0.55 })], [onFrame(bell, fr, 1, 1, 1), m(...GOLD)], [onFrame(loop, fr, 1, 1, 1), m(...GOLD)],
+        [onFrame(slit, fr, 1, 1, 1), m('#4a3410')], [onFrame(hole, fr, 1, 1, 1), m('#4a3410')]],
+      cover: [bandCover(ring), dotCover(fr.p, br * 1.5)], bib: true,
+    };
+  },
+  /* a polka-dot bandana: a thin band round the neck and a triangle hanging under the chin */
+  'w-bandana'(f, k, m) {
+    const ring = neckRing(f, f.w * 0.32, f.t * 0.28), { c, R } = f, D = 0.4 * k, PH = 0.85, U = new THREE.Vector3(), mt = m('#ffffff', { roughness: 0.8, name: 'dots' }); mt.map = PAT.dots();
+    const band = loopGeo(f, ring, puffy(ring), Math.round(ringLen(f, ring) / 0.12), 0), cover = [bandCover(ring)];
+    const tri = eggSkin(c, R, 0, 12, 6, (u, v) => {
+      const [la0, lo0] = laLo(ring.at((u * 2 - 1) * PH * Math.max(v, 0.02), 0, U)), la = Math.max(-1.45, la0 - D * (1 - v) / R[1]), cl = Math.cos(la);
+      U.set(cl * Math.sin(lo0), Math.sin(la), cl * Math.cos(lo0));
+      return [la, lo0, Math.max(0.032, ring.lift(U) + 0.01)];
     });
-    const TU = tl.attributes.uv, tlen = dn * R[1];
-    for (let i = 0; i < TU.count; i++) TU.setXY(i, TU.getY(i) * tlen / 0.8, TU.getX(i));
-    parts.push(tl);
-    for (let j = 0; j <= 6; j++) cover.push(eggAt(c, R, kla - dn * (1 - j / 6), klo + sd * (1 - j / 6), 0).p);
+    const TU = tri.attributes.uv; for (let i = 0; i < TU.count; i++) TU.setXY(i, TU.getX(i) * 6 * k, TU.getY(i) * 3 * k);
+    const [la0, lo0] = laLo(ring.at(0, 0));
+    for (let j = 0; j <= 4; j++) cover.push(dotCover(eggAt(c, R, Math.max(-1.45, la0 - D * j / 4 / R[1]), lo0, 0).p, 0.2 * k * (1 - j / 5)));
+    return { parts: [[band, mt], [tri, mt]], cover, bib: true };
+  },
+  /* a lei of flowers */
+  'w-lei'(f, k, m) {
+    const ring = neckRing(f, f.w * 0.95, f.t * 1.15), mt = m('#ffffff', { roughness: 0.75, name: 'lei' }); mt.map = PAT.lei();
+    return { parts: [[loopGeo(f, ring, puffy(ring), Math.max(2, Math.round(ringLen(f, ring) / (4 * ring.w))), 0), mt]], cover: [bandCover(ring)] };
+  },
+  /* a thin gold chain with a ruby heart */
+  'w-pendant'(f, k, m) {
+    const ring = neckRing(f), rr = 0.017 * k, pts = [];
+    for (let i = 0; i < 48; i++) pts.push(eggAt(f.c, f.R, ...laLo(ring.at(i / 48 * Math.PI * 2, 0.1)), ring.l0 + rr).p);
+    const chain = new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts, true), 72, rr, 5, true);
+    const fr = ringFrame(f, ring, 0, -1.1, ring.l0 + 0.035 * k), bail = onFrame(new THREE.TorusGeometry(0.022, 0.007, 5, 10), ringFrame(f, ring, 0, -0.2, ring.l0 + rr), k, k, k);
+    return {
+      parts: [[chain, m(...GOLD)], [bail, m(...GOLD)], [onFrame(heartGeo(0.1, 0.04), fr, k, k, k), m('#e8264f', { roughness: 0.2, metalness: 0.2, emissive: '#7a0018', emissiveIntensity: 0.35 })]],
+      cover: [bandCover(neckRing(f, 0.06, 0)), dotCover(fr.p, 0.14 * k)], bib: true,
+    };
+  },
+  /* a fluffy pink feather boa */
+  'w-fur'(f, k, m) {
+    const ring = neckRing(f, f.w * 1.05, f.t * 1.5), mt = m('#ffffff', { roughness: 1, name: 'fur' }); mt.map = PAT.fur();
+    const lump = (p, v) => ring.l0 + ring.t * Math.pow(Math.sin(Math.PI * v), 0.6) * (1 + 0.14 * Math.sin(p * 11 + v * 4));
+    return { parts: [[loopGeo(f, ring, lump, Math.max(2, Math.round(ringLen(f, ring) / (2 * ring.w))), 0), mt]], cover: [bandCover(ring)] };
+  },
+};
+function buildWear(md, id, m) {
+  const f = NECK[md.type], make = WEAR[id]; if (!f || !make || (f.no || []).includes(id)) return null;
+  const par = neckPart(md, f), out = make(f, f.w / 0.24, m), grp = new THREE.Group(), byMat = new Map();
+  for (const [g, mt] of out.parts) { if (!byMat.has(mt)) byMat.set(mt, []); byMat.get(mt).push(g); }
+  for (const [mt, gs] of byMat) put(grp, gs.length > 1 ? mergeGeo(gs) : gs[0], mt);
+  par.add(grp);
+  if (out.bib && f.chest) for (const o of f.chest(md.P)) if (o) o.visible = false;
+  if (f.hide) for (const o of f.hide(md.P)) if (o) o.visible = false;
+  /* what the clothes cover: a small part whose spot on the skin is under them is hidden */
+  if (f.under) {
+    const U = new THREE.Vector3(), q = new THREE.Vector3();
+    for (const o of f.under(md.P)) {
+      if (!o || o.parent !== par) continue;
+      o.updateMatrix();
+      if (o.geometry && o.position.lengthSq() === 0) { if (!o.geometry.boundingBox) o.geometry.computeBoundingBox(); o.geometry.boundingBox.getCenter(q).applyMatrix4(o.matrix); } else q.copy(o.position);
+      U.set((q.x - f.c[0]) / f.R[0], (q.y - f.c[1]) / f.R[1], (q.z - f.c[2]) / f.R[2]).normalize();
+      const sp = eggAt(f.c, f.R, ...laLo(U), 0).p;
+      if (out.cover.some(t => t(sp, U))) o.visible = false;
+    }
   }
-  const kn = eggAt(c, R, kla, klo, ring.l0 + f.t * 0.85), across = eggAt(c, R, ...laLo(ring.at(f.k, 0.5, U)), 0).p.sub(eggAt(c, R, kla, klo, 0).p);
-  across.addScaledVector(kn.n, -across.dot(kn.n)).normalize();
-  const kg = new THREE.SphereGeometry(f.w * 0.42, 10, 7), KU = kg.attributes.uv;
-  kg.applyMatrix4(new THREE.Matrix4().compose(kn.p, new THREE.Quaternion().setFromRotationMatrix(new THREE.Matrix4().makeBasis(new THREE.Vector3().crossVectors(across, kn.n), across, kn.n)), new THREE.Vector3(1.25, 0.95, 0.62)));
-  for (let i = 0; i < KU.count; i++) KU.setXY(i, 0.62, 0.5);
-  parts.push(kg);
-  const mt = m('#ffffff', { roughness: 0.92, name: 'knit' }); mt.map = knit();
-  const mesh = put(par, mergeGeo(parts), mt);
-  /* what the scarf covers: a part whose spot on the skin is under the loop or a hanging end */
-  if (f.under) for (const o of f.under(md.P)) {
-    if (!o || o.parent !== par) continue;
-    U.set((o.position.x - c[0]) / R[0], (o.position.y - c[1]) / R[1], (o.position.z - c[2]) / R[2]).normalize();
-    const sp = eggAt(c, R, ...laLo(U), 0).p, pad = 0.1;
-    if (Math.abs(ring.across(U)) < 1 + pad * 2 / f.w || cover.some(q => q.distanceTo(sp) < tw + pad)) o.visible = false;
-  }
-  return mesh;
+  return grp;
 }
 /* put a look on a freshly built model; the colour change only touches the body built before it */
 function dressModel(md, look, m) {
@@ -5498,7 +5643,7 @@ function renderBag() {
     const its = LOOKS.filter(x => x.slot === sl && (x.r < 3 || Bag.shopOpen() || Bag.has(x.id))), got = its.filter(x => Bag.has(x.id)).length;
     return '<div><h4>' + SLOT_NAME[sl] + '（' + got + '/' + its.length + '）</h4><ul>' + its.map(x => Bag.has(x.id)
       ? '<li class="r' + x.r + '"><i>' + x.sym + '</i>' + x.name + '</li>' : '<li class="no r' + x.r + '"><i>？</i>' + rareName(x.r) + '</li>').join('') + '</ul>' +
-      (sl === 'wear' ? '<p class="fit">' + fitNames() + ' が着られます（ほかの潜水者はこれから）</p>' : '') + '</div>';
+      (sl === 'wear' ? '<p class="fit">' + fitNote() + '</p>' : '') + '</div>';
   }).join('');
   const per = r => LOOKS.filter(x => x.r === r).length;
   $('#bag-odds').innerHTML = RARE.map((R, r) => R.name + ' ' + Math.round(R.p * 100) + '%（' + per(r) + '種、1つあたり ' + (R.p / per(r) * 100).toFixed(2) + '%）。持っているものが出たら ' + R.back + 'コインもどる').join('<br>') +
@@ -5529,7 +5674,7 @@ async function turnCapsule(n) {
   rv.hidden = false; rv.style.setProperty('--rc', R.c); rv.style.animation = 'none'; void rv.offsetWidth; rv.style.animation = '';
   const news = got.filter(x => !x.dup).length, back = got.reduce((a, x) => a + x.back, 0);
   rv.innerHTML = '<span class="rs">' + pick.it.sym + '</span><span><span class="rr">' + R.name + '・' + SLOT_NAME[pick.it.slot] + '</span><b>' + pick.it.name + '</b><small>' +
-    (got.length > 1 ? 'NEW ' + news + '個' + (back ? '・かぶりで ' + back + 'コインもどりました' : '') + '。' : pick.dup ? 'もう持っていたので ' + pick.back + 'コインもどりました。' : 'NEW！ ') + (fits(pick.it.id, ROSTER[G.picks[0] | 0].id) ? 'いまは試しに着せています' : 'いまの潜水者は着られません（' + fitNames() + ' が着られます）') + '</small></span>';
+    (got.length > 1 ? 'NEW ' + news + '個' + (back ? '・かぶりで ' + back + 'コインもどりました' : '') + '。' : pick.dup ? 'もう持っていたので ' + pick.back + 'コインもどりました。' : 'NEW！ ') + (fits(pick.it.id, ROSTER[G.picks[0] | 0].id) ? 'いまは試しに着せています' : 'いまの潜水者はまだ着られません') + '</small></span>';
   renderBag(); bagPreview(pick.it.id);
 }
 $('#bag-ad-btn').addEventListener('click', () => { if (Ads.reward) Ads.reward(); });

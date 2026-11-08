@@ -22,7 +22,7 @@ export const LOOKS = {
   'h-flower': 0, 'h-cloud': 0, 'h-bubble': 0, 'h-heart': 0, 'h-star': 1, 'h-halo': 1, 'h-crown': 2,
   'p-fish': 0, 'p-bubbles': 0, 'p-plankton': 0, 'p-jelly': 1, 'p-star': 1, 'p-shark': 2,
   /* ふく: 体に合わせて着るもの。着られる潜水者はゲーム側の NECK で決まる */
-  'w-muffler': 1,
+  'w-muffler': 1, 'w-bowtie': 0, 'w-bell': 0, 'w-bandana': 0, 'w-lei': 1, 'w-pendant': 1, 'w-fur': 2,
   'c-neon': 3, 'h-ribbon': 3, 'h-witch': 3, 'p-whale': 3, 'p-ufo': 3, 'h-medal': 3,
 };
 export const SLOT_OF = id => ({ c: 'col', h: 'head', p: 'pet', w: 'wear' })[String(id)[0]] || '';
