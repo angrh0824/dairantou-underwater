@@ -1623,6 +1623,11 @@ const LOOKS = [
   { id: 'p-jelly', slot: 'pet', r: 1, name: 'ちびクラゲ', sym: '🎐' },
   { id: 'p-star', slot: 'pet', r: 1, name: 'ちびヒトデ', sym: '🌟' },
   { id: 'p-shark', slot: 'pet', r: 2, name: 'ちびザメ', sym: '🦈' },
+  { id: 'p-octo', slot: 'pet', r: 0, name: 'ちびタコ', sym: '🐙' },
+  { id: 'p-turtle', slot: 'pet', r: 1, name: 'ちびカメ', sym: '🐢' },
+  { id: 'p-dolphin', slot: 'pet', r: 2, name: 'ちびイルカ', sym: '🐬' },
+  { id: 'h-note', slot: 'head', r: 0, name: 'おんぷ', sym: '🎵' },
+  { id: 'h-rainbow', slot: 'head', r: 1, name: 'にじ', sym: '🌈' },
   /* wear: lies on the body, so only the 潜水者 fitted for it in NECK can wear it */
   { id: 'w-muffler', slot: 'wear', r: 1, name: 'もこもこマフラー', sym: '🧣' },
   { id: 'w-bowtie', slot: 'wear', r: 0, name: 'ちょうネクタイ', sym: '🤵' },
@@ -1746,6 +1751,15 @@ function buildHead(id, g, m) {
   } else if (id === 'h-crown') {
     put(g, new THREE.CylinderGeometry(0.17, 0.15, 0.13, 18, 1, true), m('#ffd25a', { metalness: 0.6, roughness: 0.3, emissive: '#7a5200', emissiveIntensity: 0.3, side: THREE.DoubleSide }), 0, 0, 0);
     for (let i = 0; i < 5; i++) { const a = i / 5 * Math.PI * 2; put(g, cone(0.04, 0.09, 8), gold, Math.cos(a) * 0.16, 0.1, Math.sin(a) * 0.16); put(g, sph(0.025, 8, 6), m('#ff4f7a', { roughness: 0.2 }), Math.cos(a + 0.63) * 0.163, 0, Math.sin(a + 0.63) * 0.163); }
+  } else if (id === 'h-note') {
+    /* an eighth note: a round head, a stem and a flag */
+    const nm = m('#2b2a3a', { roughness: 0.4, emissive: '#5a4aff', emissiveIntensity: 0.25 });
+    put(g, sph(0.07, 12, 9), nm, -0.04, -0.1, 0).scale.set(1.3, 1, 0.8);
+    put(g, cyl(0.014, 0.014, 0.26, 6), nm, 0.045, 0.02, 0);
+    const fl = put(g, box(0.1, 0.03, 0.02), nm, 0.09, 0.12, 0); fl.rotation.z = -0.6;
+  } else if (id === 'h-rainbow') {
+    /* a small rainbow arch */
+    ['#ff5a5a', '#ffb347', '#ffe066', '#7ddc6b', '#5bb8ff', '#a77bff'].forEach((c, i) => put(g, new THREE.TorusGeometry(0.2 - i * 0.022, 0.012, 6, 24, Math.PI), m(c, { roughness: 0.5, emissive: c, emissiveIntensity: 0.25 }), 0, -0.08, 0));
   }
 }
 /* the companions, about 0.3 long and facing +z (the way they swim) */
@@ -1782,6 +1796,26 @@ function buildPet(id, g, m) {
     put(g, cone(0.05, 0.1, 4), m('#6f8fa3'), 0, 0.07, -0.02).scale.z = 0.35;
     put(g, cone(0.06, 0.1, 4), m('#6f8fa3'), 0, 0, -0.19).rotation.x = Math.PI / 2;
     for (const s of [-1, 1]) put(g, sph(0.02, 6, 5), m('#141820'), s * 0.045, 0.025, 0.1);
+  } else if (id === 'p-octo') {
+    /* a round pink head over four little legs */
+    put(g, sph(0.1, 12, 9), m('#ff8fa8'), 0, 0.04, 0).scale.set(1, 1.1, 1);
+    for (let i = 0; i < 4; i++) { const a = i / 4 * Math.PI * 2 + 0.4, l = put(g, cyl(0.026, 0.014, 0.12, 6), m('#ff8fa8'), Math.cos(a) * 0.055, -0.08, Math.sin(a) * 0.055); l.rotation.set(Math.sin(a) * 0.45, 0, -Math.cos(a) * 0.45); }
+    for (const s of [-1, 1]) put(g, sph(0.022, 6, 5), m('#141820'), s * 0.04, 0.05, 0.085);
+  } else if (id === 'p-turtle') {
+    /* a green shell, a little head and four flippers */
+    put(g, new THREE.SphereGeometry(0.11, 14, 7, 0, Math.PI * 2, 0, Math.PI / 2), m('#5f8048'), 0, 0, 0).scale.set(1, 0.7, 1.15);
+    put(g, cyl(0.1, 0.1, 0.02, 14), m('#cbbf8c'), 0, -0.005, 0).scale.set(1, 1, 1.15);
+    put(g, sph(0.045, 10, 8), m('#9cbd74'), 0, 0.02, 0.14);
+    for (const [x, z] of [[-0.09, 0.07], [0.09, 0.07], [-0.08, -0.08], [0.08, -0.08]]) put(g, sph(0.035, 8, 6), m('#9cbd74'), x, -0.01, z).scale.set(1.3, 0.35, 0.8);
+    for (const s of [-1, 1]) put(g, sph(0.012, 6, 5), m('#141820'), s * 0.02, 0.04, 0.175);
+  } else if (id === 'p-dolphin') {
+    /* a sleek blue-grey body, a beak, a fin on top and a tail */
+    put(g, sph(0.1, 12, 9), m('#7aa6c2'), 0, 0, 0).scale.set(0.6, 0.62, 1.7);
+    put(g, sph(0.06, 10, 8), m('#e9f2f6'), 0, -0.03, 0.03).scale.set(0.7, 0.5, 2.1);
+    put(g, cone(0.025, 0.08, 8), m('#7aa6c2'), 0, -0.01, 0.2).rotation.x = Math.PI / 2;
+    put(g, cone(0.045, 0.09, 4), m('#7aa6c2'), 0, 0.075, -0.02).scale.z = 0.3;
+    for (const s of [-1, 1]) { const t = put(g, sph(0.04, 8, 6), m('#7aa6c2'), s * 0.04, 0, -0.18); t.scale.set(1.2, 0.25, 0.6); t.rotation.y = -s * 0.5; }
+    for (const s of [-1, 1]) put(g, sph(0.015, 6, 5), m('#141820'), s * 0.05, 0.025, 0.1);
   }
 }
 /* ---- ふく: clothes that lie on the body. Each 潜水者 needs its own fitting, so only the ones in NECK can wear them ----
