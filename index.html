@@ -1470,7 +1470,7 @@ function buildEels(g, m, P) {
     const hd = new THREE.Group(); hd.position.y = h; e.add(hd);
     put(hd, sph(0.13, 10, 8), mt, 0, 0.03, 0.04).scale.set(0.9, 1, 1.15);
     for (const s of [-1, 1]) { const ey = put(hd, sph(0.035, 6, 5), m('#141820'), s * 0.08, 0.08, 0.12); if (i === 0) { ey.userData.dir = new THREE.Vector3(s * 0.35, 0.12, 0.93).normalize(); (P.eyes = P.eyes || []).push(ey); } }
-    if (i % 2 === 0) for (let k = 0; k < 4; k++) { const f = 0.2 + k * 0.18, rr = 0.11 - 0.01 * f + 0.012; put(e, sph(0.03, 4, 3), spot, Math.sin(k * 2.1) * rr, h * f, Math.cos(k * 2.1) * rr); }
+    if (i % 2 === 0) for (let k = 0; k < 4; k++) { const f = 0.2 + k * 0.18, rr = 0.11 - 0.01 * f + 0.012; const sp = put(e, sph(0.03, 4, 3), spot, Math.sin(k * 2.1) * rr, h * f, Math.cos(k * 2.1) * rr); if (i === 0) (P.spots = P.spots || []).push(sp); }
     if (i === 0) { put(hd, sph(0.16, 10, 6), hat, 0, 0.13, 0.02).scale.y = 0.55; put(hd, cyl(0.21, 0.21, 0.02, 12), hat, 0, 0.1, 0.02); }
     P.eels.push(e);
   });
@@ -1600,6 +1600,9 @@ const LOOKS = [
   { id: 'c-sumi', slot: 'col', r: 1, name: 'すみいろ', sym: '🖤', ink: 1 },
   { id: 'c-kogane', slot: 'col', r: 1, name: 'こがね', sym: '🥇', gold: 1 },
   { id: 'c-niji', slot: 'col', r: 2, name: 'にじいろ', sym: '🌈', rainbow: 1 },
+  { id: 'c-stripe', slot: 'col', r: 1, name: 'しましま', sym: '🦓', pat: 'stripe' },
+  { id: 'c-dots', slot: 'col', r: 1, name: 'みずたま', sym: '⚪', pat: 'dots' },
+  { id: 'c-check', slot: 'col', r: 2, name: 'チェック', sym: '🏁', pat: 'check' },
   { id: 'h-flower', slot: 'head', r: 0, name: 'おはな', sym: '🌼' },
   { id: 'h-cloud', slot: 'head', r: 0, name: 'ちびぐも', sym: '☁️' },
   { id: 'h-bubble', slot: 'head', r: 0, name: 'あわのわ', sym: '⭕' },
@@ -1621,6 +1624,7 @@ const LOOKS = [
   { id: 'w-lei', slot: 'wear', r: 1, name: 'フラワーレイ', sym: '🌺' },
   { id: 'w-pendant', slot: 'wear', r: 1, name: 'ハートのペンダント', sym: '💖' },
   { id: 'w-fur', slot: 'wear', r: 2, name: 'ピンクのファー', sym: '🦩' },
+  { id: 'w-tie', slot: 'wear', r: 0, name: 'しましまネクタイ', sym: '👔' },
   /* face: fitted to each one's own eyes (see findEyes) */
   { id: 'f-round', slot: 'face', r: 0, name: 'まるメガネ', sym: '👓' },
   { id: 'f-mono', slot: 'face', r: 0, name: 'かためがね', sym: '🧐' },
@@ -1664,9 +1668,16 @@ function recolor(md, it, time) {
     else if (it.gold) { h = 0.12 + d * 0.25; s = Math.max(0.62, s); l = clamp(l, 0.42, 0.62); mt.metalness = 0.6; mt.roughness = 0.3; }
     else if (it.rainbow) h = time * 0.08 + d;
     else if (it.neon) { h = h + 0.5; s = 0.95; l = clamp(l, 0.5, 0.62); }
+    else if (it.pat && mt.map !== BODY_PAT[it.pat]()) { mt.map = BODY_PAT[it.pat](); mt.needsUpdate = true; }
     mt.color.setHSL(((h % 1) + 1) % 1, s, l);
   }
 }
+/* patterns over the body's own colours (they darken it, so the colour stays): stripes round the round parts, dots, checks */
+const BODY_PAT = {
+  stripe: () => { const t = tex('b-stripe', 4, 32, x => { x.fillStyle = '#ffffff'; x.fillRect(0, 0, 4, 32); x.fillStyle = '#8f8f96'; x.fillRect(0, 17, 4, 15); }); t.repeat.set(1, 4); return t; },
+  dots: () => { const t = tex('b-dots', 32, 32, x => { x.fillStyle = '#ffffff'; x.fillRect(0, 0, 32, 32); x.fillStyle = '#86868e'; for (const [a, b] of [[8, 8], [24, 24]]) { x.beginPath(); x.arc(a, b, 5.5, 0, Math.PI * 2); x.fill(); } }); t.repeat.set(5, 3); return t; },
+  check: () => { const t = tex('b-check', 16, 16, x => { x.fillStyle = '#ffffff'; x.fillRect(0, 0, 16, 16); x.fillStyle = 'rgba(110,110,120,0.55)'; x.fillRect(0, 0, 8, 16); x.fillRect(0, 0, 16, 8); }); t.repeat.set(6, 4); return t; },
+};
 /* where the head is: the top of the thick parts (thin stalks, antennae and glows don't count), in the middle */
 function headTop(inner) {
   inner.updateMatrixWorld(true);
@@ -1779,14 +1790,14 @@ const NECK = {
   'puffer-gatekeeper': { on: 'puff', c: [0, 0, 0], R: [0.837, 0.837, 0.837], up: Math.PI / 2, h: [-0.42, -0.44, -0.55], w: 0.22, t: 0.07, k: 0.5, tails: [[0.38, -0.02], [0.3, 0.22]], under: P => P.spikes },
   'octopus-snail': { on: 'head', c: [0, 0, 0], R: [0.4728, 0.4964, 0.4492], up: Math.PI / 2, h: [-0.64, -0.3, -0.78], w: 0.14, t: 0.045, k: 0.6, tails: [[0.32, -0.02], [0.26, 0.2]] },
   'angler-note': { c: [0, 1.0, 0], R: [0.8865, 0.8156, 0.8865], up: Math.PI / 2, h: [-0.78, -0.85, -0.7], w: 0.24, t: 0.075, k: 0.6, tails: [[0.3, -0.02], [0.25, 0.18]] },
-  'garden-tower': { on: P => P.eels[0], c: [0, 1.43, 0], R: [0.104, 0.6, 0.104], up: Math.PI / 2, h: [0, 0, 0], w: 0.075, t: 0.028, k: 0.7, tails: [[0.22, -0.05], [0.17, 0.4]], l0: 0.008 },
+  'garden-tower': { on: P => P.eels[0], c: [0, 1.43, 0], R: [0.104, 0.6, 0.104], up: Math.PI / 2, h: [0, 0, 0], w: 0.075, t: 0.028, k: 0.7, tails: [[0.22, -0.05], [0.17, 0.4]], l0: 0.008, under: P => P.spots },
   'coelacanth-dream': { c: [0, 1.0, 0], R: [0.611, 0.709, 1.33], up: 0.12, h: [0.64, 0.36, 0.0], w: 0.2, t: 0.065, k: 1.3, tails: [[0.3, -0.18], [0.24, -0.02]], under: P => P.dots },
   'turtle-printer': { on: 'head', c: [0, 0.08, 0.2], R: [0.335, 0.301, 0.368], up: 0.41, h: [-0.15, -0.3, -0.35], w: 0.13, t: 0.045, k: 0.5, tails: [[0.25, -0.05], [0.2, 0.18]] },
   /* on the bell's rim, in place of the rim itself (its face floats on the breathing bell, the clothes breathe with it) */
-  'jelly-principal': { on: 'bell', c: [0, 0, 0], R: [0.95, 0.95, 0.95], up: Math.PI / 2, h: [0.012, 0.012, 0.012], w: 0.11, t: 0.045, k: 0.6, tails: [[0.25, -0.02], [0.2, 0.2]], hide: P => [P.rim], no: ['w-bandana'] },
+  'jelly-principal': { on: 'bell', c: [0, 0, 0], R: [0.95, 0.95, 0.95], up: Math.PI / 2, h: [0.012, 0.012, 0.012], w: 0.11, t: 0.045, k: 0.6, tails: [[0.25, -0.02], [0.2, 0.2]], hide: P => [P.rim], no: ['w-bandana', 'w-tie'] },
   /* on the neck ball, between the head and the body; anything hanging lower would run into the pouch */
-  'seahorse-manager': { c: [0, 1.6, -0.06], R: [0.266, 0.266, 0.266], up: Math.PI / 2, h: [0.15, 0.05, 0.05], w: 0.1, t: 0.035, k: 0.9, tails: [], under: P => P.spines, chest: P => [P.tie, P.knot], l0: 0.012, no: ['w-bandana', 'w-pendant'] },
-  'ink-pianist': { c: [0, 1.3, 0], R: [0.542, 0.515, 0.488], up: Math.PI / 2, h: [-0.32, -0.15, 0.0], w: 0.15, t: 0.05, k: 1.1, tails: [[0.3, 0.0], [0.24, 0.22]], chest: P => P.tie, no: ['w-bandana'] },
+  'seahorse-manager': { c: [0, 1.6, -0.06], R: [0.266, 0.266, 0.266], up: Math.PI / 2, h: [0.15, 0.05, 0.05], w: 0.1, t: 0.035, k: 0.9, tails: [], under: P => P.spines, chest: P => [P.tie, P.knot], l0: 0.012, no: ['w-bandana', 'w-pendant', 'w-tie'] },
+  'ink-pianist': { c: [0, 1.3, 0], R: [0.542, 0.515, 0.488], up: Math.PI / 2, h: [-0.32, -0.15, 0.0], w: 0.15, t: 0.05, k: 1.1, tails: [[0.3, 0.0], [0.24, 0.22]], chest: P => P.tie, no: ['w-bandana', 'w-tie'] },
   'mantis-count': { c: [0, 1.15, 0.5], R: [0.5417, 0.4442, 0.5687], up: 0.29, h: [0.15, -0.18, -0.5], w: 0.15, t: 0.05, k: 1.2, tails: [[0.3, 0.0], [0.24, 0.22]] },
   'shrimp-cadet': { c: [0, 1.42, 0.42], R: [0.4137, 0.4137, 0.4137], up: 0.445, h: [-0.2, -0.35, -0.45], w: 0.15, t: 0.05, k: 1.1, tails: [[0.3, 0.0], [0.24, 0.22]] },
   /* the body is a capsule: near the ring it is a long ellipsoid as wide as the cylinder */
@@ -1828,6 +1839,8 @@ const PAT = {
       x.fillStyle = i === 1 ? '#ff8a3a' : '#ffe27a'; x.beginPath(); x.arc(cx, 16, 4, 0, Math.PI * 2); x.fill();
     });
   }),
+  /* yellow with navy stripes running across */
+  tie: () => tex('tie', 32, 32, x => { x.fillStyle = '#f5c842'; x.fillRect(0, 0, 32, 32); x.strokeStyle = '#25336e'; x.lineWidth = 3; for (let i = -32; i < 64; i += 16) { x.beginPath(); x.moveTo(i, 0); x.lineTo(i + 32, 32); x.stroke(); } }),
   /* pink feathers */
   fur: () => tex('fur', 64, 32, x => {
     x.fillStyle = '#ff9fd0'; x.fillRect(0, 0, 64, 32); x.lineWidth = 1;
@@ -1955,6 +1968,19 @@ const WEAR = {
     const [la0, lo0] = laLo(ring.at(0, 0));
     for (let j = 0; j <= 4; j++) cover.push(dotCover(eggAt(c, R, Math.max(-1.45, la0 - D * j / 4 / R[1]), lo0, 0).p, 0.2 * k * (1 - j / 5)));
     return { parts: [[band, mt], [tri, mt]], cover, bib: true };
+  },
+  /* a long striped necktie under the chin: a knot at the neck and a blade lying down the chest */
+  'w-tie'(f, k, m) {
+    const ring = neckRing(f), { c, R } = f, U = new THREE.Vector3(), mt = m('#ffffff', { roughness: 0.5, emissive: '#4a3300', emissiveIntensity: 0.45, name: 'tie' }); mt.map = PAT.tie();
+    const [la0, lo0] = laLo(ring.at(0, -0.2, U)), L = 0.78 * k / R[1], hwTop = 0.045 * k, hwMax = 0.1 * k, wl = Math.hypot(R[0] * Math.cos(lo0), R[2] * Math.sin(lo0));
+    const blade = eggSkin(c, R, 0, 2, 12, (u, v) => {
+      const la = Math.max(-1.45, la0 - (1 - v) * L), w = v < 0.12 ? hwMax * v / 0.12 : hwMax - (hwMax - hwTop) * (v - 0.12) / 0.88;
+      return [la, lo0 + (u * 2 - 1) * w / (Math.cos(la) * wl), 0.032];
+    });
+    const TU = blade.attributes.uv; for (let i = 0; i < TU.count; i++) TU.setXY(i, TU.getX(i) * 1.2 * k, TU.getY(i) * 2.6 * k);
+    const kn = onFrame(new THREE.SphereGeometry(0.06, 10, 8), ringFrame(f, ring, 0, -0.2, ring.l0 + 0.04 * k), 1.8 * k, 1.05 * k, 0.6 * k), cover = [];
+    for (let j = 0; j <= 4; j++) cover.push(dotCover(eggAt(c, R, Math.max(-1.45, la0 - L * j / 4), lo0, 0).p, 0.11 * k));
+    return { parts: [[blade, mt], [kn, mt]], cover, bib: true };
   },
   /* a lei of flowers */
   'w-lei'(f, k, m) {

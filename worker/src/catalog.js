@@ -18,11 +18,11 @@ export const STARTERS = ['whale-man', 'shark-lost', 'jelly-principal', 'puffer-g
 
 /* 着せ替え: r 0 ふつう / 1 レア / 2 激レア はカプセルから。3 はショップだけで売る */
 export const LOOKS = {
-  'c-sakura': 0, 'c-wakaba': 0, 'c-yozora': 0, 'c-yuyake': 0, 'c-yuki': 1, 'c-sumi': 1, 'c-kogane': 1, 'c-niji': 2,
+  'c-sakura': 0, 'c-wakaba': 0, 'c-yozora': 0, 'c-yuyake': 0, 'c-yuki': 1, 'c-sumi': 1, 'c-kogane': 1, 'c-niji': 2, 'c-stripe': 1, 'c-dots': 1, 'c-check': 2,
   'h-flower': 0, 'h-cloud': 0, 'h-bubble': 0, 'h-heart': 0, 'h-star': 1, 'h-halo': 1, 'h-crown': 2,
   'p-fish': 0, 'p-bubbles': 0, 'p-plankton': 0, 'p-jelly': 1, 'p-star': 1, 'p-shark': 2,
   /* ふく: 体に合わせて着るもの。着られる潜水者はゲーム側の NECK で決まる */
-  'w-muffler': 1, 'w-bowtie': 0, 'w-bell': 0, 'w-bandana': 0, 'w-lei': 1, 'w-pendant': 1, 'w-fur': 2,
+  'w-muffler': 1, 'w-bowtie': 0, 'w-bell': 0, 'w-bandana': 0, 'w-lei': 1, 'w-pendant': 1, 'w-fur': 2, 'w-tie': 0,
   /* かお: 目に合わせてかけるもの */
   'f-round': 0, 'f-mono': 0, 'f-sun': 1, 'f-heart': 1, 'f-groucho': 2,
   /* せなか: 首の後ろ（ふくと同じ潜水者が付けられる） */
