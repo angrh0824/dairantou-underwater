@@ -1812,6 +1812,9 @@ const NECK = {
   'ink-pianist': { c: [0, 1.3, 0], R: [0.542, 0.515, 0.488], up: Math.PI / 2, h: [-0.32, -0.15, 0.0], w: 0.15, t: 0.05, k: 1.1, tails: [[0.3, 0.0], [0.24, 0.22]], chest: P => P.tie, no: ['w-bandana', 'w-tie'] },
   'mantis-count': { c: [0, 1.15, 0.5], R: [0.5417, 0.4442, 0.5687], up: 0.29, h: [0.15, -0.18, -0.5], w: 0.15, t: 0.05, k: 1.2, tails: [[0.3, 0.0], [0.24, 0.22]] },
   'shrimp-cadet': { c: [0, 1.42, 0.42], R: [0.4137, 0.4137, 0.4137], up: 0.445, h: [-0.2, -0.35, -0.45], w: 0.15, t: 0.05, k: 1.1, tails: [[0.3, 0.0], [0.24, 0.22]] },
+  /* no neck of their own: a collar round the front of the body, behind the eyes */
+  'crab-meeting': { c: [0, 0.9, 0], R: [1.1328, 0.4925, 0.8373], up: 0.05, h: [1.0, 0.95, 1.06], w: 0.16, t: 0.05, k: 1.2, tails: [[0.3, 0.05], [0.25, 0.25]], under: P => P.bumps },
+  'manta-house': { c: [0, 0.8, 0], R: [0.7092, 0.2758, 0.9358], up: 0.05, h: [0.6, 0.55, 0.52], w: 0.15, t: 0.045, k: 1.2, tails: [[0.25, 0.05], [0.2, 0.25]] },
   /* the body is a capsule: near the ring it is a long ellipsoid as wide as the cylinder */
   'sea-cucumber-ceo': { on: 'body', c: [0, 0, 0.4], R: [0.46, 0.46, 2.0], up: 0, h: [-0.04, -0.05, -0.05], w: 0.18, t: 0.06, k: 1.2, tails: [[0.4, -0.03], [0.32, 0.18]], under: P => [...P.bumps, ...P.dots], chest: P => P.tie },
 };
