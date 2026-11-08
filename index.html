@@ -1236,7 +1236,7 @@ function buildCrab(g, m, P) {
   const red = m('#d35a46'), dred = m('#a63f33');
   put(g, sph(1, 16, 10), red, 0, 0.9, 0).scale.set(1.15, 0.5, 0.85);
   eggCap(g, m('#f3c2a8'), [0, 0.9, 0], [1.1328, 0.4925, 0.8373], 0.015, [0, -1, 0.2], 0.95);
-  for (const p of [[-0.4, 1.3, -0.1], [0.4, 1.3, -0.1], [0, 1.36, 0.2], [0, 1.3, -0.4]]) put(g, sph(0.13, 8, 6), dred, p[0], p[1], p[2]);
+  P.bumps = [[-0.4, 1.3, -0.1], [0.4, 1.3, -0.1], [0, 1.36, 0.2], [0, 1.3, -0.4]].map(p => put(g, sph(0.13, 8, 6), dred, p[0], p[1], p[2]));
   for (const s of [-1, 1]) {
     put(g, cyl(0.05, 0.06, 0.36, 6), red, s * 0.26, 1.42, 0.56);
     put(g, sph(0.12, 10, 8), m('#f7fbff'), s * 0.26, 1.64, 0.58);
@@ -1615,7 +1615,7 @@ const LOOKS = [
   { id: 'p-shark', slot: 'pet', r: 2, name: 'ちびザメ', sym: '🦈' },
   /* wear: lies on the body, so only the 潜水者 fitted for it in NECK can wear it */
   { id: 'w-muffler', slot: 'wear', r: 1, name: 'もこもこマフラー', sym: '🧣' },
-  { id: 'w-bowtie', slot: 'wear', r: 0, name: 'ちょうネクタイ', sym: '🦋' },
+  { id: 'w-bowtie', slot: 'wear', r: 0, name: 'ちょうネクタイ', sym: '🤵' },
   { id: 'w-bell', slot: 'wear', r: 0, name: 'すずのくびわ', sym: '🔔' },
   { id: 'w-bandana', slot: 'wear', r: 0, name: 'みずたまバンダナ', sym: '🤠' },
   { id: 'w-lei', slot: 'wear', r: 1, name: 'フラワーレイ', sym: '🌺' },
@@ -1627,6 +1627,12 @@ const LOOKS = [
   { id: 'f-sun', slot: 'face', r: 1, name: 'サングラス', sym: '🕶️' },
   { id: 'f-heart', slot: 'face', r: 1, name: 'ハートのメガネ', sym: '💕' },
   { id: 'f-groucho', slot: 'face', r: 2, name: 'へんそうメガネ', sym: '🥸' },
+  /* back: on the back behind the neck ring, so the same 潜水者 as wear */
+  { id: 'b-bag', slot: 'back', r: 0, name: 'ランドセル', sym: '🎒' },
+  { id: 'b-devil', slot: 'back', r: 1, name: 'こあくまのはね', sym: '😈' },
+  { id: 'b-butterfly', slot: 'back', r: 1, name: 'ちょうのはね', sym: '🦋' },
+  { id: 'b-angel', slot: 'back', r: 2, name: 'てんしのはね', sym: '👼' },
+  { id: 'b-jet', slot: 'back', r: 2, name: 'ジェットパック', sym: '🚀' },
   /* r 3: sold in the shop only (with the game's server), never in the capsule */
   { id: 'c-neon', slot: 'col', r: 3, name: 'ネオン', sym: '💜', neon: 1 },
   { id: 'h-ribbon', slot: 'head', r: 3, name: 'おおきなリボン', sym: '🎀' },
@@ -1635,10 +1641,10 @@ const LOOKS = [
   { id: 'p-whale', slot: 'pet', r: 3, name: 'ちびクジラ', sym: '🐳' },
   { id: 'p-ufo', slot: 'pet', r: 3, name: 'ちびUFO', sym: '🛸' },
 ];
-const LOOK = Object.fromEntries(LOOKS.map(x => [x.id, x])), SLOTS = ['col', 'head', 'pet', 'wear', 'face'], SLOT_NAME = { col: 'カラー', head: 'あたま', pet: 'おとも', wear: 'ふく', face: 'かお' };
+const LOOK = Object.fromEntries(LOOKS.map(x => [x.id, x])), SLOTS = ['col', 'head', 'pet', 'wear', 'face', 'back'], SLOT_NAME = { col: 'カラー', head: 'あたま', pet: 'おとも', wear: 'ふく', face: 'かお', back: 'せなか' };
 /* anything from storage or another player is checked: unknown ids, or an item in the wrong slot, become nothing */
 function cleanLook(o) {
-  const L = { col: '', head: '', pet: '', wear: '', face: '' };
+  const L = { col: '', head: '', pet: '', wear: '', face: '', back: '' };
   if (o && typeof o === 'object') for (const sl of SLOTS) { const x = LOOK[o[sl]]; if (x && x.slot === sl) L[sl] = x.id; }
   return L;
 }
@@ -1787,7 +1793,7 @@ const NECK = {
   'sea-cucumber-ceo': { on: 'body', c: [0, 0, 0.4], R: [0.46, 0.46, 2.0], up: 0, h: [-0.04, -0.05, -0.05], w: 0.18, t: 0.06, k: 1.2, tails: [[0.4, -0.03], [0.32, 0.18]], under: P => [...P.bumps, ...P.dots], chest: P => P.tie },
 };
 const neckPart = (md, f) => (typeof f.on === 'function' ? f.on(md.P) : f.on ? md.P[f.on] : md.inner);
-const fits = (id, ch) => { const x = LOOK[id]; return !!x && (x.slot === 'face' ? !NO_FACE.includes(ch) && !(FACE_NO[ch] || []).includes(id) : x.slot !== 'wear' || (!!NECK[ch] && !(NECK[ch].no || []).includes(id))); };
+const fits = (id, ch) => { const x = LOOK[id]; return !!x && (x.slot === 'face' ? !NO_FACE.includes(ch) && !(FACE_NO[ch] || []).includes(id) : x.slot === 'back' ? !!BACKAT[ch] && !(BACKAT[ch].no || []).includes(id) : x.slot !== 'wear' || (!!NECK[ch] && !(NECK[ch].no || []).includes(id))); };
 /* who can wear clothes, said the short way round */
 function fitNote() {
   const yes = ROSTER.filter(c => NECK[c.id]), no = ROSTER.filter(c => !NECK[c.id]);
@@ -1975,7 +1981,7 @@ const WEAR = {
 };
 function buildWear(md, id, m) {
   const f = NECK[md.type], make = WEAR[id]; if (!f || !make || (f.no || []).includes(id)) return null;
-  const par = neckPart(md, f), out = make(f, f.w / 0.24, m), grp = new THREE.Group(), byMat = new Map(); grp.userData.cloth = true;
+  const par = neckPart(md, f), out = make(f, f.w / 0.24, m), grp = new THREE.Group(), byMat = new Map(); grp.userData.cloth = 'wear';
   for (const [g, mt] of out.parts) { if (!byMat.has(mt)) byMat.set(mt, []); byMat.get(mt).push(g); }
   for (const [mt, gs] of byMat) put(grp, gs.length > 1 ? mergeGeo(gs) : gs[0], mt);
   par.add(grp);
@@ -2021,11 +2027,11 @@ function findEyes(md) {
   return out;
 }
 /* looking at the face of part par: out(p, dir, gap) is p, or the first thing met looking back along dir at p plus gap if that
-   is in front of p (or less than gap behind it) */
-function faceLook(md, par, eyes) {
+   is in front of p (or less than gap behind it). withCloth: clothes count too (a moustache rests on a scarf) */
+function faceLook(md, par, eyes, withCloth) {
   const skip = new Set(); for (const e of eyes) { skip.add(e.o); if (e.pu) skip.add(e.pu); }
   const meshes = [], ray = new THREE.Raycaster(), w = new THREE.Vector3(), wd = new THREE.Vector3();
-  md.inner.traverse(o => { if (!o.isMesh || !o.visible || skip.has(o)) return; for (let a = o; a; a = a.parent) if (a.userData.cloth || !a.visible) return; meshes.push(o); });
+  md.inner.traverse(o => { if (!o.isMesh || !o.visible || skip.has(o)) return; for (let a = o; a; a = a.parent) if ((a.userData.cloth && !(withCloth && a.userData.cloth === 'wear')) || !a.visible) return; meshes.push(o); });
   return {
     out(p, dir, gap) {
       par.localToWorld(w.copy(p)); wd.copy(dir).transformDirection(par.matrixWorld);
@@ -2103,7 +2109,7 @@ const FACE = {
     const up = new THREE.Vector3().crossVectors(fwd, right).normalize(), q = new THREE.Quaternion().setFromRotationMatrix(new THREE.Matrix4().makeBasis(right, up, fwd));
     const mid = L.o.position.clone().lerp(R.o.position, 0.5), put3 = (g, p, sx, sy, sz) => g.applyMatrix4(new THREE.Matrix4().compose(p, q, new THREE.Vector3(sx, sy, sz)));
     /* a piece of half-size (x, y, z) at p, moved forward until its back clears the face */
-    const clear = (p, x, y, z) => { let need = 0; for (const [i, j] of [[0, 0], [1, 0], [-1, 0], [0, 1], [0, -1], [0.7, 0.7], [-0.7, 0.7], [0.7, -0.7], [-0.7, -0.7]]) { const sp = p.clone().addScaledVector(right, i * x).addScaledVector(up, j * y).addScaledVector(fwd, -z * (1 - 0.6 * Math.hypot(i, j))); need = Math.max(need, look.out(sp, fwd, 0.018).sub(sp).dot(fwd)); } return p.clone().addScaledVector(fwd, need); };
+    const clear = (p, x, y, z) => { let need = 0; for (let a = -1; a <= 1; a += 0.5) for (let c = -1; c <= 1; c += 0.5) { const i = a * (Math.abs(a) + Math.abs(c) > 1.6 ? 0.75 : 1), j = c * (Math.abs(a) + Math.abs(c) > 1.6 ? 0.75 : 1), sp = p.clone().addScaledVector(right, i * x).addScaledVector(up, j * y).addScaledVector(fwd, -z * (1 - 0.6 * Math.hypot(i, j))); need = Math.max(need, look.out(sp, fwd, 0.018).sub(sp).dot(fwd)); } return p.clone().addScaledVector(fwd, need); };
     const nose = clear(mid.clone().addScaledVector(up, -0.95 * r).addScaledVector(fwd, -0.4 * r), 0.62 * r, 0.6 * r, 0.7 * r);
     parts.push([put3(new THREE.SphereGeometry(1, 12, 9), nose, 0.62 * r, 0.6 * r, 0.7 * r), skin]);
     cover.push([nose, 0.7 * r]); if (md.P.nose) md.P.nose.visible = false;
@@ -2127,7 +2133,7 @@ function buildFace(md, id, m) {
   for (const [par, list] of parts) {
     list.sort((a, b) => a.o.position.x - b.o.position.x);
     const byMat = new Map(), grp = new THREE.Group(); grp.userData.cloth = true;
-    for (const [g, mt] of FACE[id](list.slice(0, 2), faceLook(md, par, eyes), md, m)) { if (!byMat.has(mt)) byMat.set(mt, []); byMat.get(mt).push(g); }
+    for (const [g, mt] of FACE[id](list.slice(0, 2), faceLook(md, par, eyes, true), md, m)) { if (!byMat.has(mt)) byMat.set(mt, []); byMat.get(mt).push(g); }
     if (!byMat.size) continue;
     for (const [mt, gs] of byMat) put(grp, gs.length > 1 ? mergeGeo(gs) : gs[0], mt);
     par.add(grp); made.push(grp);
@@ -2138,9 +2144,130 @@ function buildFace(md, id, m) {
   }
   return made;
 }
+/* ---- せなか: wings and such on the back ----
+   BACKAT: where each 潜水者's back is: a point at [la, lo] (eggAt's latitude and longitude) on one of its round parts
+   (ellipsoid c, R, in the part named by on, as in NECK). k: its size against the whale's. The piece is built in the back's
+   own frame (x across the back, y up along the skin, z out of it; for a fish lying flat, y points toward its head),
+   moved out until nothing of the body is in front of it, and wings flap (lookAnim). under: small parts it may cover
+   (hidden when it does); no: pieces that would run into something there. */
+const BACKAT = {
+  'whale-man': { c: [0, 1.2, 0], R: [0.985, 0.8865, 1.1623], at: [0.98, Math.PI], k: 1 },
+  'shark-lost': { c: [0, 1.0, 0], R: [0.7092, 0.6895, 1.4283], at: [1.0, 0], k: 0.8 },
+  'puffer-gatekeeper': { on: 'puff', c: [0, 0, 0], R: [0.837, 0.837, 0.837], at: [0.68, Math.PI], k: 0.9, under: P => P.spikes },
+  'octopus-snail': { on: 'shell', c: [0, 0, 0], R: [0.3786, 0.6107, 0.6107], at: [0.15, Math.PI], k: 0.65 },
+  'angler-note': { c: [0, 1.0, 0], R: [0.8865, 0.8156, 0.8865], at: [0.6, Math.PI], k: 0.95 },
+  'garden-tower': { on: P => P.eels[0], c: [0, 1.25, 0], R: [0.105, 0.6, 0.105], at: [0, Math.PI], k: 0.3 },
+  'coelacanth-dream': { c: [0, 1.0, 0], R: [0.611, 0.709, 1.33], at: [1.1, Math.PI], k: 0.8, under: P => P.dots },
+  'turtle-printer': { c: [0, 0.5, 0], R: [1, 0.72, 1.12], at: [0.45, Math.PI], k: 0.9 },
+  'sea-cucumber-ceo': { on: 'body', c: [0, 0, 0.4], R: [0.46, 0.46, 2.0], at: [1.2, Math.PI], k: 0.7, under: P => [...P.bumps, ...P.dots] },
+  'jelly-principal': { on: 'bell', c: [0, 0, 0], R: [0.95, 0.95, 0.95], at: [0.45, Math.PI], k: 0.85 },
+  'seahorse-manager': { c: [0, 1.6, -0.06], R: [0.266, 0.266, 0.266], at: [0.66, Math.PI], k: 0.35, under: P => P.spines, no: ['b-angel'] },
+  'ink-pianist': { c: [0, 1.3, 0], R: [0.542, 0.515, 0.488], at: [-0.55, Math.PI], k: 0.6, no: ['b-butterfly'] },
+  'mantis-count': { c: [0, 1.0, 0], R: [0.4925, 0.4039, 0.517], at: [1.1, Math.PI], k: 0.65 },
+  'shrimp-cadet': { c: [0, 1.22, 0], R: [0.394, 0.394, 0.394], at: [1.0, Math.PI], k: 0.6 },
+  'crab-meeting': { c: [0, 0.9, 0], R: [1.1328, 0.4925, 0.8373], at: [1.1, Math.PI], k: 0.9, under: P => P.bumps },
+  'star-person': { c: [0, 1.05, 0], R: [0.4925, 0.4925, 0.2955], at: [0, Math.PI], k: 0.6 },
+  'manta-house': { c: [0, 0.8, 0], R: [0.7092, 0.2758, 0.9358], at: [1.0, Math.PI], k: 0.75, no: ['b-angel', 'b-devil', 'b-butterfly'] },
+  'otter-robot': { c: [0, 0.95, 0], R: [0.58, 1.2, 0.58], at: [0.25, Math.PI], k: 0.8 },
+  'clione-guard': { c: [0, 1.15, 0], R: [0.4186, 0.6156, 0.4186], at: [-0.3, Math.PI], k: 0.55 },
+};
+function backFrame(md) {
+  const f = BACKAT[md.type]; if (!f) return null;
+  const e = eggAt(f.c, f.R, f.at[0], f.at[1], 0.012), n = e.n;
+  let up = new THREE.Vector3(0, 1, 0).addScaledVector(n, -n.y); if (up.lengthSq() < 0.05) up = new THREE.Vector3(0, 0, 1).addScaledVector(n, -n.z);
+  up.normalize();
+  const side = new THREE.Vector3().crossVectors(up, n), fr = { p: e.p, n, up, side };
+  return { f, k: f.k, fr, par: typeof f.on === 'function' ? f.on(md.P) : f.on ? md.P[f.on] : md.inner, q: new THREE.Quaternion().setFromRotationMatrix(new THREE.Matrix4().makeBasis(side, up, n)) };
+}
+/* a flat shape with a little thickness, from points in the plane (x out along the wing, y up) */
+function slab(pts, depth, curve) {
+  const s = new THREE.Shape(); s.moveTo(pts[0][0], pts[0][1]);
+  for (let i = 1; i < pts.length; i++) { const p = pts[i]; if (p.length > 2) s.quadraticCurveTo(p[2], p[3], p[0], p[1]); else s.lineTo(p[0], p[1]); }
+  const g = new THREE.ExtrudeGeometry(s, { depth, bevelEnabled: true, bevelThickness: depth * 0.4, bevelSize: depth * 0.4, bevelSegments: 1, curveSegments: curve || 6 });
+  g.translate(0, 0, -depth / 2); return g;
+}
+/* wing outlines, about 0.55 wide for the whale (hinge at the origin, reaching out along +x) */
+const WING = {
+  /* a feathered angel wing: round on top, three feathers along the bottom */
+  angel: [[0, 0], [0.12, 0.3, 0.02, 0.26], [0.56, 0.2, 0.36, 0.38], [0.5, 0.02, 0.6, 0.1], [0.38, 0.04, 0.46, -0.04], [0.26, -0.04, 0.34, -0.1], [0.12, -0.06, 0.2, -0.16], [0, 0, 0.04, -0.06]],
+  /* a bat wing: three sharp tips and scalloped edges between them */
+  devil: [[0, 0], [0.16, 0.24, 0.04, 0.2], [0.56, 0.26], [0.44, 0.08, 0.5, 0.18], [0.36, -0.04], [0.26, 0.06, 0.32, 0.04], [0.16, -0.1], [0.08, 0.0, 0.12, -0.02], [0, 0]],
+};
+const BACK = {
+  'b-angel'(B, m) { return { wings: wingPair(slab(WING.angel, 0.035), m('#fffdf5', { roughness: 0.7, emissive: '#fff4c8', emissiveIntensity: 0.18 }), B.k, 0.5, 0.25) }; },
+  'b-devil'(B, m) { return { wings: wingPair(slab(WING.devil, 0.025), m('#3d2253', { roughness: 0.5, emissive: '#5a0a2a', emissiveIntensity: 0.25 }), B.k, 0.45, 0.35) }; },
+  /* butterfly wings: a big round lobe over a small one, see-through and spotted */
+  'b-butterfly'(B, m) {
+    const s = new THREE.Shape(); s.moveTo(0, 0);
+    s.bezierCurveTo(0.05, 0.3, 0.42, 0.42, 0.46, 0.22); s.bezierCurveTo(0.5, 0.06, 0.3, 0.02, 0.16, 0.0);
+    s.bezierCurveTo(0.34, -0.06, 0.36, -0.26, 0.2, -0.26); s.bezierCurveTo(0.08, -0.26, 0.02, -0.12, 0, 0);
+    const g = new THREE.ExtrudeGeometry(s, { depth: 0.012, bevelEnabled: false, curveSegments: 10 }); g.translate(0, 0, -0.006);
+    const mt = m('#ffffff', { roughness: 0.4, transparent: true, opacity: 0.88, emissive: '#3a8fff', emissiveIntensity: 0.2, name: 'bfly' }); mt.map = PAT.bfly();
+    return { wings: wingPair(g, mt, B.k, 0.35, 0.5), fast: true };
+  },
+  /* a red school bag with its flap and a gold clasp */
+  'b-bag'(B, m) {
+    const k = B.k, red = m('#c8323c', { roughness: 0.45 }), dark = m('#8e1f28', { roughness: 0.5 });
+    const body = new THREE.BoxGeometry(0.42 * k, 0.44 * k, 0.2 * k), flap = new THREE.BoxGeometry(0.44 * k, 0.3 * k, 0.03 * k), clasp = new THREE.BoxGeometry(0.08 * k, 0.06 * k, 0.03 * k);
+    flap.translate(0, 0.08 * k, 0.115 * k); clasp.translate(0, -0.06 * k, 0.135 * k);
+    return { solid: [[body, red], [flap, dark], [clasp, m(...GOLD)]], half: [0.21 * k, 0.22 * k, 0.1 * k] };
+  },
+  /* a jetpack: two tanks with nozzles and flickering flames */
+  'b-jet'(B, m) {
+    const k = B.k, metal = m('#b9c4d0', { metalness: 0.6, roughness: 0.3 }), red = m('#d8344c', { roughness: 0.4 }), parts = [], flames = [];
+    for (const s of [-1, 1]) {
+      const t = new THREE.CylinderGeometry(0.085 * k, 0.085 * k, 0.4 * k, 14); t.translate(s * 0.1 * k, 0, 0); parts.push([t, metal]);
+      const cap = new THREE.SphereGeometry(0.085 * k, 14, 7, 0, Math.PI * 2, 0, Math.PI / 2); cap.translate(s * 0.1 * k, 0.2 * k, 0); parts.push([cap, red]);
+      const nz = new THREE.CylinderGeometry(0.05 * k, 0.07 * k, 0.08 * k, 12); nz.translate(s * 0.1 * k, -0.24 * k, 0); parts.push([nz, red]);
+    }
+    return { solid: parts, half: [0.19 * k, 0.24 * k, 0.085 * k], jet: true };
+  },
+};
+/* butterfly wing pattern: blue fading to purple with white spots */
+PAT.bfly = () => tex('bfly', 64, 64, x => {
+  const g = x.createLinearGradient(0, 0, 64, 64); g.addColorStop(0, '#4fd2ff'); g.addColorStop(1, '#a35cff'); x.fillStyle = g; x.fillRect(0, 0, 64, 64);
+  x.fillStyle = 'rgba(255,255,255,0.85)'; for (const [a, b, r] of [[40, 44, 6], [52, 30, 4], [18, 52, 4], [30, 20, 3]]) { x.beginPath(); x.arc(a, b, r, 0, Math.PI * 2); x.fill(); }
+  x.strokeStyle = 'rgba(20,10,40,0.6)'; x.lineWidth = 3; x.strokeRect(1, 1, 62, 62);
+});
+/* two wings from one shape: the right one, and a mirrored left one; each in its own hinge so it can flap */
+function wingPair(geo, mat, k, sweep, flap) {
+  return [1, -1].map(s => ({ geo: s > 0 ? geo : geo.clone(), mat, s, k: k * 1.3, sweep, flap }));
+}
+function buildBack(md, id, m) {
+  const B = backFrame(md), make = BACK[id]; if (!B || !make || (B.f.no || []).includes(id)) return null;
+  const out = make(B, m), grp = new THREE.Group(); grp.userData.cloth = true; grp.position.copy(B.fr.p); grp.quaternion.copy(B.q); B.par.add(grp);
+  md.root.updateMatrixWorld(true);
+  const look = faceLook(md, B.par, []), n = B.fr.n.clone(), res = { grp, wings: [] };
+  /* move the piece out from the back until its back face clears the body (a few points over it) */
+  const clear = (hx, hy, hz) => {
+    let need = 0;
+    for (const [i, j] of [[0, 0], [1, 1], [-1, 1], [1, -1], [-1, -1], [1, 0], [-1, 0], [0, 1], [0, -1]]) {
+      const p = B.fr.p.clone().addScaledVector(B.fr.side, i * hx).addScaledVector(B.fr.up, j * hy).addScaledVector(n, -hz);
+      need = Math.max(need, look.out(p, n, 0.012).sub(p).dot(n));
+    }
+    return need;
+  };
+  if (out.solid) {
+    const byMat = new Map(); for (const [g, mt] of out.solid) { if (!byMat.has(mt)) byMat.set(mt, []); byMat.get(mt).push(g); }
+    for (const [mt, gs] of byMat) put(grp, gs.length > 1 ? mergeGeo(gs) : gs[0], mt);
+    const d = clear(...out.half) + out.half[2]; grp.position.addScaledVector(n, d);
+    if (out.jet) { const fm = new THREE.MeshBasicMaterial({ color: 0xffb84a, transparent: true, opacity: 0.85, blending: THREE.AdditiveBlending, depthWrite: false }); res.flames = [-1, 1].map(s => { const cg = new THREE.ConeGeometry(0.06 * B.k, 0.26 * B.k, 10); cg.rotateX(Math.PI); cg.translate(0, -0.13 * B.k, 0); return put(grp, cg, fm, s * 0.1 * B.k, -0.28 * B.k, 0); }); }
+  }
+  if (out.wings) {
+    grp.position.addScaledVector(n, clear(0.06 * B.k, 0.06 * B.k, 0) + 0.035 * B.k);
+    for (const w of out.wings) {
+      const h = new THREE.Group(); h.position.x = w.s * 0.05 * w.k; h.scale.set(w.s * w.k, w.k, w.k); h.rotation.y = -w.s * w.sweep; grp.add(h);
+      put(h, w.geo, w.mat); h.userData.base = -w.s * w.sweep; h.userData.amp = w.s * w.flap; res.wings.push(h);
+    }
+    res.fast = !!out.fast;
+  }
+  /* small parts it covers (a pufferfish's spikes) */
+  if (B.f.under) { const r = out.half ? Math.max(out.half[0], out.half[1]) : 0.42 * B.k; for (const o of B.f.under(md.P)) if (o && o.parent === B.par && o.position.distanceTo(B.fr.p) < r + 0.12) o.visible = false; }
+  return res;
+}
 /* put a look on a freshly built model; the colour change only touches the body built before it */
 function dressModel(md, look, m) {
-  const L = cleanLook(look); if (!L.col && !L.head && !L.pet && !L.wear && !L.face) return;
+  const L = cleanLook(look); if (!L.col && !L.head && !L.pet && !L.wear && !L.face && !L.back) return;
   const body = md.mats.filter(mt => mt.color && !mt.userData.shared);
   for (const mt of body) { mt.userData.c0 = mt.color.clone(); }
   const main = body.find(mt => { mt.color.getHSL(HSL); return HSL.s >= 0.15 && HSL.l > 0.1 && HSL.l < 0.88; });
@@ -2159,6 +2286,7 @@ function dressModel(md, look, m) {
   }
   if (L.wear) k.wear = buildWear(md, L.wear, m);
   if (L.face) k.face = buildFace(md, L.face, m);
+  if (L.back) k.back = buildBack(md, L.back, m);
 }
 function lookAnim(md, s, time) {
   const k = md.look;
@@ -2166,6 +2294,12 @@ function lookAnim(md, s, time) {
   if (k.head) { k.head.position.y = k.hy + Math.sin(time * 2.2 + md.phase) * 0.05; k.head.rotation.y = time * 0.9; }
   /* glasses step aside while a clione's cones come out of its head */
   if (k.face && md.P.cones) for (const g of k.face) g.visible = !md.P.cones.visible;
+  /* wings flap (faster on the move), a jetpack's flames flicker */
+  if (k.back) {
+    const b = k.back, sp = b.fast ? 16 : s.moving ? 11 : 4;
+    for (const h of b.wings) h.rotation.y = h.userData.base - h.userData.amp * (0.5 + 0.5 * Math.sin(time * sp + md.phase));
+    if (b.flames) for (const f of b.flames) f.scale.y = 0.7 + Math.random() * 0.4 + (s.moving ? 0.25 : 0);
+  }
   if (k.pet) {
     const a = time * 1.3 + md.phase;
     k.pet.position.set(Math.sin(a) * k.pr, k.py + Math.sin(time * 3.1) * 0.12, Math.cos(a) * k.pr);
@@ -5581,7 +5715,7 @@ function fightInfo(r) {
 const matchCoins = r => { const i = fightInfo(r); return i ? fightWant(i) : 0; };
 /* CPUs wear something now and then, so you see what the capsule holds */
 function cpuLook(i) {
-  const L = { col: '', head: '', pet: '', wear: '', face: '' }, ch = ROSTER[i].id;
+  const L = { col: '', head: '', pet: '', wear: '', face: '', back: '' }, ch = ROSTER[i].id;
   if (Math.random() < 0.5) for (const sl of SLOTS) if (Math.random() < 0.5) { const pool = LOOKS.filter(x => x.slot === sl && x.r < 3 && fits(x.id, ch)); if (pool.length) L[sl] = pool[Math.floor(Math.random() * pool.length)].id; }
   return L;
 }
@@ -5797,7 +5931,7 @@ function renderBag() {
     const its = LOOKS.filter(x => x.slot === sl && (x.r < 3 || Bag.shopOpen() || Bag.has(x.id))), got = its.filter(x => Bag.has(x.id)).length;
     return '<div><h4>' + SLOT_NAME[sl] + '（' + got + '/' + its.length + '）</h4><ul>' + its.map(x => Bag.has(x.id)
       ? '<li class="r' + x.r + '"><i>' + x.sym + '</i>' + x.name + '</li>' : '<li class="no r' + x.r + '"><i>？</i>' + rareName(x.r) + '</li>').join('') + '</ul>' +
-      (sl === 'wear' ? '<p class="fit">' + fitNote() + '</p>' : sl === 'face' ? '<p class="fit">' + NO_FACE.map(id => ROSTER.find(c => c.id === id).name).join('、') + ' はかけられません</p>' : '') + '</div>';
+      (sl === 'wear' ? '<p class="fit">' + fitNote() + '</p>' : sl === 'back' ? '<p class="fit">' + ROSTER.filter(c => !BACKAT[c.id]).map(c => c.name).join('、') + ' はまだ付けられません</p>' : sl === 'face' ? '<p class="fit">' + NO_FACE.map(id => ROSTER.find(c => c.id === id).name).join('、') + ' はかけられません</p>' : '') + '</div>';
   }).join('');
   const per = r => LOOKS.filter(x => x.r === r).length;
   $('#bag-odds').innerHTML = RARE.map((R, r) => R.name + ' ' + Math.round(R.p * 100) + '%（' + per(r) + '種、1つあたり ' + (R.p / per(r) * 100).toFixed(2) + '%）。持っているものが出たら ' + R.back + 'コインもどる').join('<br>') +
@@ -5989,7 +6123,7 @@ function collectHTML(c) {
   }
   if (G.type !== 'cpu') return '';
   const w = Bag.look(c), any = Bag.s.items.length;
-  return '<div class="seg"><span>着せ替え</span>' + SLOTS.filter(sl => (sl !== 'wear' || NECK[c.id]) && (sl !== 'face' || !NO_FACE.includes(c.id))).map(sl => '<select data-slot="' + sl + '" aria-label="' + SLOT_NAME[sl] + '"' + (any ? '' : ' disabled') + '><option value="">' + SLOT_NAME[sl] + '：なし</option>' +
+  return '<div class="seg"><span>着せ替え</span>' + SLOTS.filter(sl => (sl !== 'wear' || NECK[c.id]) && (sl !== 'back' || BACKAT[c.id]) && (sl !== 'face' || !NO_FACE.includes(c.id))).map(sl => '<select data-slot="' + sl + '" aria-label="' + SLOT_NAME[sl] + '"' + (any ? '' : ' disabled') + '><option value="">' + SLOT_NAME[sl] + '：なし</option>' +
     LOOKS.filter(x => x.slot === sl && Bag.has(x.id) && fits(x.id, c.id)).map(x => '<option value="' + x.id + '"' + (w[sl] === x.id ? ' selected' : '') + '>' + x.sym + ' ' + x.name + '</option>').join('') + '</select>').join('') +
     (any ? '' : '<small>「コレクション」のカプセルで集めると着せられます</small>') + coins + '</div>';
 }

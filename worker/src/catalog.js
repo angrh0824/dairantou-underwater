@@ -25,9 +25,11 @@ export const LOOKS = {
   'w-muffler': 1, 'w-bowtie': 0, 'w-bell': 0, 'w-bandana': 0, 'w-lei': 1, 'w-pendant': 1, 'w-fur': 2,
   /* かお: 目に合わせてかけるもの */
   'f-round': 0, 'f-mono': 0, 'f-sun': 1, 'f-heart': 1, 'f-groucho': 2,
+  /* せなか: 首の後ろ（ふくと同じ潜水者が付けられる） */
+  'b-bag': 0, 'b-devil': 1, 'b-butterfly': 1, 'b-angel': 2, 'b-jet': 2,
   'c-neon': 3, 'h-ribbon': 3, 'h-witch': 3, 'p-whale': 3, 'p-ufo': 3, 'h-medal': 3,
 };
-export const SLOT_OF = id => ({ c: 'col', h: 'head', p: 'pet', w: 'wear', f: 'face' })[String(id)[0]] || '';
+export const SLOT_OF = id => ({ c: 'col', h: 'head', p: 'pet', w: 'wear', f: 'face', b: 'back' })[String(id)[0]] || '';
 
 /* コイン（遊んでためる。お金では買えない） */
 export const COIN = {
